@@ -1,0 +1,5 @@
+**/__pychache__/*
+**/*.pyc
+**/.ipynb_checkpoints/*
+**/.mypy_cache/*
+
