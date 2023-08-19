@@ -5,6 +5,15 @@ from bokeh.models import ColumnDataSource, Slider
 from bokeh.plotting import figure
 
 
+def calc_channel_capacity(S: float, N: float, B: float) -> float:
+    C = B * np.log2(1 + S / N)
+    return C
+
+
+def calc_signal_power(signal: np.ndarray) -> float:
+    return np.square(signal).mean()
+
+
 class Signal(Protocol):
     x: np.ndarray
     y: np.ndarray
@@ -22,11 +31,13 @@ class Signal(Protocol):
 
     # def add_plot(self):
     #     ...
-    def add_plot(self, x, y, title, source):
+    def add_plot(self, x, x_axis_label, y, y_axis_label, title, source):
         plot = figure(
             height=400,
             width=600,
             title=title,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
             tools="crosshair,pan,reset,save,wheel_zoom",
             x_range=[min(x), max(x)],
             y_range=[-12, 12],
@@ -50,7 +61,9 @@ class CombinedSignal(Signal):
         self.x = x
         self.linked_signal = None
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
-        self.plot = self.add_plot(self.x, self.y, "Combined signal", self.source)
+        self.plot = self.add_plot(
+            self.x, "time [s]", self.y, "amplitude [V]", "Combined signal", self.source
+        )
 
     def generate(self, f: Callable, **kwargs):
         ...
@@ -74,9 +87,11 @@ class HarmSignal(Signal):
         freq: float = 1,
         phase: float = 0,
         f: Callable = np.sin,
-        no_samples: int = 200,
-        max_range: float = 4 * np.pi,
+        no_samples: int = 1000,
+        max_range: float = 2 * np.pi,
         title: str = "Input signal",
+        x_axis_label: str = "time [s]",
+        y_axis_label: str = "amplitude [V]",
     ):
         self.x = np.linspace(0, max_range, no_samples)
         self.y = self.generate(f, amplitude, freq, phase)
@@ -85,30 +100,40 @@ class HarmSignal(Signal):
 
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
         self.amplitude = Slider(
-            title="amplitude",
+            title="amplitude [V]",
             value=amplitude,
             start=0.0,
             end=self.MAX_AMPLITUDE,
             step=self.AMPLITUDE_STEP,
         )
         self.freq = Slider(
-            title="frequency",
+            title="frequency [Hz]",
             value=freq,
             start=0,
             end=self.MAX_FREQ,
             step=self.FREQ_STEP,
         )
-        self.phase = Slider(title="phase", value=phase, start=0.0, end=2 * np.pi)
+        self.phase = Slider(title="phase [rad]", value=phase, start=0.0, end=2 * np.pi)
+
+        self.band = Slider(
+            title="bandwidth [Hz]",
+            value=0.1 * self.freq.value,
+            start=0.1 * self.freq.value,
+            end=1 * self.freq.value,
+            step=0.1 * self.freq.value,
+        )
 
         self._add_callbacks()
-        self.plot = self.add_plot(self.x, self.y, title, source=self.source)
+        self.plot = self.add_plot(
+            self.x, x_axis_label, self.y, y_axis_label, title, source=self.source
+        )
 
     def _add_callbacks(self):
-        for w in [self.amplitude, self.freq, self.phase]:
+        for w in [self.amplitude, self.freq, self.phase, self.band]:
             w.on_change("value", self.update)
 
     def generate(self, f: Callable, amplitude: float, freq: float, phase: float):
-        return amplitude * f(freq * self.x + phase)
+        return amplitude * f(2 * np.pi * freq * self.x + phase)
 
     def update(self, attrname, old, new):
         # Get the current slider values
@@ -137,9 +162,11 @@ class NoiseSignal(Signal):
         self,
         amplitude: float = 0.1,
         f: Callable = np.random.default_rng().normal,
-        no_samples: int = 200,
-        max_range: float = 4 * np.pi,
+        no_samples: int = 1000,
+        max_range: float = 2 * np.pi,
         title: str = "Noise signal",
+        x_axis_label: str = "time [s]",
+        y_axis_label: str = "amplitude [V]",
     ):
         self.x = np.linspace(0, max_range, no_samples)
         self.y = self.generate(f, amplitude=amplitude)
@@ -148,7 +175,7 @@ class NoiseSignal(Signal):
 
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
         self.amplitude = Slider(
-            title="amplitude",
+            title="amplitude [V]",
             value=amplitude,
             start=0.0,
             end=self.MAX_AMPLITUDE,
@@ -156,7 +183,9 @@ class NoiseSignal(Signal):
         )
 
         self._add_callbacks()
-        self.plot = self.add_plot(self.x, self.y, title, source=self.source)
+        self.plot = self.add_plot(
+            self.x, x_axis_label, self.y, y_axis_label, title, source=self.source
+        )
 
     def _add_callbacks(self):
         for w in [self.amplitude]:
