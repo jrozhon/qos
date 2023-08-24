@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "qos-02"
+version = "0.1.0"
+description = ""
+authors = ["Jan Rozhon <jan.rozhon@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+jupyterlab = "^4.0.5"
+panel = "^1.2.1"
+bokeh = "^3.2.2"
+simpy = "^4.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
