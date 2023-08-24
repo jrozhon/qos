@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, Protocol, Self
 
 import numpy as np
@@ -5,6 +7,7 @@ from bokeh.models import ColumnDataSource, Slider
 from bokeh.plotting import figure
 
 
+# These are meant for the teacher to use in the lecture
 def calc_channel_capacity(S: float, N: float, B: float) -> float:
     C = B * np.log2(1 + S / N)
     return C
@@ -14,24 +17,31 @@ def calc_signal_power(signal: np.ndarray) -> float:
     return np.square(signal).mean()
 
 
+# Protocol for the Signal class
 class Signal(Protocol):
     x: np.ndarray
     y: np.ndarray
-    linked_signal: Self | None
+    linked_signal: Signal | None
     source: ColumnDataSource
 
-    def generate(self, f: Callable, **kwargs):
+    def generate(self, f: Callable, **kwargs) -> np.ndarray:
         ...
 
-    def update(self, attrname, old, new):
+    def update(self, attrname, old, new) -> None:
         ...
 
-    def _add_callbacks(self):
+    def _add_callbacks(self) -> None:
         ...
 
-    # def add_plot(self):
-    #     ...
-    def add_plot(self, x, x_axis_label, y, y_axis_label, title, source):
+    def add_plot(
+        self,
+        x: np.ndarray,
+        x_axis_label: str,
+        y: np.ndarray,
+        y_axis_label: str,
+        title: str,
+        source: ColumnDataSource,
+    ) -> figure:
         plot = figure(
             height=400,
             width=600,
@@ -46,7 +56,7 @@ class Signal(Protocol):
         plot.line("x", "y", source=source, line_width=3, line_alpha=0.6)
         return plot
 
-    def __add__(self, other):
+    def __add__(self, other: Self) -> Signal:
         assert (self.x == other.x).all()
         y = self.y + other.y
         combined_signal = CombinedSignal(y=y, x=self.x)
@@ -128,14 +138,20 @@ class HarmSignal(Signal):
             self.x, x_axis_label, self.y, y_axis_label, title, source=self.source
         )
 
-    def _add_callbacks(self):
+    def _add_callbacks(self) -> None:
         for w in [self.amplitude, self.freq, self.phase, self.band]:
             w.on_change("value", self.update)
 
-    def generate(self, f: Callable, amplitude: float, freq: float, phase: float):
+    def generate(
+        self,
+        f: Callable[[np.ndarray], np.ndarray],
+        amplitude: float,
+        freq: float,
+        phase: float,
+    ) -> np.ndarray:
         return amplitude * f(2 * np.pi * freq * self.x + phase)
 
-    def update(self, attrname, old, new):
+    def update(self, attrname, old, new) -> None:
         # Get the current slider values
         a = self.amplitude.value
         w = self.phase.value
@@ -187,14 +203,16 @@ class NoiseSignal(Signal):
             self.x, x_axis_label, self.y, y_axis_label, title, source=self.source
         )
 
-    def _add_callbacks(self):
+    def _add_callbacks(self) -> None:
         for w in [self.amplitude]:
             w.on_change("value", self.update)
 
-    def generate(self, f: Callable, amplitude: float):
+    def generate(self, f: Callable, amplitude: float) -> np.ndarray:
+        # Callable has no attributes here, as they are not defined in the
+        # protocol and differ from harm signal
         return f(0, amplitude, len(self.x))
 
-    def update(self, attrname, old, new):
+    def update(self, attrname, old, new) -> None:
         # Get the current slider values
         a = self.amplitude.value
         y = self.generate(self.f, a)
