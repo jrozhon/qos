@@ -1,4 +1,5 @@
-from itertools import count
+import sys
+from itertools import accumulate, count
 from typing import Any, Callable, Optional, Protocol, Union
 
 import networkx as nx
@@ -7,6 +8,13 @@ from bokeh.io import output_notebook, show
 from bokeh.models import (Circle, GraphRenderer, HoverTool, MultiLine, Rect,
                           StaticLayoutProvider)
 from bokeh.plotting import figure, from_networkx, show
+from loguru import logger
+from numpy.random import default_rng
+
+logger.remove()
+logger.add(
+    sys.stdout, colorize=True, format="<green>{time}</green> | {level} | {message}"
+)
 
 BYTES_TO_BITS = 8
 
@@ -14,7 +22,7 @@ BYTES_TO_BITS = 8
 class PacketSourceProto(Protocol):
     env: simpy.Environment
     source_id: str
-    destination: Union["SwitchPortProto", "PacketSinkProto", None]
+    destination: Union["DestinationProto", None]
     packet_interval: float
     packet_size: int
 
@@ -25,13 +33,20 @@ class PacketSourceProto(Protocol):
         ...
 
 
-class PacketSinkProto(Protocol):
-    env: simpy.Environment
-    sink_id: str
-    logged_packets: list[dict[str, float]]
+# class PacketSinkProto(Protocol):
+#     env: simpy.Environment
+#     sink_id: str
+#     logged_packets: list[dict[str, float]]
+#
+#     def display_statistics(self) -> None:
+#         ...
+#
+#     def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
+#         ...
 
-    def display_statistics(self) -> None:
-        ...
+
+class DestinationProto(Protocol):
+    env: simpy.Environment
 
     def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
         ...
@@ -54,23 +69,23 @@ class SwitchProto(Protocol):
     env: simpy.Environment
     id: str
     port_cnt: int
-    ports: list["SwitchPortProto"]
+    ports: list["SwitchPort"]
 
 
-class SwitchPortProto(Protocol):
-    env: simpy.Environment
-    port_no: int
-    capacity: int
-    transmission_rate: float
-    queue: simpy.Store
-    tap: Optional["NetworkTap"]
-    destination: Union["SwitchPortProto", "PacketSinkProto", None]
-
-    def transmit(self, packet: "PacketProto") -> simpy.Event:
-        ...
-
-    def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
-        ...
+# class SwitchPortProto(Protocol):
+#     env: simpy.Environment
+#     port_no: int
+#     capacity: int
+#     transmission_rate: float
+#     queue: simpy.Store
+#     tap: Optional["NetworkTap"]
+#     destination: Union["SwitchPortProto", "PacketSinkProto", None]
+#
+#     def transmit(self, packet: "PacketProto") -> simpy.Event:
+#         ...
+#
+#     def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
+#         ...
 
 
 class PacketProto(Protocol):
@@ -109,9 +124,10 @@ class PacketSource:
         self,
         env: simpy.Environment,
         source_id: str,
-        destination: Union[SwitchPortProto, PacketSinkProto, None] = None,
+        destination: Union[DestinationProto, None] = None,
         packet_interval: Union[Callable[[], float], float] = 1.0,
         packet_size: Union[Callable[[], int], int] = 10,
+        debug: bool = False,
     ):
         """
         Initialize a new packet source.
@@ -140,9 +156,10 @@ class PacketSource:
         self.destination = destination
         self.packet_interval = packet_interval
         self.packet_size = packet_size
+        self.debug = debug
 
         # start the packet generation process
-        self.process = self.env.process(self.start())
+        self.process = self.env.process(self.start())  # type: ignore
 
     def generate_packet(self) -> simpy.Event:
         """
@@ -161,13 +178,13 @@ class PacketSource:
         if isinstance(self.packet_size, (int, float)):
             _packet_size = int(self.packet_size)
         else:
-            _packet_size = self.packet_size()
-
-        print("Packet Size: ", _packet_size)
+            _packet_size = int(self.packet_size()) or 1  # handle zero
 
         if self.destination:
             packet = Packet(self.env, _packet_size, self.source_id)
             self.destination.process_packet(packet)
+            if self.debug:
+                logger.info(f"Source {self.source_id}. Generated: {packet}.")
         else:
             raise ValueError("No destination specified for packet source.")
 
@@ -272,12 +289,12 @@ class SwitchPort:
         self.transmission_rate = transmission_rate
         self.queue: simpy.Store = simpy.Store(env)
         self.tap = tap
-        self.destination: Union[SwitchPortProto, PacketSinkProto, None] = None
+        self.destination: Union[DestinationProto, None] = None
         self.byte_count = 0
         self.processing: bool = False
 
         # start the packet processing process
-        self.process = self.env.process(self.start())
+        self.process = self.env.process(self.start())  # type: ignore
 
     def transmit(self, packet: PacketProto) -> simpy.Event:
         """
@@ -305,10 +322,10 @@ class SwitchPort:
 
     def start(self) -> simpy.Process:
         while True:
-            packet = yield self.queue.get()
+            packet = yield self.queue.get()  # type: ignore
             self.processing = True
             self.byte_count -= packet.size
-            yield self.env.process(self.transmit(packet))
+            yield self.env.process(self.transmit(packet))  # type: ignore
             self.processing = False
 
     def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
@@ -365,7 +382,7 @@ class Switch:
         self.env = env
         self.id = switch_id
         self.port_cnt = count()
-        self.ports: list[SwitchPortProto] = [
+        self.ports: list[SwitchPort] = [
             SwitchPort(
                 env,
                 port_no=next(self.port_cnt),
@@ -487,7 +504,7 @@ class PacketSink:
         A list of dictionaries. Each dictionary contains details about a packet.
     """
 
-    def __init__(self, env: simpy.Environment, sink_id: str):
+    def __init__(self, env: simpy.Environment, sink_id: str, debug: bool = False):
         """
         Initialize a new packet sink.
 
@@ -501,6 +518,10 @@ class PacketSink:
         self.env = env
         self.sink_id = sink_id
         self.logged_packets: list[PacketProto] = []
+        self.delays: list[float] = []
+        self.interarrivals: list[float] = []
+        self.last_arrival_time: float = 0
+        self.debug = debug
 
     def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
         """
@@ -515,16 +536,14 @@ class PacketSink:
         packet.sink_id = self.sink_id
         packet.sink_time = arrival_time
         self.logged_packets.append(packet)
-        return None
-
-    def display_statistics(self):
-        """
-        Display the logged information about received packets.
-        """
-        for packet in self.logged_packets:
-            print(
-                f"Packet from {packet.source} arrived at {packet.sink_time:.2f} with length {packet.size}"
+        self.delays.append(arrival_time - packet.creation_time)
+        self.interarrivals.append(arrival_time - self.last_arrival_time)
+        self.last_arrival_time = arrival_time
+        if self.debug:
+            logger.info(
+                f"Sink {self.sink_id}. Arrival time {arrival_time:.2f}. Processed: {packet}"
             )
+        return None
 
     def __repr__(self) -> str:
         """
@@ -538,90 +557,41 @@ class PacketSink:
         return f"PacketSink(sink_id={self.sink_id}, logged_packets={len(self.logged_packets)})"
 
 
-def visualize_topology(
-    switches: list[Switch], sources: list[PacketSource], sinks: list[PacketSink]
-) -> None:
-    """
-    Visualizes the network topology using Bokeh and networkx. PacketSources are represented as circles,
-    Switches as rectangles (squares), and PacketSinks as circles as well.
+class PacketFork:
+    def __init__(self, env: simpy.Environment, probs: list[float]):
+        """
+        Forks packets to different destinations based on the specified
+        probabilities.
 
-    Parameters
-    ----------
-    switches : List[Switch]
-        List of switch instances.
-    sources : List[PacketSource]
-        List of packet source instances.
-    sinks : List[PacketSink]
-        List of packet sink instances.
+        Parameters
+        ----------
+        env : simpy.Environment
+            The simulation environment.
+        probs : list[float]
+            List of probabilities for each destination.
+        """
+        self.env = env
+        self.probs = probs
+        self.cum_probs = list(accumulate(probs))
+        if not int(self.cum_probs[-1]) == 1:
+            raise ValueError("Probabilities must sum to 1.")
+        self.destinations: list[Union[DestinationProto, None]] = [None for _ in probs]
+        self.rng = default_rng()
 
-    Returns
-    -------
-    None
-        The function displays the plot in the Jupyter notebook but doesn't return any values.
-    """
+    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+        """
+        Process a packet and send it to the appropriate destination.
 
-    # Create a new networkx graph
-    G = nx.Graph()
-
-    # Add nodes
-    for src in sources:
-        G.add_node(f"Src: {src.source_id}", node_type="source")
-    for sw in switches:
-        G.add_node(sw.id, node_type="switch")
-    for sk in sinks:
-        G.add_node(f"Sink: {sk.sink_id}", node_type="sink")
-
-    # Add edges from sources to their respective destinations
-    for src in sources:
-        G.add_edge(f"Src: {src.source_id}", src.destination.id)
-
-    # Get spring layout positions from networkx
-    layout = nx.spring_layout(G)
-
-    # Create Bokeh graph renderer
-    graph = GraphRenderer()
-
-    # Extract positions from networkx spring layout and convert them to tuples
-    graph_layout = {node: tuple(pos) for node, pos in layout.items()}
-
-    # Nodes and edges for Bokeh graph
-    node_indices = list(G.nodes())
-    start, end = zip(*G.edges())
-
-    # Create a node type list for styling the glyphs later
-    node_types = [G.nodes[node]["node_type"] for node in node_indices]
-
-    # Set up the graph renderer data
-    graph.node_renderer.data_source.data = dict(index=node_indices, type=node_types)
-    graph.edge_renderer.data_source.data = dict(start=start, end=end)
-
-    # Set the node glyphs
-    graph.node_renderer.glyph = Circle(size=15, fill_color="skyblue")
-    graph.node_renderer.selection_glyph = Circle(size=15, fill_color="firebrick")
-    graph.node_renderer.hover_glyph = Circle(size=15, fill_color="orange")
-
-    # Set the edge glyphs
-    graph.edge_renderer.glyph = MultiLine(
-        line_color="black", line_alpha=0.8, line_width=2
-    )
-
-    # Use the spring layout positions in the Bokeh graph
-    graph.layout_provider = StaticLayoutProvider(graph_layout=graph_layout)
-
-    # Create a plot for rendering
-    plot = figure(
-        title="Network Topology",
-        x_range=(-1.5, 1.5),
-        y_range=(-1.5, 1.5),
-        tools="",
-        toolbar_location=None,
-    )
-    plot.renderers.append(graph)
-
-    # Add hover tool for node info
-    node_hover_tool = HoverTool(tooltips=[("Node", "@index"), ("Type", "@type")])
-    plot.add_tools(node_hover_tool)
-
-    # Display in notebook
-    output_notebook()
-    show(plot)
+        Parameters
+        ----------
+        packet : Packet
+            The incoming packet.
+        """
+        for i, p in enumerate(self.cum_probs):
+            r = self.rng.random()
+            if r < p:
+                if self.destinations[i] is not None:
+                    return self.destinations[i].process_packet(packet)  # type: ignore
+            else:
+                raise ValueError("No destination specified for packet fork.")
+        return None
