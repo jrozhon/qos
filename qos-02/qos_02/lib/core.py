@@ -1,5 +1,5 @@
 from itertools import count
-from typing import Optional, Protocol, Union
+from typing import Any, Callable, Optional, Protocol, Union
 
 import networkx as nx
 import simpy
@@ -8,11 +8,13 @@ from bokeh.models import (Circle, GraphRenderer, HoverTool, MultiLine, Rect,
                           StaticLayoutProvider)
 from bokeh.plotting import figure, from_networkx, show
 
+BYTES_TO_BITS = 8
+
 
 class PacketSourceProto(Protocol):
     env: simpy.Environment
     source_id: str
-    destination: Union["SwitchProto", "PacketSinkProto"]
+    destination: Union["SwitchPortProto", "PacketSinkProto", None]
     packet_interval: float
     packet_size: int
 
@@ -31,7 +33,7 @@ class PacketSinkProto(Protocol):
     def display_statistics(self) -> None:
         ...
 
-    def receive_packet(self, packet: "PacketProto") -> None:
+    def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
         ...
 
 
@@ -54,9 +56,6 @@ class SwitchProto(Protocol):
     port_cnt: int
     ports: list["SwitchPortProto"]
 
-    def route_packet(self, packet: "PacketProto") -> None:
-        ...
-
 
 class SwitchPortProto(Protocol):
     env: simpy.Environment
@@ -65,9 +64,12 @@ class SwitchPortProto(Protocol):
     transmission_rate: float
     queue: simpy.Store
     tap: Optional["NetworkTap"]
-    destination: Optional["Switch"]
+    destination: Union["SwitchPortProto", "PacketSinkProto", None]
 
     def transmit(self, packet: "PacketProto") -> simpy.Event:
+        ...
+
+    def process_packet(self, packet: "PacketProto") -> Optional[simpy.Event]:
         ...
 
 
@@ -75,8 +77,8 @@ class PacketProto(Protocol):
     id: int
     size: int
     creation_time: float
-    source: PacketSourceProto
-    destination: Union[SwitchProto, PacketSinkProto]
+    source: str
+    # destination: Union[SwitchPortProto, PacketSinkProto]
     sink_id: Optional[str]
     sink_time: Optional[float]
 
@@ -94,8 +96,11 @@ class PacketSource:
         Identifier for this packet source.
     destination : Switch
         The switch to which generated packets will be sent.
-    packet_interval : float
-        The average interval between packet generations.
+    packet_interval : Union[Callable[[], float], float], optional
+        The interval between packet generations, by default 1.0.
+        Can be a callable function that returns a float value.
+        Use functools.partial to pass arguments to the function.
+        Or can be a float/int value.
     packet_size : int
         The size of the generated packets.
     """
@@ -104,9 +109,9 @@ class PacketSource:
         self,
         env: simpy.Environment,
         source_id: str,
-        destination: Union[SwitchProto, PacketSinkProto],
-        packet_interval: float = 1.0,
-        packet_size: int = 10,
+        destination: Union[SwitchPortProto, PacketSinkProto, None] = None,
+        packet_interval: Union[Callable[[], float], float] = 1.0,
+        packet_size: Union[Callable[[], int], int] = 10,
     ):
         """
         Initialize a new packet source.
@@ -119,16 +124,25 @@ class PacketSource:
             Identifier for this packet source.
         destination : Union[Switch, PacketSink]
             The switch or sink to which generated packets will be sent.
-        packet_interval : float, optional
-            The average interval between packet generations, by default 1.0.
-        packet_size : int, optional
+        packet_interval : Union[Callable[[], float], float], optional
+            The interval between packet generations, by default 1.0.
+            Can be a callable function that returns a float value.
+            Use functools.partial to pass arguments to the function.
+            Or can be a float/int value.
+        packet_size : Union[Callable[[], int], int], optional
             The size of the generated packets, by default 10.
+            Can be a callable function that returns an int value.
+            Use functools.partial to pass arguments to the function.
+            Or can be an int value.
         """
         self.env = env
         self.source_id = source_id
         self.destination = destination
         self.packet_interval = packet_interval
         self.packet_size = packet_size
+
+        # start the packet generation process
+        self.process = self.env.process(self.start())
 
     def generate_packet(self) -> simpy.Event:
         """
@@ -139,10 +153,23 @@ class PacketSource:
         simpy.Event
             Event signaling the generation and sending of a packet.
         """
-        yield self.env.timeout(self.packet_interval)
+        if isinstance(self.packet_interval, (int, float)):
+            yield self.env.timeout(self.packet_interval)  # type: ignore
+        else:
+            yield self.env.timeout(self.packet_interval())  # type: ignore
 
-        packet = Packet(self.env, self.packet_size, self.source_id, self.destination)
-        self.destination.route_packet(packet)
+        if isinstance(self.packet_size, (int, float)):
+            _packet_size = int(self.packet_size)
+        else:
+            _packet_size = self.packet_size()
+
+        print("Packet Size: ", _packet_size)
+
+        if self.destination:
+            packet = Packet(self.env, _packet_size, self.source_id)
+            self.destination.process_packet(packet)
+        else:
+            raise ValueError("No destination specified for packet source.")
 
     def start(self) -> simpy.Process:
         """
@@ -154,7 +181,7 @@ class PacketSource:
             The packet generation process.
         """
         while True:
-            yield self.env.process(self.generate_packet())
+            yield self.env.process(self.generate_packet())  # type: ignore
 
 
 class Packet:
@@ -171,23 +198,15 @@ class Packet:
         Time at which the packet was created.
     source : str
         Source identifier.
-    destination : Union[Switch, PacketSink]
-        Destination object to which the packet is being sent.
     sink_id : Optional[str]
         Identifier of the sink where the packet was received.
     sink_time : Optional[float]
         Time at which the packet was received at the sink.
     """
 
-    cnt: count[int] = count()
+    cnt: "count[int]" = count()
 
-    def __init__(
-        self,
-        env: simpy.Environment,
-        size: int,
-        source: PacketSourceProto,
-        destination: Union[SwitchProto, PacketSinkProto],
-    ) -> None:
+    def __init__(self, env: simpy.Environment, size: int, source: str) -> None:
         """
         Packet class to represent a data packet.
 
@@ -206,7 +225,6 @@ class Packet:
         self.size = size
         self.creation_time: float = env.now
         self.source = source
-        self.destination = destination
         self.sink_id: Optional[str] = None
         self.sink_time: Optional[float] = None
 
@@ -219,7 +237,7 @@ class Packet:
         str
             String representation of the packet.
         """
-        return f"Packet(id={self.id}, size={self.size}, source={self.source}, destination={self.destination})"
+        return f"Packet(id={self.id}, size={self.size}, source={self.source})"
 
 
 class SwitchPort:
@@ -241,7 +259,8 @@ class SwitchPort:
         port_no : int
             Port number.
         capacity : int
-            Maximum number of packets that can be queued.
+            Maximum number of bytes that can be queued. This is how many packets
+            can be in the queue/system at any given time.
         transmission_rate : float
             Rate at which packets are transmitted.
         tap : NetworkTap, optional
@@ -253,7 +272,12 @@ class SwitchPort:
         self.transmission_rate = transmission_rate
         self.queue: simpy.Store = simpy.Store(env)
         self.tap = tap
-        self.destination: Optional[Switch] = None
+        self.destination: Union[SwitchPortProto, PacketSinkProto, None] = None
+        self.byte_count = 0
+        self.processing: bool = False
+
+        # start the packet processing process
+        self.process = self.env.process(self.start())
 
     def transmit(self, packet: PacketProto) -> simpy.Event:
         """
@@ -271,7 +295,34 @@ class SwitchPort:
         """
         if self.tap:
             self.tap.tap_packet(packet)
-        yield self.env.timeout(packet.size / self.transmission_rate)
+        # wait for transmission to complete
+        yield self.env.timeout(BYTES_TO_BITS * packet.size / self.transmission_rate)
+        # hand over packet to destination
+        if self.destination:
+            self.destination.process_packet(packet)
+        else:
+            raise ValueError("No destination specified for switch port.")
+
+    def start(self) -> simpy.Process:
+        while True:
+            packet = yield self.queue.get()
+            self.processing = True
+            self.byte_count -= packet.size
+            yield self.env.process(self.transmit(packet))
+            self.processing = False
+
+    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+        _byte_count = self.byte_count + packet.size
+
+        if self.capacity is None:
+            return self.queue.put(packet)
+
+        if self.capacity and _byte_count > self.capacity:
+            # dropped packet here
+            return None
+        else:
+            self.byte_count = _byte_count
+            return self.queue.put(packet)
 
     def __repr__(self) -> str:
         """
@@ -282,7 +333,7 @@ class SwitchPort:
         str
             String representation of the switch port.
         """
-        return f"SwitchPort(capacity={self.capacity}, transmission_rate={self.transmission_rate})"
+        return f"SwitchPort(capacity={self.capacity}, transmission_rate={self.transmission_rate}, destination={self.destination})"
 
 
 class Switch:
@@ -296,6 +347,7 @@ class Switch:
     ) -> None:
         """
         Network switch containing multiple ports.
+        Only meant as a collection of ports.
 
         Parameters
         ----------
@@ -322,25 +374,6 @@ class Switch:
             )
             for _ in range(num_ports)
         ]
-
-    def route_packet(self, packet: PacketProto) -> None:
-        """
-        Route the packet to an available port.
-
-        Parameters
-        ----------
-        packet : Packet
-            The packet to route.
-        """
-        for port in self.ports:
-            if port.destination:
-                if isinstance(port.destination, PacketSink):
-                    port.destination.receive_packet(packet)
-                    return
-                elif packet.destination == port.destination:
-                    port.queue.put(packet)
-                    self.env.process(port.transmit(packet))
-                    break
 
     def __repr__(self) -> str:
         """
@@ -450,7 +483,7 @@ class PacketSink:
         The simulation environment.
     sink_id : str
         Identifier for this packet sink.
-    logged_packets : List[Dict[str, float]]
+    logged_packets : list[Dict[str, float]]
         A list of dictionaries. Each dictionary contains details about a packet.
     """
 
@@ -469,7 +502,7 @@ class PacketSink:
         self.sink_id = sink_id
         self.logged_packets: list[PacketProto] = []
 
-    def receive_packet(self, packet: PacketProto):
+    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
         """
         Receive a packet and log its details.
 
@@ -482,14 +515,15 @@ class PacketSink:
         packet.sink_id = self.sink_id
         packet.sink_time = arrival_time
         self.logged_packets.append(packet)
+        return None
 
     def display_statistics(self):
         """
         Display the logged information about received packets.
         """
-        for packet_info in self.logged_packets:
+        for packet in self.logged_packets:
             print(
-                f"Packet from {packet_info['source_id']} arrived at {packet_info['arrival_time']:.2f} with length {packet_info['length']}"
+                f"Packet from {packet.source} arrived at {packet.sink_time:.2f} with length {packet.size}"
             )
 
     def __repr__(self) -> str:
@@ -505,7 +539,7 @@ class PacketSink:
 
 
 def visualize_topology(
-    switches: List[Switch], sources: List[PacketSource], sinks: List[PacketSink]
+    switches: list[Switch], sources: list[PacketSource], sinks: list[PacketSink]
 ) -> None:
     """
     Visualizes the network topology using Bokeh and networkx. PacketSources are represented as circles,
