@@ -305,11 +305,17 @@ class SwitchPort:
         packet : Packet
             The packet to transmit.
 
+        Raises
+        ------
+        ValueError
+            If no destination is specified for switch port.
+
         Returns
         -------
         simpy.Event
             Event to signal the completion of transmission.
         """
+
         if self.tap:
             self.tap.tap_packet(packet)
         # wait for transmission to complete
@@ -321,6 +327,15 @@ class SwitchPort:
             raise ValueError("No destination specified for switch port.")
 
     def start(self) -> simpy.Process:
+        """
+        Start the packet processing process. This method runs indefinitely, 
+        processing packets as they arrive in the queue.
+
+        Returns
+        -------
+        simpy.Process
+            The packet processing process.
+        """
         while True:
             packet = yield self.queue.get()  # type: ignore
             self.processing = True
@@ -329,6 +344,20 @@ class SwitchPort:
             self.processing = False
 
     def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+        """
+        Process a packet by adding it to the queue if there is enough capacity.
+        If the packet size exceeds the remaining capacity, the packet is dropped.
+
+        Parameters
+        ----------
+        packet : PacketProto
+            The packet to be processed.
+
+        Returns
+        -------
+        Optional[simpy.Event]
+            Event signaling the addition of the packet to the queue, or None if the packet is dropped.
+        """
         _byte_count = self.byte_count + packet.size
 
         if self.capacity is None:
@@ -558,6 +587,23 @@ class PacketSink:
 
 
 class PacketFork:
+    """
+    Class to fork packets to different destinations based on the specified probabilities.
+
+    Attributes
+    ----------
+    env : simpy.Environment
+        The simulation environment.
+    probs : list[float]
+        List of probabilities for each destination.
+    cum_probs : list[float]
+        Cumulative probabilities for each destination.
+    destinations : list[Union[DestinationProto, None]]
+        List of destinations for the packets.
+    rng : numpy.random.Generator
+        Random number generator.
+    """
+    
     def __init__(self, env: simpy.Environment, probs: list[float]):
         """
         Forks packets to different destinations based on the specified
