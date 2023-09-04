@@ -9,10 +9,11 @@ readme = "README.md"
 python = "^3.11"
 jupyterlab = "^4.0.5"
 panel = "^1.2.1"
-bokeh = "^3.2.2"
 simpy = "^4.0.2"
 networkx = "^3.1"
 loguru = "^0.7.0"
+matplotlib = "^3.7.2"
+seaborn = "^0.12.2"
 
 
 [build-system]

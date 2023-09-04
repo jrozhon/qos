@@ -2,18 +2,15 @@ import sys
 from itertools import accumulate, count
 from typing import Any, Callable, Optional, Protocol, Union
 
-import networkx as nx
 import simpy
-from bokeh.io import output_notebook, show
-from bokeh.models import (Circle, GraphRenderer, HoverTool, MultiLine, Rect,
-                          StaticLayoutProvider)
-from bokeh.plotting import figure, from_networkx, show
 from loguru import logger
 from numpy.random import default_rng
 
 logger.remove()
 logger.add(
-    sys.stdout, colorize=True, format="<green>{time}</green> | {level} | {message}"
+    sys.stdout,
+    colorize=True,
+    format="<green>{time}</green> | <level>{level}</level> | {message}",
 )
 
 BYTES_TO_BITS = 8
@@ -254,7 +251,7 @@ class Packet:
         str
             String representation of the packet.
         """
-        return f"Packet(id={self.id}, size={self.size}, source={self.source})"
+        return f"Packet(id={self.id:6}, size={self.size:6.2f}, source={self.source})"
 
 
 class SwitchPort:
@@ -264,7 +261,6 @@ class SwitchPort:
         port_no: int,
         capacity: int = 10,
         transmission_rate: float = 1,
-        tap: Optional["NetworkTap"] = None,
     ) -> None:
         """
         Switch port to queue and transmit packets.
@@ -280,17 +276,18 @@ class SwitchPort:
             can be in the queue/system at any given time.
         transmission_rate : float
             Rate at which packets are transmitted.
-        tap : NetworkTap, optional
-            Optional tap for monitoring traffic, by default None.
         """
         self.env = env
         self.port_no = port_no
         self.capacity = capacity
         self.transmission_rate = transmission_rate
         self.queue: simpy.Store = simpy.Store(env)
-        self.tap = tap
-        self.destination: Union[DestinationProto, None] = None
-        self.byte_count = 0
+        self.destination: Optional[DestinationProto] = None
+        self.cum_drop_count: int = 0  # total number of dropped packets
+        self.byte_count: int = 0  # current number of bytes in queue
+        self.cum_byte_count: int = 0  # total number of bytes processed
+        self.packet_count: int = 0  # current number of packets in queue
+        self.cum_packet_count: int = 0  # total number of packets processed
         self.processing: bool = False
 
         # start the packet processing process
@@ -316,8 +313,6 @@ class SwitchPort:
             Event to signal the completion of transmission.
         """
 
-        if self.tap:
-            self.tap.tap_packet(packet)
         # wait for transmission to complete
         yield self.env.timeout(BYTES_TO_BITS * packet.size / self.transmission_rate)
         # hand over packet to destination
@@ -328,7 +323,7 @@ class SwitchPort:
 
     def start(self) -> simpy.Process:
         """
-        Start the packet processing process. This method runs indefinitely, 
+        Start the packet processing process. This method runs indefinitely,
         processing packets as they arrive in the queue.
 
         Returns
@@ -340,6 +335,7 @@ class SwitchPort:
             packet = yield self.queue.get()  # type: ignore
             self.processing = True
             self.byte_count -= packet.size
+            self.packet_count -= 1
             yield self.env.process(self.transmit(packet))  # type: ignore
             self.processing = False
 
@@ -359,15 +355,22 @@ class SwitchPort:
             Event signaling the addition of the packet to the queue, or None if the packet is dropped.
         """
         _byte_count = self.byte_count + packet.size
+        _packet_count = self.packet_count + 1
+        self.cum_packet_count += 1
+        self.cum_byte_count += packet.size
 
         if self.capacity is None:
+            self.byte_count = _byte_count
+            self.packet_count = _packet_count
             return self.queue.put(packet)
 
         if self.capacity and _byte_count > self.capacity:
             # dropped packet here
+            self.cum_drop_count += 1
             return None
         else:
             self.byte_count = _byte_count
+            self.packet_count = _packet_count
             return self.queue.put(packet)
 
     def __repr__(self) -> str:
@@ -434,78 +437,37 @@ class Switch:
 
 
 class NetworkTap:
-    def __init__(self, env: simpy.Environment) -> None:
+    def __init__(self, env: simpy.Environment, port: SwitchPort) -> None:
         """
-        Tap to monitor network traffic.
+        Initialize a new network tap.
 
         Parameters
         ----------
         env : simpy.Environment
             The simulation environment.
+        port : SwitchPort
+            The switch port to be tapped.
         """
         self.env = env
-        self.packet_count: int = 0
-        self.packet_sizes: list[int] = []
-        self.packet_times: list[float] = []
+        self.port = port
+        self.packet_count: list[int] = []
+        self.byte_count: list[int] = []
+        self.process = self.env.process(self.start())  # type: ignore
 
-    @property
-    def total_size(self) -> int:
+    def start(self) -> simpy.Process:
         """
-        Total size of packets observed by the tap.
+        Start the network tap process. This method runs indefinitely,
+        appending the packet count and byte count from the port to the respective lists every second.
 
         Returns
         -------
-        int
-            Total size of packets observed by the tap.
+        simpy.Process
+            The network tap process.
         """
-        return sum(self.packet_sizes)
-
-    def tap_packet(self, packet: PacketProto) -> None:
-        """
-        Record details of a packet as it's observed by the tap.
-
-        Parameters
-        ----------
-        packet : Packet
-            The observed packet.
-        """
-        self.packet_count += 1
-        self.packet_sizes.append(packet.size)
-        self.packet_times.append(self.env.now)  # Store the time of packet observation
-
-    def display_statistics(self) -> None:
-        """
-        Display statistics related to packets observed by the tap.
-        """
-        print("----- Network Tap Statistics -----")
-
-        # Total number of packets
-        print(f"Total Packets Observed: {self.packet_count}")
-
-        # Total size of packets
-        print(f"Total Size of Packets: {self.total_size} units")
-
-        # Average size of packets
-        if self.packet_count:
-            avg_size = self.total_size / self.packet_count
-            print(f"Average Packet Size: {avg_size:.2f} units")
-        else:
-            print("Average Packet Size: 0 units")
-
-        # Average time between packets (Inter-arrival time)
-        if self.packet_count > 1:
-            inter_arrival_times = [
-                self.packet_times[i + 1] - self.packet_times[i]
-                for i in range(len(self.packet_times) - 1)
-            ]
-            avg_inter_arrival_time = sum(inter_arrival_times) / (self.packet_count - 1)
-            print(
-                f"Average Inter-Arrival Time: {avg_inter_arrival_time:.2f} time units"
-            )
-        else:
-            print("Average Inter-Arrival Time: N/A")
-
-        print("------------------------------")
+        while True:
+            yield self.env.timeout(1)  # type: ignore
+            self.packet_count.append(self.port.packet_count)
+            self.byte_count.append(self.port.byte_count)
 
     def __repr__(self) -> str:
         """
@@ -516,7 +478,7 @@ class NetworkTap:
         str
             String representation of the network tap.
         """
-        return f"NetworkTap(packet_count={self.packet_count}, total_size={self.total_size})"
+        return f"NetworkTap(Last 10 packet counts={self.packet_count[-10:]}, last 10 byte counts={self.byte_count[-10:]})"
 
 
 class PacketSink:
@@ -548,6 +510,7 @@ class PacketSink:
         self.sink_id = sink_id
         self.logged_packets: list[PacketProto] = []
         self.delays: list[float] = []
+        self.arrivals: list[float] = []
         self.interarrivals: list[float] = []
         self.last_arrival_time: float = 0
         self.debug = debug
@@ -566,11 +529,12 @@ class PacketSink:
         packet.sink_time = arrival_time
         self.logged_packets.append(packet)
         self.delays.append(arrival_time - packet.creation_time)
+        self.arrivals.append(arrival_time)
         self.interarrivals.append(arrival_time - self.last_arrival_time)
         self.last_arrival_time = arrival_time
         if self.debug:
             logger.info(
-                f"Sink {self.sink_id}. Arrival time {arrival_time:.2f}. Processed: {packet}"
+                f"{self}. Arrival time {arrival_time:6.2f}. Processed: {packet}"
             )
         return None
 
@@ -583,7 +547,7 @@ class PacketSink:
         str
             String representation of the packet sink.
         """
-        return f"PacketSink(sink_id={self.sink_id}, logged_packets={len(self.logged_packets)})"
+        return f"PacketSink(sink_id={self.sink_id}, logged_packets={len(self.logged_packets):6})"
 
 
 class PacketFork:
@@ -603,7 +567,7 @@ class PacketFork:
     rng : numpy.random.Generator
         Random number generator.
     """
-    
+
     def __init__(self, env: simpy.Environment, probs: list[float]):
         """
         Forks packets to different destinations based on the specified
