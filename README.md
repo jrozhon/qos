@@ -53,3 +53,17 @@ $ pip install .
 ```
 
 Now, you are ready to go.
+
+## Running Jupyter on remote computer
+
+As you are probably going to run the code on virtual machines provided in the lab, you are going to need to instruct Jupyter to use other the localhost address. You can achieve it by using "--ip" switch as follows:
+
+```bash
+$ jupyter lab --ip 0.0.0.0
+```
+
+For more details check the Jupyter's help:
+
+```bash
+$ jupyter lab --help
+```
