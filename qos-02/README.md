@@ -8,12 +8,13 @@ For example, throwing a dice, waiting in line...
 ## History:
 Abraham de Moivre was often challenged in the 18th century whether he would be able to shorten the long calculations of given mathematical problems of his time. An example of a probability calculation is given here - if we flip a coin 100 times, what is the probability that it will come up heads 40 times or more. The given problem could be calculated using the following formula:
 
-$$P(x) = \frac{N!}{x!(N-x)}\pi^{x}(1 - \pi)^{N-x}$$, 
+$P(x) = \frac{N!}{x!(N-x)}\pi^{x}(1 - \pi)^{(N-x)}$, 
 
-where x is the number of heads thrown (40), N is the number of throws (100), and $$\pi$$$ is the probability that a head is thrown (0.5). That way, we would always have to calculate the probability that a head is rolled 40 times, then 41 times, etc., and add all those probabilities together. Previously, the possibility of computers and calculators did not exist, and that is why they turned to Moivre. He noted that if they increased the number of throws, the shape of the binomial distribution would approach a smooth curve. 
+where x is the number of heads thrown (40), N is the number of throws (100), and $\pi$ is the probability that a head is thrown (0.5). That way, we would always have to calculate the probability that a head is rolled 40 times, then 41 times, etc., and add all those probabilities together. Previously, the possibility of computers and calculators did not exist, and that is why they turned to Moivre. He noted that if they increased the number of throws, the shape of the binomial distribution would approach a smooth curve. 
+
  ![Normal distribution](https://imgur.com/xHIXPNV.png) 
+
  Approximation of the binomial distribution by the normal distribution
- [Cite]: [https://dspace5.zcu.cz/bitstream/11025/8166/1/BP%20Pavel%20Stanek.pdf]
  
  The distributions can be discrete and continuous according to NV - i.e. continuous NV = continuous distribution and vice versa. Continuous distributions are defined by formulas, probability density, or distribution function.
 
@@ -30,7 +31,7 @@ For example, these are all events that have the same possibility of frequency of
 
 ```  The exponential distribution expresses the distribution of the length of the interval between randomly occurring events whose probability of occurrence has a Poisson distribution.``` 
 
-It depends on the parameter $$\lambda$$, which is the inverse of the mean value of the waiting time until the occurrence of the monitored event.
+It depends on the parameter $\lambda$, which is the inverse of the mean value of the waiting time until the occurrence of the monitored event.
 
  ![Exponential distribution](https://imgur.com/JqiSAHO.png) 
 
@@ -38,6 +39,7 @@ It depends on the parameter $$\lambda$$, which is the inverse of the mean value 
 ```The most used input flow model. We use the Poisson flow model always when customers (incoming calls, data packets, ...) come from a large set of mutually independent users.```
 
 **Example:**
+
 On an hourly on average, 15 customers come to the payphone. Each call takes an average of 3 minutes. Is it necessary to buy another payphone if we don't want customers to wait longer than 3 minutes? The arrival of customers follows a Poisson process, the time to make a call is random and follows an exponential distribution.
 
 
@@ -54,8 +56,10 @@ To be very specific, we find normal distributions for e.g. weight, IQ, height, e
 ```A SHO can be defined as a system consisting of one or more parallel lines (channels) for servicing incoming requests (customers).```
 
 The basic elements of mass handling systems (SHO) are defined as:
-    **1. Requirements** (customers)
-    **2. Service lines** (service channels)
+
+**1. Requirements** (customers)
+
+**2. Service lines** (service channels)
     
 The SHO works in such a way that requests (customers) requiring service come to a device (one or more parallel lines of the service).
   Each SHO has a finite number of service lines - this number determines the maximum number of parallel (simultaneous) requests to be served - the so-called service capacity.
