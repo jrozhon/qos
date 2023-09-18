@@ -1,4 +1,53 @@
-Students should work in pairs or triplets.
+# Features of Network Traffic and their Effect on QoE
+
+:warning: This is a multi-week activity, please save your progress as you go to prevent data loss.
+
+:information_source: Students should work in pairs or triplets.
+
+## Step 01 - Make a call
+
+Introduction:
+
+- General idea of multimedia services and its form of an audio call.
+- Network features affecting the QoE.
+
+Steps:
+
+- Network traffic capture using Wireshark. Students discuss what they already know about the tool and then start the capture on local interface.
+- Linphone Application can perform a direct IP call (no account needed). Students make a phone call between two stations.
+- Students observe the features and form of information exchanged in VoIP call.
+  - Students identify and discuss signaling protocol SIP.
+  - Students identify and discuss media transport protocol RTP.
+  - Students discuss the form of audio data inside RTP.
+- Students relate the captured trace with TCP/IP and ISO/OSI network stack.
+
+## Step 02 - Make your own traffic generator
+
+Introduction:
+
+- Discussion about the process of transforming audio to packets.
+- Goal is to make students understand and recognize the relation between network stack layers and allow them to create custom packets. This is a complex process, hence we try to make it easy with simple UDP packets.
+- The reasons for use of Python ecosystem and Scapy library in this case - high-level abstraction, "ease-of-use".
+
+Prepararion:
+
+- To allow Scapy to send and receive packets, you either need to run is as root or set the necessary capabilities.
+
+```bash
+sudo setcap cap_net_raw=eip /usr/bin/pythonX.X
+sudo setcap cap_net_raw=eip /usr/bin/tcpdump
+```
+
+To implement a simple packet generator, students utilize Scapy library in Python ecosystem.
+
+Steps:
+
+- brief intro to scapy (methods, functions, packet crafting)
+- simple packet generation - IP, UDP, Raw, send in for loop, send using iter parameter
+- add random losses, random packet times - impossible to perform with Scapy on a level of milliseconds.
+- again observe the resulting traffic and identify where the information is stored and in what form.
+
+## Step 03 - Utilize the tc utility
 
 1. Make a call and trace it using wireshark.
 2. Observe and describe the features of VoIP call focusing on RTP session. Relate it to TCP/IP and ISO/OSI network stack.
