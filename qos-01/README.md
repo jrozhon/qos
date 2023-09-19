@@ -6,12 +6,12 @@ It is a physical representation of the message, or a mathematical model describi
 **Continuous (ANALOG)**
 
  ```A continuous or piecewise continuous function of a continuous independent variable.```
- ![Continuous signal](https://imgur.com/ZjTvG7k.png)
+ ![Continuous signal](https://imgur.com/IX3VfGg.png)
 
 **Discrete signal** 
 
 ```Signal discretized in the independent variable (i.e. Df = discrete set of points).```
-![Discrete signal](https://imgur.com/3x6mUSb.png)
+![Discrete signal](https://imgur.com/fWq6mwa.png)
       
 **Digital signal** 
 
@@ -21,7 +21,8 @@ It is a physical representation of the message, or a mathematical model describi
 **Stepped signal** 
 
 ```Discretized in Hf, but in parts continuous in time.```
-![Stepped signal](https://imgur.com/2V4WWC7.png)
+
+![Stepped signal](https://imgur.com/ByPML2f.png)
 
      
 **Deterministic signal** 
@@ -65,7 +66,7 @@ Gaussian noise represents random changes in intensity corresponding to a Gaussia
 
 ![Gauss](https://imgur.com/tN6l2ad.png)
 
-$$P(x) = \frac{1}{{\sigma \sqrt {2\pi } }}e^{{{-  {(z - \mu )}^2 } \mathord{/ { {{ - ( {x - \mu }^2 } {2\sigma ^2 }}}} {(2\sigma^2)}}}$$
+$$P(x) = \frac{1}{{\sigma \sqrt {2\pi } }}e^{{{-  {(z - \mu )}^2 } \mathord{/ { {{ - ( {x - \mu }^2 } {2\sigma ^2 }}}} {)}}}$$
 
 The standard deviation ($\sigma$), denoted by the Greek letter σ, is a measure of statistical variability often used in probability theory and statistics. 
 It is the square root of the variance of a random variable. The sampling standard deviation is a characteristic of the variability (variability) of a statistical population.
@@ -86,15 +87,26 @@ It is the square root of the variance of a random variable. The sampling standar
 
 **S/N:** signal to noise ratio
 
-### Frequency:
+### Technologies:
+
+The technologies are listed here, with frequency, bandwidth and SNR information:
+
 **Telephone channel:**  ```3100 Hz```  (300 - 3400 Hz band)
 
-**WiFi 802.11n:** ```20 MhZ``` (2.4 GHz)/```40 MhZ``` (5 GHz), (band)
+SNR = 1584.89 mW
 
-**5G:** ```100 MhZ```  (2300 MhZ)
+**WiFi 802.11n:** ```20 MHz``` (2.4 GHz)/```40 MHz``` (5 GHz), (band)
 
-**5G mmWave:** ```500/1000/2000 MhZ``` (28/38/72 GhZ)
+SNR = 316.227 mW / 630.957 mW
 
-**MIMO:** ```800 MhZ``` (band), 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas) - 28/73 GhZ
+**5G:** ```100 MHz```  (2300 MHz)
+
+SNR = 31.62 mW / 100.00 mW
+
+**5G mmWave:** ```500/1000/2000 MHz``` (28/38/72 GHz)
+
+SNR = 6.3 mW
+
+**MIMO:** ```800 MHz``` (band), 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas) - 28/73 GHz
 The numbers refer to the number of streams the router is working with. The router in the 2x2 variant has two antennas that are used for 2 simultaneous streams. 
 
