@@ -95,6 +95,11 @@ The technologies are listed here, with frequency, bandwidth and SNR information:
 
 SNR = 1584.89 (-)
 
+**ADSL, VDSL:**  ```30/35 MHz```
+
+ADSL: SNR =  (-)
+VDSL: SNR = 794,32 (-)
+
 **WiFi 802.11n:** ```20 MHz``` (2.4 GHz)/```40 MHz``` (5 GHz), (band)
 
 SNR = 316.227 (-) / 630.957 (-)
