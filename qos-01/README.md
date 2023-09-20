@@ -81,11 +81,11 @@ It is the square root of the variance of a random variable. The sampling standar
 
 **B:** channel bandwidth (Hz)
 
-**S:** signal power
+**S:** signal power (W)
 
 **N:** noise power (W)
 
-**S/N:** signal to noise ratio
+**S/N:** signal to noise ratio (-)
 
 ### Technologies:
 
@@ -93,19 +93,19 @@ The technologies are listed here, with frequency, bandwidth and SNR information:
 
 **Telephone channel:**  ```3100 Hz```  (300 - 3400 Hz band)
 
-SNR = 1584.89 mW
+SNR = 1584.89 (-)
 
 **WiFi 802.11n:** ```20 MHz``` (2.4 GHz)/```40 MHz``` (5 GHz), (band)
 
-SNR = 316.227 mW / 630.957 mW
+SNR = 316.227 (-) / 630.957 (-)
 
 **5G:** ```100 MHz```  (2300 MHz)
 
-SNR = 31.62 mW / 100.00 mW
+SNR = 31.62 (-) / 100.00 (-)
 
 **5G mmWave:** ```500/1000/2000 MHz``` (28/38/72 GHz)
 
-SNR = 6.3 mW
+SNR = 6.3 (-)
 
 **MIMO:** ```800 MHz``` (band), 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas) - 28/73 GHz
 The numbers refer to the number of streams the router is working with. The router in the 2x2 variant has two antennas that are used for 2 simultaneous streams. 
