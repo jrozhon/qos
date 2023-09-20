@@ -101,6 +101,10 @@ ADSL: SNR = 1000 (-), 256 channels (Technology uses multiple channels simultaneo
 
 VDSL: SNR = 1000 (-)
 
+Division of the band used by ADSL2+ and VDSL2:
+
+URL: https://vi.wikipedia.org/wiki/VDSL#/media/T%E1%BA%ADp_tin:VDSL2_frequencies.png
+
 **WiFi 802.11n:** ```20 MHz``` (2.4 GHz)/```40 MHz``` (5 GHz), (band)
 
 SNR = 316.227 (-) / 630.957 (-)
