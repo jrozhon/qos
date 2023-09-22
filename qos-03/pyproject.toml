@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "qos-03"
+version = "0.1.0"
+description = ""
+authors = ["Jan Rozhon <jan@rozhon.eu>"]
+readme = "README.md"
+packages = [{include = "qos_03"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+jupyterlab = "^4.0.6"
+scapy = "^2.5.0"
+matplotlib = "^3.8.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
