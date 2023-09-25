@@ -185,6 +185,28 @@ Each stream in an RTP session is identified by a unique SSRC identifier. This he
  
  RTP is codec-agnostic, meaning it can carry audio data encoded with various audio codecs. Common audio codecs used in RTP include:
 
-**G.711 (PCM):**
+G.711 (PCM), G.729 (ACELP), Opus, AAC (Advanced Audio Coding)
 
-**G.729 (ACELP):**
+
+## tcpdump
+
+**Simulate 0.5% packet loss on interface eth0**
+
+```bash
+# Simulate 0.5% packet loss on interface eth0
+sudo tc qdisc add dev eth0 root netem loss 0.5%
+```
+
+**Simulating 1.0% Packet Loss:**
+
+```bash
+# Simulate 1.0% packet loss on interface eth0
+sudo tc qdisc add dev eth0 root netem loss 1.0%
+```
+
+**Simulating 3.0% Packet Loss:**
+
+```bash
+# Simulate 3.0% packet loss on interface eth0
+sudo tc qdisc add dev eth0 root netem loss 3.0%
+```
