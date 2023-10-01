@@ -83,4 +83,5 @@ expresses clearly the type of Queuing System according to its basic characterist
 - one service channel (service facility),
 - the intervals between request arrivals and servicing times have an exponential distribution, the queue size is not limited, the number of incoming requests is unlimited, all requests wait patiently in the queue for servicing even if the capacity of the servicing device is insufficient (FIFO queue).
 
+In the notation, the M stands for Markovian; M/M/1 means that the system has a Poisson arrival process, an exponential service time distribution, and one server. 
 
