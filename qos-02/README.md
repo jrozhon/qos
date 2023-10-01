@@ -52,26 +52,26 @@ To be very specific, we find normal distributions for e.g. weight, IQ, height, e
 
  ![Normal distribution](https://imgur.com/xp3kOZz.png) 
 
-## Basics of SHO:
-```A SHO can be defined as a system consisting of one or more parallel lines (channels) for servicing incoming requests (customers).```
+## Basics of Queuing System:
+```A Queuing System can be defined as a system consisting of one or more parallel lines (channels) for servicing incoming requests (customers).```
 
-The basic elements of mass handling systems (SHO) are defined as:
+The basic elements of mass handling systems (Queuing System) are defined as:
 
 **1. Requirements** (customers)
 
 **2. Service lines** (service channels)
     
-The SHO works in such a way that requests (customers) requiring service come to a device (one or more parallel lines of the service).
-  Each SHO has a finite number of service lines - this number determines the maximum number of parallel (simultaneous) requests to be served - the so-called service capacity.
+The Queuing System works in such a way that requests (customers) requiring service come to a device (one or more parallel lines of the service).
+  Each Queuing System has a finite number of service lines - this number determines the maximum number of parallel (simultaneous) requests to be served - the so-called service capacity.
 If there is a vacancy for service (a free service line), the request is accepted and service is started immediately.
 
-#### SHO classification:
+#### Queuing System classification:
 - it is necessary to describe the laws of the request origin and arrival in the system, the so-called input flow
 - it is necessary to describe the number of service lines and to describe the flow of the service itself
 - it is necessary to describe the process of serving customers in case they cannot be
 not be served immediately (queuing mode)
-- The most commonly used is the so-called Kendall classification of SHO
-expresses clearly the type of SHO according to its basic characteristics
+- The most commonly used is the so-called Kendall classification of Queuing System
+expresses clearly the type of Queuing System according to its basic characteristics
 
 **A/B/n encoding (short version)**
 - type of process describing the request arrival to the service (**A**)
