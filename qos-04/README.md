@@ -54,11 +54,6 @@ images. SSIM tends to correlate better with the human perception of image
 quality as it considers structural distortion, luminance distortion, and texture
 distortion.
 
-$$
-\text{SSIM}(x, y) = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 +
-\mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}
-$$
-
 The SSIM (Structural Similarity Index) between two windows x and y of common
 size N×N is:
 
