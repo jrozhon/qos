@@ -148,8 +148,10 @@ Take distorted audio and evaluate it using subjective and objective metrics.
 Steps:
 
 - ACR (Absolute Category Rating)
+
 ACR is a category judgment method where the test sequences are presented one at a time and are rated independently on a category scale. 
 - DCR (Degradation Category Rating)
+
 The second suitable method is DCR, where test sequences are presented in pairs. The first stimulus presented in each pair is always the source reference without any impairments. The second one is the same source but impaired by the test conditions. This method is also called the Double Stimulus Impairment Scale (DSIS) method. 
 - [PESQ - Perceptual Evaluation of Speech Quality](https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing) !! Needs GCC-9 to compile
 - [ViSQOL](https://github.com/google/visqol)
