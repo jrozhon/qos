@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "qos-04"
+version = "0.1.0"
+description = ""
+authors = ["Jan Rozhon <jan@rozhon.eu>"]
+readme = "README.md"
+packages = [{include = "qos_04"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
