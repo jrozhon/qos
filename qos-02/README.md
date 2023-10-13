@@ -85,3 +85,4 @@ expresses clearly the type of Queuing System according to its basic characterist
 
 In the notation, the M stands for Markovian; M/M/1 means that the system has a Poisson arrival process, an exponential service time distribution, and one server. 
 
+
