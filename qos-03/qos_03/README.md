@@ -210,7 +210,7 @@ sudo tc qdisc add dev eth0 root netem loss 1.0%
 # Simulate 3.0% packet loss on interface eth0
 sudo tc qdisc add dev eth0 root netem loss 3.0%
 ```
-
+x
 ## tcpreplay
 ```bash
 sudo tcpreplay -i <interface> -t -K --loop <number_of_loops> -M <mac_address> -p <packet_rate> <pcap_file>
