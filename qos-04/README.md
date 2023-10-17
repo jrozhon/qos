@@ -121,3 +121,47 @@ def calculate_ssim(img1, img2):
     else:
         raise ValueError('Wrong input image dimensions.')
 ```
+PSNR (Peak Signal-to-Noise Ratio) and SSIM (Structural Similarity Index) are two different metrics used to evaluate the quality of an image or video. They assess quality in slightly different ways, and their primary distinctions are as follows:
+
+# Measurement Type:
+
+**PSNR:**
+
+ PSNR measures the quality of an image or video by evaluating the amount of noise or distortion present. It calculates the ratio of the peak signal power to the power of the noise. In simple terms, it quantifies how much an image or video has deviated from the original in terms of pixel values.
+
+**SSIM:**
+
+ SSIM assesses the structural similarity between the reference (original) and distorted (received or processed) images or videos. It considers not only pixel-wise differences but also structural information such as luminance, contrast, and structure.
+
+# Perceptual Consideration:
+
+**PSNR:**
+
+ PSNR is a purely mathematical and technical metric. It doesn't consider human perception of image or video quality. A higher PSNR value indicates less distortion, but it may not correlate well with what humans perceive as better quality.
+
+**SSIM:**
+
+ SSIM takes into account the human visual system's characteristics. It considers aspects like luminance, contrast, and structural information that align more closely with human perception. Consequently, a higher SSIM value is often associated with higher perceptual quality.
+
+# Sensitivity to Compression and Artifacts:
+
+**PSNR:**
+
+ PSNR is sensitive to compression artifacts. It can sometimes produce high values for heavily compressed content that may not look good to human viewers.
+**SSIM:**
+
+ SSIM is more robust in assessing compression and other types of distortions. It often provides a better reflection of perceived quality in these scenarios.
+
+# Scale and Range:
+
+**PSNR:**
+
+ PSNR is typically measured in decibels (dB), and higher values indicate better quality. A common range is 20-50 dB.
+
+**SSIM:**
+
+ SSIM values range from -1 to 1, with 1 indicating perfect similarity. A value of 1 suggests that the reference and distorted images are identical.
+
+# Summary:
+
+In summary, PSNR is a straightforward and widely used metric for measuring image and video quality, but it focuses solely on pixel-wise differences and is less aligned with human perception. SSIM, on the other hand, incorporates structural information and better correlates with how humans perceive quality. When evaluating image or video quality, it's often advisable to consider both metrics, as well as other factors, depending on the specific use case and audience.
