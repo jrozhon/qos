@@ -148,6 +148,7 @@ PSNR (Peak Signal-to-Noise Ratio) and SSIM (Structural Similarity Index) are two
 **PSNR:**
 
  PSNR is sensitive to compression artifacts. It can sometimes produce high values for heavily compressed content that may not look good to human viewers.
+ 
 **SSIM:**
 
  SSIM is more robust in assessing compression and other types of distortions. It often provides a better reflection of perceived quality in these scenarios.
