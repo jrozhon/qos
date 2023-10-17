@@ -128,6 +128,31 @@ Steps:
 - students introduce various tc scheduling policies on the laboratory interface. !! The second interface they configured.
 - discussion about common traffic properties
 
+## tcpreplay
+```bash
+sudo tcpreplay -i <interface> -t -K --loop <number_of_loops> -M <mac_address> -p <packet_rate> <pcap_file>
+```
+**interface:** Replace this with the name of the network interface you want to send the RTP packets through (e.g., eth0).
+
+**-t** or **--topspeed:** This option tells tcpreplay to send packets as fast as possible.
+
+**-K** or **--keep-mac:** This option ensures that the original MAC addresses in the pcap file are retained when sending the packets.
+
+**--loop <number_of_loops>:** Specify the number of times you want to loop through the pcap file. Set <number_of_loops> to a desired value (e.g., 0 for continuous looping).
+
+**-M <mac_address>:** Specify the MAC address of the destination device where you want to send the RTP packets. Replace <mac_address> with the actual MAC address.
+
+**-p <packet_rate>:**  Set the desired packet transmission rate. You can specify the rate in packets per second (e.g., 1000).
+
+**<pcap_file>:**  Replace this with the path to the pcap file containing the RTP packets you want to send.
+
+Make sure to run this command with sudo privileges as sending packets over a network interface typically requires administrative permissions.
+
+Here's an example command with placeholder values filled in:
+```bash
+sudo tcpreplay -i eth0 -t -K --loop 0 -M 00:11:22:33:44:55 -p 1000 /path/to/your/pcap-file.pcap
+```
+
 ## Adding audio
 
 Steps:
