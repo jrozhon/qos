@@ -67,7 +67,7 @@ tc qdisc add dev DEVICE root netem delay TIME loss RANDOM%
 Example:
 
 ```bash
-tc qdisc add dev eth0 root netem delay 100ms loss 1%
+tc qdisc add dev ens160 root netem delay 100ms loss 1%
 ```
 
 This command configures the eth0 network interface to introduce 100 milliseconds of delay and 1% packet loss. Adjust the eth0, 100ms, and 1% placeholders to suit your specific requirements.
@@ -81,7 +81,7 @@ The tc utility allows you to simulate various packet loss models to emulate diff
 Example of Using Gilbert-Elliott Model:
 
 ```bash
-tc qdisc add dev eth0 root netem loss gemodel 1% 2%
+sudo tc qdisc add dev ens160 root netem loss gemodel 1% 2%
 ```
 
 In this example:
@@ -97,7 +97,7 @@ After conducting your network tests, it's essential to revert the network interf
 Example:
 
 ```bash
-tc qdisc del dev eth0 root
+sudo tc qdisc del dev ens160 root
 ```
 
 This command removes the root queuing discipline from the eth0 network interface, effectively resetting it to its default settings.
@@ -111,7 +111,7 @@ To observe the current traffic control configuration of a network interface, use
 Example:
 
 ```bash
-tc qdisc show dev eth0
+sudo tc qdisc show dev ens160
 ```
 
 This command displays the current queuing discipline configuration for the eth0 network interface. It will show the delay, loss, and other parameters if they have been configured.
