@@ -36,6 +36,7 @@ Prepararion:
 ```bash
 sudo setcap cap_net_raw=eip /usr/bin/pythonX.X
 sudo setcap cap_net_raw=eip /usr/bin/tcpdump
+sudo tcpdump -i ens160 src 10.100.0.X -c -20 -X
 ```
 
 To implement a simple packet generator, students utilize Scapy library in Python ecosystem.
