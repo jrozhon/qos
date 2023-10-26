@@ -36,7 +36,7 @@ Prepararion:
 ```bash
 sudo setcap cap_net_raw=eip /usr/bin/pythonX.X
 sudo setcap cap_net_raw=eip /usr/bin/tcpdump
-sudo tcpdump -i ens160 src 10.100.0.X -c -20 -X
+sudo tcpdump -i ens160 src 10.100.0.X
 ```
 
 To implement a simple packet generator, students utilize Scapy library in Python ecosystem.
@@ -68,7 +68,7 @@ tc qdisc add dev DEVICE root netem delay TIME loss RANDOM%
 Example:
 
 ```bash
-tc qdisc add dev ens160 root netem delay 100ms loss 1%
+tc qdisc add dev ens192 root netem delay 100ms loss 1%
 ```
 
 This command configures the eth0 network interface to introduce 100 milliseconds of delay and 1% packet loss. Adjust the eth0, 100ms, and 1% placeholders to suit your specific requirements.
@@ -82,7 +82,7 @@ The tc utility allows you to simulate various packet loss models to emulate diff
 Example of Using Gilbert-Elliott Model:
 
 ```bash
-sudo tc qdisc add dev ens160 root netem loss gemodel 1% 2%
+sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%
 ```
 
 In this example:
@@ -98,7 +98,7 @@ After conducting your network tests, it's essential to revert the network interf
 Example:
 
 ```bash
-sudo tc qdisc del dev ens160 root
+sudo tc qdisc del dev ens192 root
 ```
 
 This command removes the root queuing discipline from the eth0 network interface, effectively resetting it to its default settings.
@@ -112,7 +112,7 @@ To observe the current traffic control configuration of a network interface, use
 Example:
 
 ```bash
-sudo tc qdisc show dev ens160
+sudo tc qdisc show dev ens192
 ```
 
 This command displays the current queuing discipline configuration for the eth0 network interface. It will show the delay, loss, and other parameters if they have been configured.
@@ -181,11 +181,18 @@ ACR is a category judgment method where the test sequences are presented one at 
 The second suitable method is DCR, where test sequences are presented in pairs. The first stimulus presented in each pair is always the source reference without any impairments. The second one is the same source but impaired by the test conditions. This method is also called the Double Stimulus Impairment Scale (DSIS) method. 
 - [PESQ - Perceptual Evaluation of Speech Quality](https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing) !! Needs GCC-9 to compile
 
+**tcpreplay and tc both execute on the ens192 interface!**
+
 ```bash
 sudo apt-get update
 sudo apt-get install gcc-9
-scp .\file student@host:
-./pesq
+unzip file
+cd file
+gcc -o PESQ *.c -lm
+
+scp .\file student@host:  or use WINscp on Windows
+./PESQ
+./PESQ +8000 orig.wav degr.wav
 ```
 
 
