@@ -183,6 +183,12 @@ The second suitable method is DCR, where test sequences are presented in pairs. 
 
 **tcpreplay and tc both execute on the ens192 interface!**
 
+**sudo tcpdump -i ens192 -w deg.pcap**
+
+**sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%**
+
+**sudo tcpreplay -i !interface! -t  !pcapfile!**
+
 ```bash
 sudo apt-get update
 sudo apt-get install gcc-9
