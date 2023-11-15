@@ -83,3 +83,45 @@ The model is simpler to implement and manage than older QoS models like IntServ,
 
 Administrators have the flexibility to define and implement QoS policies based on the specific needs of their network, applications, and services.
 In conclusion, the Differentiated Services (DiffServ) model offers a pragmatic and scalable approach to implementing Quality of Service in computer networks. Its simplicity, scalability, and flexibility make it well-suited for modern network environments with diverse traffic types and varying QoS requirements.
+
+## Queuing 
+
+### Priority Queuing (PQ):
+
+**Description:** Priority Queuing is a queuing discipline where packets are assigned priority values, and higher-priority packets are dequeued and transmitted before lower-priority packets.
+
+**Operation:** Packets are categorized into priority queues, and the router or switch serves packets from the highest-priority queue first. This ensures that high-priority traffic is given preference over lower-priority traffic.
+
+**Considerations:** While it provides fast service to high-priority traffic, it can lead to the starvation of lower-priority queues if there is a continuous arrival of high-priority packets.
+
+### Custom Queuing (CQ):
+
+**Description:** Custom Queuing is a queuing algorithm that allows the network administrator to define the exact percentage of bandwidth that each queue will receive.
+
+**Operation:** The administrator can specify the percentage of bandwidth allocated to each queue, helping to control the flow of traffic based on predefined rules.
+
+**Considerations:** CQ provides flexibility in bandwidth allocation but may not be as efficient as more advanced queuing disciplines in certain scenarios.
+
+### Weighted Fair Queuing (WFQ):
+
+**Description:** Weighted Fair Queuing is a queuing discipline that aims to provide fair bandwidth distribution among different flows by assigning weights to each flow.
+
+**Operation:** Flows are assigned weights, and the scheduler allocates bandwidth proportionally based on these weights. This helps prevent one flow from dominating the bandwidth at the expense of others.
+
+**Considerations:** WFQ is more equitable in distributing bandwidth compared to simple queuing algorithms.
+
+### Class-Based Weighted Fair Queueing (CBWFQ):
+
+**Description:** CBWFQ is an extension of WFQ that allows for the creation of traffic classes with assigned bandwidth guarantees and restrictions.
+
+**Operation:** Instead of flows, CBWFQ classifies traffic into different classes, and each class is assigned a minimum and maximum bandwidth. This allows for more granular control over different types of traffic.
+
+**Considerations:** CBWFQ is particularly useful in environments where different applications or services require specific levels of bandwidth.
+
+### Low Latency Queuing (LLQ):
+
+**Description:** Low Latency Queuing is a modification of CBWFQ that introduces a priority queue to ensure low latency for delay-sensitive traffic.
+
+**Operation:** LLQ includes a priority queue for delay-sensitive traffic, while still maintaining the benefits of CBWFQ for other types of traffic. This ensures that latency-sensitive packets are serviced without delay.
+
+**Considerations:** LLQ is often used in scenarios where minimizing packet delay for certain types of traffic, such as voice or video, is critical.
