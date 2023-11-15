@@ -17,21 +17,42 @@ Quality of Service (QoS) is a set of technologies and mechanisms designed to man
 
 ## Types of delays:
 
-1. Propagation Delay:
+**Propagation Delay:**
 
 The time it takes for a signal to travel from the source to the destination.
 
 $d_{propagation} = \frac{d}{s}$, 
 
-Where d is the distance, and s is the signal propagation speed in the medium.
+Where *d* is the distance, and *s* is the signal propagation speed in the medium.
 
-2. Transmission Delay:
+**Transmission Delay:**
 
-3. Queuing Delay:
+The time it takes to push all the bits of a packet into the link.
 
-4. Processing Delay:
+$d_{transmission} = \frac{l}{r}$, 
 
-5. Total End-to-End Delay:
+Where *l* is the packet length (in bits), and 
+*r* is the transmission rate (in bits per second).
+
+**Queuing Delay:**
+
+The time a packet spends waiting in a queue before it can be transmitted.
+
+$d_{queing} = \frac{l}{\lambda}$, 
+
+Where *l* is the average packet length, and λ is the average arrival rate of packets.
+
+**Processing Delay:**
+
+The time it takes for a router or switch to examine a packet header and determine where to forward the packet.
+
+$d_{processing} = \frac{p}{processingRate}$, 
+
+Where *p* is the processing time required for a packet.
+
+**Total End-to-End Delay:**
+
+The sum of all individual delays along the communication path.
 
 Understanding and minimizing these delays are essential for designing efficient and responsive communication networks. Real-time applications, such as voice and video, are particularly sensitive to these delays, and their performance relies on the careful management of each delay component.
 
