@@ -36,6 +36,7 @@ Prepararion:
 ```bash
 sudo setcap cap_net_raw=eip /usr/bin/pythonX.X
 sudo setcap cap_net_raw=eip /usr/bin/tcpdump
+sudo tcpdump -i ens160 src 10.100.0.X
 ```
 
 To implement a simple packet generator, students utilize Scapy library in Python ecosystem.
@@ -67,7 +68,7 @@ tc qdisc add dev DEVICE root netem delay TIME loss RANDOM%
 Example:
 
 ```bash
-tc qdisc add dev eth0 root netem delay 100ms loss 1%
+tc qdisc add dev ens192 root netem delay 100ms loss 1%
 ```
 
 This command configures the eth0 network interface to introduce 100 milliseconds of delay and 1% packet loss. Adjust the eth0, 100ms, and 1% placeholders to suit your specific requirements.
@@ -81,7 +82,7 @@ The tc utility allows you to simulate various packet loss models to emulate diff
 Example of Using Gilbert-Elliott Model:
 
 ```bash
-tc qdisc add dev eth0 root netem loss gemodel 1% 2%
+sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%
 ```
 
 In this example:
@@ -97,7 +98,7 @@ After conducting your network tests, it's essential to revert the network interf
 Example:
 
 ```bash
-tc qdisc del dev eth0 root
+sudo tc qdisc del dev ens192 root
 ```
 
 This command removes the root queuing discipline from the eth0 network interface, effectively resetting it to its default settings.
@@ -111,7 +112,7 @@ To observe the current traffic control configuration of a network interface, use
 Example:
 
 ```bash
-tc qdisc show dev eth0
+sudo tc qdisc show dev ens192
 ```
 
 This command displays the current queuing discipline configuration for the eth0 network interface. It will show the delay, loss, and other parameters if they have been configured.
@@ -127,6 +128,31 @@ Steps:
 - students get familiarized with tc command
 - students introduce various tc scheduling policies on the laboratory interface. !! The second interface they configured.
 - discussion about common traffic properties
+
+## tcpreplay
+```bash
+sudo tcpreplay -i <interface> -t -K --loop <number_of_loops> -M <mac_address> -p <packet_rate> <pcap_file>
+```
+**interface:** Replace this with the name of the network interface you want to send the RTP packets through (e.g., eth0).
+
+**-t** or **--topspeed:** This option tells tcpreplay to send packets as fast as possible.
+
+**-K** or **--keep-mac:** This option ensures that the original MAC addresses in the pcap file are retained when sending the packets.
+
+**--loop <number_of_loops>:** Specify the number of times you want to loop through the pcap file. Set <number_of_loops> to a desired value (e.g., 0 for continuous looping).
+
+**-M <mac_address>:** Specify the MAC address of the destination device where you want to send the RTP packets. Replace <mac_address> with the actual MAC address.
+
+**-p <packet_rate>:**  Set the desired packet transmission rate. You can specify the rate in packets per second (e.g., 1000).
+
+**<pcap_file>:**  Replace this with the path to the pcap file containing the RTP packets you want to send.
+
+Make sure to run this command with sudo privileges as sending packets over a network interface typically requires administrative permissions.
+
+Here's an example command with placeholder values filled in:
+```bash
+sudo tcpreplay -i eth0 -t -K --loop 0 -M 00:11:22:33:44:55 -p 1000 /path/to/your/pcap-file.pcap
+```
 
 ## Adding audio
 
@@ -154,4 +180,29 @@ ACR is a category judgment method where the test sequences are presented one at 
 
 The second suitable method is DCR, where test sequences are presented in pairs. The first stimulus presented in each pair is always the source reference without any impairments. The second one is the same source but impaired by the test conditions. This method is also called the Double Stimulus Impairment Scale (DSIS) method. 
 - [PESQ - Perceptual Evaluation of Speech Quality](https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing) !! Needs GCC-9 to compile
+
+**tcpreplay and tc both execute on the ens192 interface!**
+
+**sudo tcpdump -i ens192 -w deg.pcap**
+
+**sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%**
+
+**sudo tcpreplay -i !interface! -t  !pcapfile!**
+
+```bash
+sudo apt-get update
+sudo apt-get install gcc-9
+unzip file
+cd file
+gcc -o PESQ *.c -lm
+
+scp .\file student@host:  or use WINscp on Windows
+./PESQ
+./PESQ +8000 orig.wav degr.wav
+```
+
+
 - [ViSQOL](https://github.com/google/visqol)
+
+
+
