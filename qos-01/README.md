@@ -1,122 +1,119 @@
-# Exercise QoS_1
+# Exercise 01
 
-## Signal:
-It is a physical representation of the message, or a mathematical model describing the message.
-## Signal classification:
-**Continuous (ANALOG)**
+## Signal
 
- ```A continuous or piecewise continuous function of a continuous independent variable.```
- ![Continuous signal](https://imgur.com/IX3VfGg.png)
+An excerpt from [Wikipedia](https://en.wikipedia.org/wiki/Signal):
 
-**Discrete signal** 
+- In [electronics](https://en.wikipedia.org/wiki/Electronics) and [telecommunications](https://en.wikipedia.org/wiki/Telecommunications), *signal* refers to any time-varying [voltage](https://en.wikipedia.org/wiki/Voltage), [current](https://en.wikipedia.org/wiki/Electric_current), or [electromagnetic wave](https://en.wikipedia.org/wiki/Electromagnetic_wave) that carries information.
 
-```Signal discretized in the independent variable (i.e. Df = discrete set of points).```
+- In [signal processing](https://en.wikipedia.org/wiki/Signal_processing), signals are analog and digital representations of analog physical quantities.
+- In [information theory](https://en.wikipedia.org/wiki/Information_theory), a signal is a codified message, that is, the sequence of [states](https://en.wikipedia.org/wiki/State_variable) in a [communication channel](https://en.wikipedia.org/wiki/Communication_channel) that encodes a message.
+- In a communication system, a *transmitter* encodes a *message* to create a signal, which is carried to a *receiver* by the communication channel.  For example, the words "[Mary had a little lamb](https://en.wikipedia.org/wiki/Mary_had_a_little_lamb)" might be the message spoken into a [telephone](https://en.wikipedia.org/wiki/Telephone). The telephone transmitter converts the sounds into an electrical  signal. The signal is transmitted to the receiving telephone by wires;  at the receiver it is reconverted into sounds.
+- In telephone networks, [signaling](https://en.wikipedia.org/wiki/Signaling_(telecommunications)), for example [common-channel signaling](https://en.wikipedia.org/wiki/Common-channel_signaling), refers to phone number and other digital control information rather than the actual voice signal.
+
+Signal classification:
+- **Continuous** - A continuous or piecewise continuous function of a continuous independent variable.
+
+![Continuous signal](https://imgur.com/IX3VfGg.png)
+
+- **Discrete signal** - Signal discretized in the independent variable.
+
 ![Discrete signal](https://imgur.com/fWq6mwa.png)
       
-**Digital signal** 
-
-```Signal discretized in independent variable and quantized in level.```
-    
-     
-**Stepped signal** 
-
-```Discretized in Hf, but in parts continuous in time.```
+- **Digital signal** - Signal discretized in independent variable and quantized in level.
+  
+- **Stepped signal** - Discretized in Hf, but in parts continuous in time.
 
 ![Stepped signal](https://imgur.com/ByPML2f.png)
 
-     
-**Deterministic signal** 
 
-```At any moment we can determine its value, we have its mathematical description (sin(x, ...)).```
+- **Deterministic signal** - At any moment we can determine its value, we have its mathematical description.
+- **Stochastic signal** - We cannot clearly determine signal value at any time, probabilistic or statistical methods are used to describe it.
 
-**Stochastic signal**
+## PCM (Pulse Coded Modulation)
 
-```We cannot clearly determine their value at any time, probabilistic or statistical methods are used to describe them.```
-
-## PCM (Pulse Coded Modulation):
-
-**Sampling:** 
+**Sampling** 
 
 We select a limited number of samples from the continuous analog signal that represents the recorded sound or image. 
-The result is a finite number of analog samples that are captured with a period T_sr given by the sampling rate.
+The result is a finite number of analog samples that are captured with a period $T_{sr}$ given by the sampling rate.
 
-
-**Quantization:**
+**Quantization**
 
 This is level discretization (i.e. rounding the actual value to pre-selected values). 
 The result of this operation is a finite number of samples (that were already available after sampling) with a finite number of their values, which are expressed by a certain binary code.
 
-
-**Coding:**
+**Coding**
 
 Replace the obtained simple binary code with a code that is more suitable for further processing.
 
 > **TIP:** The sampling circuit introduces error in the form of (overlapping) aliasing, the quantization circuit in the form of quantization noise.
- ###  Conditions for correct sampling (Shannon-Kotelnik theorem):
- 
- The sampling theorem applies here, which states that a signal is only describable if it is bounded by a frequency $f_{max}$, and if $f_{sr}$ => 2 * $f_{max}$, i.e. it means that the sampling frequency must be at least twice the highest frequency of the signal.  
- 
- Use e.g. for DPS (Digital Signaling Processor) - allows frequency adjustment, volume adjustment, or signal compression. E.g. MP3 - the analogue signal is converted to a digital signal, then to a DSP, which encodes the signal and decodes it back using a DSP (MPEG-1/2 for audio compression).
+
+**Conditions for correct sampling (Shannon-Kotelnik theorem)**
+
+The sampling theorem applies here, which states that a signal is only describable if it is bounded by a frequency $f_{max}$, and if $f_{sr}$ => 2 * $f_{max}$, i.e. it means that the sampling frequency must be at least twice the highest frequency of the signal.  
+
+Use e.g. for DPS (Digital Signaling Processor) - allows frequency adjustment, volume adjustment, or signal compression. E.g. MP3 - the analogue signal is converted to a digital signal, then to a DSP, which encodes the signal and decodes it back using a DSP (MPEG-1/2 for audio compression).
 
 $T[s]$ (Period) - denotes in physics a physical quantity that indicates the duration of one repetition of a periodic event
 $f[Hz = s^{-1}]$ (Frequency or frequency) - indicates the number of periods per unit time
 
-### Gaussian noise:
+## Gaussian noise
+
 Gaussian noise represents random changes in intensity corresponding to a Gaussian (normal) distribution.
 
 ![Gauss](https://imgur.com/tN6l2ad.png)
 
-$$P(x) = \frac{1}{{\sigma \sqrt {2\pi } }}e^{{{-  {(z - \mu )}^2 } \mathord{/ { {{ - ( {x - \mu }^2 } {2\sigma ^2 }}}} {)}}}$$
-
-The standard deviation ($\sigma$), denoted by the Greek letter σ, is a measure of statistical variability often used in probability theory and statistics. 
+$$
+P(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{-\frac{(x - \mu )^2}{2\sigma ^2}}
+$$
+The standard deviation ($\sigma$) is a measure of statistical variability often used in probability theory and statistics. 
 It is the square root of the variance of a random variable. The sampling standard deviation is a characteristic of the variability (variability) of a statistical population.
 
 ![Gauss](https://imgur.com/X1hUPFG.png)
 
-### Channel capacity (Shannon's formula):
+## Channel capacity (Shannon's formula)
 
-**C = B * log_2 (1+ S/N)**
+$$
+C = B \cdot log_2 \left( 1+\frac{S}{N} \right)
+$$
 
-**C:** channel capacity (bps)
+where:
 
-**B:** channel bandwidth (Hz)
+- **C:** channel capacity (bps)
+- **B:** channel bandwidth (Hz)
+- **S:** signal power (W)
 
-**S:** signal power (W)
+- **N:** noise power (W)
 
-**N:** noise power (W)
+- **S/N:** signal to noise ratio (-)
 
-**S/N:** signal to noise ratio (-)
-
-### Technologies:
+### Technologies
 
 The technologies are listed here, with frequency, bandwidth and SNR information:
 
-**Telephone channel:**  ```3100 Hz```  (300 - 3400 Hz band)
+- **Telephone channel**
+    - BW = 3100 Hz  (300 - 3400 Hz)
+    - SNR = 1584.89
+- **ADSL**
+    - BW = 4.3125 kHz
+    - SNR = 1000 *(256 channels - Technology uses multiple channels simultaneously)*
+- **VDSL**
+    - BW = 30/35 MHz
+    - SNR = 1000
+- **WiFi 802.11n**
+    - BW = 20 MHz (2.4 GHz) / 40 MHz (5 GHz)
+    - SNR = 316.227 / 630.957
+- **5G**
+    - BW = 100 MHz (2300 MHz)
+    - SNR = 31.62  / 100.00
+- **5G mmWave**
+    - BW = 500/1000/2000 MHz (28/38/72 GHz)
+    - SNR = 6.3
 
-SNR = 1584.89 (-)
+*[xDSL frequencies](https://vi.wikipedia.org/wiki/VDSL#/media/T%E1%BA%ADp_tin:VDSL2_frequencies.png).*
 
-**ADSL, VDSL:**  ```4.3125 kHz, 30/35 MHz```
 
-ADSL: SNR = 1000 (-), 256 channels (Technology uses multiple channels simultaneously)
 
-VDSL: SNR = 1000 (-)
-
-Division of the band used by ADSL2+ and VDSL2:
-
-URL: https://vi.wikipedia.org/wiki/VDSL#/media/T%E1%BA%ADp_tin:VDSL2_frequencies.png
-
-**WiFi 802.11n:** ```20 MHz``` (2.4 GHz)/```40 MHz``` (5 GHz), (band)
-
-SNR = 316.227 (-) / 630.957 (-)
-
-**5G:** ```100 MHz```  (2300 MHz)
-
-SNR = 31.62 (-) / 100.00 (-)
-
-**5G mmWave:** ```500/1000/2000 MHz``` (28/38/72 GHz)
-
-SNR = 6.3 (-)
-
-**MIMO:** ```800 MHz``` (band), 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas) - 28/73 GHz
+**MIMO:** 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas)
 The numbers refer to the number of streams the router is working with. The router in the 2x2 variant has two antennas that are used for 2 simultaneous streams. 
 
