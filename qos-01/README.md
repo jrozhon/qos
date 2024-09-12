@@ -77,9 +77,13 @@ $f[Hz = s^{-1}]$ (Frequency or frequency) - indicates the number of periods per 
 Gaussian noise represents random changes in intensity corresponding to a Gaussian (normal) distribution.
 
 ![Normal Distribution](fig/normal.png)
+
+
 $$
 P(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{-\frac{(x - \mu )^2}{2\sigma ^2}}
 $$
+
+
 The standard deviation ($\sigma$) is a measure of statistical variability often used in probability theory and statistics. 
 It is the square root of the variance of a random variable. The sampling standard deviation is a characteristic of the variability (variability) of a statistical population.
 
