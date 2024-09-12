@@ -12,23 +12,38 @@ An excerpt from [Wikipedia](https://en.wikipedia.org/wiki/Signal):
 - In telephone networks, [signaling](https://en.wikipedia.org/wiki/Signaling_(telecommunications)), for example [common-channel signaling](https://en.wikipedia.org/wiki/Common-channel_signaling), refers to phone number and other digital control information rather than the actual voice signal.
 
 Signal classification:
-- **Continuous** - A continuous or piecewise continuous function of a continuous independent variable.
 
-![Continuous signal](https://imgur.com/IX3VfGg.png)
+1. **Analog vs. Digital Signals**:
 
-- **Discrete signal** - Signal discretized in the independent variable.
+   - **Analog Signals**: These are continuous signals that vary over time and can take any value in a given range. Examples include audio signals and traditional television broadcasts.
 
-![Discrete signal](https://imgur.com/fWq6mwa.png)
+   - **Digital Signals**: These are discrete signals that have specific values, often represented as binary numbers (0s and 1s). Examples include computer data and digital television.
+
+1. **Periodic vs. Aperiodic Signals**:
+
+   - **Periodic Signals**: These repeat at regular intervals over time. An example is a sine wave.
+
+   - **Aperiodic Signals**: These do not repeat at regular intervals. An example is a single pulse or a random signal.
+
+1. **Deterministic vs. Random Signals**:
+
+   - **Deterministic Signals**: These can be precisely described by mathematical functions. Their behavior is predictable.
+
+   - **Random Signals**: These cannot be precisely described by mathematical functions and are often modeled statistically. Their behavior is not predictable.
+
+1. **Continuous-Time vs. Discrete-Time Signals**:
+
+   - **Continuous-Time Signals**: These are defined for every instant of time.
+
+   - **Discrete-Time Signals**: These are defined only at discrete intervals of time.
+
+   - **Continuous** - A continuous or piecewise continuous function of a continuous independent variable.
+
+
+<img src="fig/continuous.png" alt="Continuous signal"  />
+
+<img src="fig/discrete.png" alt="Discrete signal"  />
       
-- **Digital signal** - Signal discretized in independent variable and quantized in level.
-  
-- **Stepped signal** - Discretized in Hf, but in parts continuous in time.
-
-![Stepped signal](https://imgur.com/ByPML2f.png)
-
-
-- **Deterministic signal** - At any moment we can determine its value, we have its mathematical description.
-- **Stochastic signal** - We cannot clearly determine signal value at any time, probabilistic or statistical methods are used to describe it.
 
 ## PCM (Pulse Coded Modulation)
 
@@ -61,8 +76,7 @@ $f[Hz = s^{-1}]$ (Frequency or frequency) - indicates the number of periods per 
 
 Gaussian noise represents random changes in intensity corresponding to a Gaussian (normal) distribution.
 
-![Gauss](https://imgur.com/tN6l2ad.png)
-
+![Normal Distribution](fig/normal.png)
 $$
 P(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{-\frac{(x - \mu )^2}{2\sigma ^2}}
 $$
