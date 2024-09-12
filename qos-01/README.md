@@ -83,7 +83,7 @@ $$
 The standard deviation ($\sigma$) is a measure of statistical variability often used in probability theory and statistics. 
 It is the square root of the variance of a random variable. The sampling standard deviation is a characteristic of the variability (variability) of a statistical population.
 
-![Gauss](https://imgur.com/X1hUPFG.png)
+<img src="fig/noise.png" alt="Gaussian Noise with Variance 0.1"  />
 
 ## Channel capacity (Shannon's formula)
 
