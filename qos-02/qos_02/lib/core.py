@@ -154,6 +154,7 @@ class PacketSource:
         self.packet_interval = packet_interval
         self.packet_size = packet_size
         self.debug = debug
+        self.packets_sent: int = 0
 
         # start the packet generation process
         self.process = self.env.process(self.start())  # type: ignore
@@ -180,6 +181,7 @@ class PacketSource:
         if self.destination:
             packet = Packet(self.env, _packet_size, self.source_id)
             self.destination.process_packet(packet)
+            self.packets_sent += 1
             if self.debug:
                 logger.info(f"Source {self.source_id}. Generated: {packet}.")
         else:
@@ -466,7 +468,10 @@ class NetworkTap:
         """
         while True:
             yield self.env.timeout(1)  # type: ignore
-            self.packet_count.append(self.port.packet_count)
+            if self.port.processing:
+                self.packet_count.append(self.port.packet_count + 1)
+            else:
+                self.packet_count.append(self.port.packet_count)
             self.byte_count.append(self.port.byte_count)
 
     def __repr__(self) -> str:
@@ -602,6 +607,6 @@ class PacketFork:
             if r < p:
                 if self.destinations[i] is not None:
                     return self.destinations[i].process_packet(packet)  # type: ignore
-            else:
-                raise ValueError("No destination specified for packet fork.")
+            # else:
+            #     raise ValueError("No destination specified for packet fork.")
         return None
