@@ -13,6 +13,7 @@ bokeh = "^3.2.1"
 panel = "^1.2.1"
 numpy = "^1.25.2"
 matplotlib = "^3.7.2"
+jupyter-bokeh = "^4.0.5"
 
 
 [build-system]
