@@ -42,7 +42,7 @@ This will activate the environment and change the prompt so that it will be pref
 
 ### Install the dependencies and the project
 
-In the folder, there is a "pyroject.toml" file that specifies the project dependencies.
+In the folder, there is a "pyproject.toml" file that specifies the project dependencies.
 
 These, together with the current directory's content can be installed using "pip" - Python's package manager.
 
@@ -51,6 +51,9 @@ Just issue the following:
 ```bash
 $ pip install .
 ```
+
+> [!IMPORTANT]  
+> If the pyproject.toml contains **jupyter_bokeh** package, then Jupyter needs to be restarted before moving on.
 
 Now, you are ready to go.
 
