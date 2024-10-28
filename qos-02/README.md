@@ -92,3 +92,58 @@ This is the simplest form of a queuing model, characterized by:
 
 In this notation, "M" stands for Markovian, indicating that the system has a Poisson arrival process, an exponential service time distribution, and one server.
 
+### Little's formula and system occupancy
+
+Theory According to **Little's Law**, the average number of requests in a system is equal to the arrival rate multiplied by the average time a request spends in the system. 
+
+**Formula:** 
+
+$ L = \lambda W $ 
+
+Where: 
+
+- $ L $ — Average number of requests in the **system** 
+- $ \lambda $ — Average arrival rate of requests 
+- $ W $ — Mean delay (average time a request spends in the **system**)
+
+Similarly, for the queue: 
+
+$ L_q = \lambda W_q $ 
+
+- $ L_q $ — Average number of requests in the **queue** 
+- $ W_q $ — Average time a request spends **waiting in the queue** 
+
+The **mean delay** can also be expressed as: 
+
+$ W = \dfrac{L}{\lambda} $
+
+Offered Traffic $ A $:
+
+$ A = \lambda \times S = \frac{\lambda}{\mu} $ 
+
+- $ A $ — Offered traffic or traffic intensity. 
+- $ \lambda $ — Average arrival rate of requests. 
+- $ S = \dfrac{1}{\mu} $ — Average service time. 
+- $ \mu $ — Average service rate. 
+
+System Utilization $ \rho $ (the proportion of time the server is busy):
+
+$ \rho = \frac{\lambda}{\mu} = A $ 
+
+> [!IMPORTANT]  
+> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used:
+> $ \rho = \frac{A}{k} $ 
+
+Average Number of Requests in the System $ L $ For an **M/M/1** queue: $ L = \frac{\rho}{1 - \rho} $ 
+
+Average Number of Requests in the Queue $ L_q $:
+
+$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $ 
+
+Average Delay in the System $ W $: 
+
+$ W = \frac{1}{\mu - \lambda} $ 
+
+Average Delay in the Queue $ W_q $ :
+
+$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $ 
