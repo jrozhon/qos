@@ -8,9 +8,11 @@ packages = [{include = "qos_03"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-jupyterlab = "^4.0.6"
-scapy = "^2.5.0"
-matplotlib = "^3.8.0"
+jupyterlab = "^4.2.5"
+scapy = "^2.6.0"
+matplotlib = "^3.9.2"
+numpy = "^2.1.2"
+scipy = "^1.14.1"
 
 
 [build-system]
