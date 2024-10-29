@@ -181,14 +181,6 @@ ACR is a category judgment method where the test sequences are presented one at 
 The second suitable method is DCR, where test sequences are presented in pairs. The first stimulus presented in each pair is always the source reference without any impairments. The second one is the same source but impaired by the test conditions. This method is also called the Double Stimulus Impairment Scale (DSIS) method. 
 - [PESQ - Perceptual Evaluation of Speech Quality](https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing) !! Needs GCC-9 to compile
 
-**tcpreplay and tc both execute on the ens192 interface!**
-
-**sudo tcpdump -i ens192 -w deg.pcap**
-
-**sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%**
-
-**sudo tcpreplay -i !interface! -t  !pcapfile!**
-
 ```bash
 sudo apt-get update
 sudo apt-get install gcc-9
