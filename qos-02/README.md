@@ -103,47 +103,49 @@ $$ L = \lambda W $$
 Where: 
 
 - $L$ — Average number of requests in the **system** 
-- $ \lambda $ — Average arrival rate of requests 
-- $ W $ — Mean delay (average time a request spends in the **system**)
+- $\lambda$ — Average arrival rate of requests 
+- $W$ — Mean delay (average time a request spends in the **system**)
 
 Similarly, for the queue: 
 
-$ L_q = \lambda W_q $ 
+$$ L_q = \lambda W_q $$ 
 
-- $ L_q $ — Average number of requests in the **queue** 
-- $ W_q $ — Average time a request spends **waiting in the queue** 
+- $L_q$ — Average number of requests in the **queue** 
+- $W_q$ — Average time a request spends **waiting in the queue** 
 
 The **mean delay** can also be expressed as: 
 
-$ W = \dfrac{L}{\lambda} $
+$$ W = \dfrac{L}{\lambda} $$
 
 Offered Traffic $ A $:
 
-$ A = \lambda \times S = \frac{\lambda}{\mu} $ 
+$$ A = \lambda \times S = \frac{\lambda}{\mu} $$ 
 
-- $ A $ — Offered traffic or traffic intensity. 
-- $ \lambda $ — Average arrival rate of requests. 
-- $ S = \dfrac{1}{\mu} $ — Average service time. 
-- $ \mu $ — Average service rate. 
+- $A$ — Offered traffic or traffic intensity. 
+- $\lambda$ — Average arrival rate of requests (i.e. 2 req/hour). 
+- $S = \dfrac{1}{\mu}$ — Average service time (i.e. 3 hours). 
+- $\mu$ — Average service rate (i.e. 1/3 req/hour). 
 
-System Utilization $ \rho $ (the proportion of time the server is busy):
+System Utilization $\rho$ (the proportion of time the server is busy):
 
-$ \rho = \frac{\lambda}{\mu} = A $ 
+$$ \rho = \frac{\lambda}{\mu} = A $$ 
 
 > [!IMPORTANT]  
 > This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used:
-> $ \rho = \frac{A}{k} $ 
+> $$ \rho = \frac{A}{k} $$ 
 
-Average Number of Requests in the System $ L $ For an **M/M/1** queue: $ L = \frac{\rho}{1 - \rho} $ 
+Average Number of Requests in the System $L$ For an **M/M/1** queue: 
 
-Average Number of Requests in the Queue $ L_q $:
+$$ L = \frac{\rho}{1 - \rho} $$ 
 
-$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $ 
+Average Number of Requests in the Queue $L_q$:
 
-Average Delay in the System $ W $: 
+$$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $$ 
 
-$ W = \frac{1}{\mu - \lambda} $ 
+Average Delay in the System $W$: 
 
-Average Delay in the Queue $ W_q $ :
+$$ W = \frac{1}{\mu - \lambda} $$ 
 
-$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $ 
+Average Delay in the Queue $W_q$ :
+
+$$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $$ 
