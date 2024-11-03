@@ -98,11 +98,11 @@ Theory According to **Little's Law**, the average number of requests in a system
 
 **Formula:** 
 
-$ L = \lambda W $ 
+$$ L = \lambda W $$ 
 
 Where: 
 
-- $ L $ — Average number of requests in the **system** 
+- $L$ — Average number of requests in the **system** 
 - $ \lambda $ — Average arrival rate of requests 
 - $ W $ — Mean delay (average time a request spends in the **system**)
 
