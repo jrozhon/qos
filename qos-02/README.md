@@ -119,11 +119,11 @@ $$ W = \dfrac{L}{\lambda} $$
 
 Offered Traffic $ A $:
 
-$$ A = \lambda \times S = \frac{\lambda}{\mu} $$ 
+$$ A = \lambda S = \frac{\lambda}{\mu} $$ 
 
 - $A$ — Offered traffic or traffic intensity. 
 - $\lambda$ — Average arrival rate of requests (i.e. 2 req/hour). 
-- $S = \dfrac{1}{\mu}$ — Average service time (i.e. 3 hours). 
+- $S = 1/\mu$ — Average service time (i.e. 3 hours). 
 - $\mu$ — Average service rate (i.e. 1/3 req/hour). 
 
 System Utilization $\rho$ (the proportion of time the server is busy):
@@ -131,8 +131,7 @@ System Utilization $\rho$ (the proportion of time the server is busy):
 $$ \rho = \frac{\lambda}{\mu} = A $$ 
 
 > [!IMPORTANT]  
-> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used:
-> $$ \rho = \frac{A}{k} $$ 
+> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = \frac{A}{k}$ 
 
 Average Number of Requests in the System $L$ For an **M/M/1** queue: 
 
