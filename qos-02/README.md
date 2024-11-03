@@ -131,7 +131,7 @@ System Utilization $\rho$ (the proportion of time the server is busy):
 $$ \rho = \frac{\lambda}{\mu} = A $$ 
 
 > [!IMPORTANT]  
-> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = \frac{A}{k}$ 
+> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = A/k$ 
 
 Average Number of Requests in the System $L$ For an **M/M/1** queue: 
 
