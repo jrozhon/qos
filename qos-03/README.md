@@ -198,3 +198,16 @@ scp .\file student@host:  or use WINscp on Windows
 
 
 
+## Extract audio from pcap file
+
+```bash
+tshark -nr input.pcap -q -z rtp,streams
+tshark -nr input.pcap -Y "rtp.ssrc == $SSRC" -T fields -e rtp.payload > payload_$SSRC.txt`
+cat payload_$SSRC.txt | xxd -r -p > rtp_payload_$SSRC.raw
+ffmpeg -f alaw -ar 8000 -ac 1 -i rtp_payload_$SSRC.raw output_$SSRC.wav
+```
+
+
+
+
+
