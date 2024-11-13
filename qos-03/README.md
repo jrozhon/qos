@@ -202,8 +202,15 @@ scp .\file student@host:  or use WINscp on Windows
 
 ```bash
 tshark -nr input.pcap -q -z rtp,streams
-tshark -nr input.pcap -Y "rtp.ssrc == $SSRC" -T fields -e rtp.payload > payload_$SSRC.txt`
+# show significant udp streams in case sip is not present
+tshark -nr input.pcap -q -z conv,udp
+# convert rtp with given ssrc
+tshark -nr input.pcap -Y "rtp.ssrc == $SSRC" -T fields -e rtp.payload > payload_$SSRC.txt
+# convert based on udp port number
+tshark -nr input.pcap -d udp.port==<PORT_NUMBER>,rtp -Y rtp -T fields -e rtp.payload > payload.txt
+# convert from text to binary
 cat payload_$SSRC.txt | xxd -r -p > rtp_payload_$SSRC.raw
+# convert from raw bytes to audio
 ffmpeg -f alaw -ar 8000 -ac 1 -i rtp_payload_$SSRC.raw output_$SSRC.wav
 ```
 
