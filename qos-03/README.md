@@ -88,8 +88,8 @@ sudo tc qdisc add dev ens192 root netem loss gemodel 1% 2%
 In this example:
 
 - **gemodel**: Specifies the use of the Gilbert-Elliott loss model.
-- **1%**: Is the probability of a packet being lost in the good state.
-- **2%**: Is the probability of a packet being lost in the bad state.
+- **1%**: Is the transition probability that the model will go from a good state to a bad state.
+- **2%**: Is the transition probability that the model will go from a bad state to a good state.
 
 :information_source: Resetting to Default Settings
 
@@ -131,28 +131,22 @@ Steps:
 
 ## tcpreplay
 ```bash
-sudo tcpreplay -i <interface> -t -K --loop <number_of_loops> -M <mac_address> -p <packet_rate> <pcap_file>
+sudo tcpreplay-edit -i ens160 -K --loop 1 --timer nano --pps 50 --dstipmap=127.0.0.1/32:10.100.0.50/32 --srcipmap=127.0.0.1/32:10.100.0.54 --enet-dmac=00:0c:29:9b:c2:be --enet-smac=00:0c:29:a6:20:16 rtp2.pcap
 ```
-**interface:** Replace this with the name of the network interface you want to send the RTP packets through (e.g., eth0).
 
-**-t** or **--topspeed:** This option tells tcpreplay to send packets as fast as possible.
+- **-i ens160** Specifies the network interface ens160 to send packets through.
+- **-K** Preloads packets into RAM before sending.
+- **--loop 1** Replays the pcap file once.
+- **--timer nano** Uses nanosecond precision timing for packet sending.
+- **--pps 50** Sends packets at 50 packets per second.
+- **--dstipmap=127.0.0.1/32:10.100.0.50/32** Rewrites the destination IP from 127.0.0.1 to 10.100.0.50.
+- **--srcipmap=127.0.0.1/32:10.100.0.54** Rewrites the source IP from 127.0.0.1 to 10.100.0.54.
+- **--enet-dmac=00:0c:29:9b:c2:be** Sets the Ethernet destination MAC address to 00:0c:29:9b:c2:be.
+- **--enet-smac=00:0c:29:a6:20:16** Sets the Ethernet source MAC address to 00:0c:29:a6:20:16.
+- **rtp2.pcap** Specifies the pcap file rtp2.pcap to replay.
 
-**-K** or **--keep-mac:** This option ensures that the original MAC addresses in the pcap file are retained when sending the packets.
-
-**--loop <number_of_loops>:** Specify the number of times you want to loop through the pcap file. Set <number_of_loops> to a desired value (e.g., 0 for continuous looping).
-
-**-M <mac_address>:** Specify the MAC address of the destination device where you want to send the RTP packets. Replace <mac_address> with the actual MAC address.
-
-**-p <packet_rate>:**  Set the desired packet transmission rate. You can specify the rate in packets per second (e.g., 1000).
-
-**<pcap_file>:**  Replace this with the path to the pcap file containing the RTP packets you want to send.
 
 Make sure to run this command with sudo privileges as sending packets over a network interface typically requires administrative permissions.
-
-Here's an example command with placeholder values filled in:
-```bash
-sudo tcpreplay -i eth0 -t -K --loop 0 -M 00:11:22:33:44:55 -p 1000 /path/to/your/pcap-file.pcap
-```
 
 ## Adding audio
 
@@ -186,7 +180,7 @@ sudo apt-get update
 sudo apt-get install gcc-9
 unzip file
 cd file
-gcc -o PESQ *.c -lm
+gcc -o PESQ *.c -lm -fcommon
 
 scp .\file student@host:  or use WINscp on Windows
 ./PESQ
