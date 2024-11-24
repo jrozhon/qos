@@ -212,6 +212,8 @@ tshark -nr input.pcap -d udp.port==<PORT_NUMBER>,rtp -Y rtp -T fields -e rtp.pay
 cat payload_$SSRC.txt | xxd -r -p > rtp_payload_$SSRC.raw
 # convert from raw bytes to audio
 ffmpeg -f alaw -ar 8000 -ac 1 -i rtp_payload_$SSRC.raw output_$SSRC.wav
+# send wav over network using rtp
+ffmpeg -re -i ~/Downloads/Untitled.wav -acodec pcm_alaw -ar 8000 -af "asetnsamples=n=160:p=0" -flags +global_header -max_delay 0 -f rtp "rtp://localhost:12345?pkt_size=172"
 ```
 
 
