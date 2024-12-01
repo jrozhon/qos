@@ -19,14 +19,14 @@ $$
 import math
 import numpy as np
 
-def calculate_psnr(img1, img2):
+def psnr(img1, img2):
     # img1 and img2 have range [0, 255]
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
     mse = np.mean((img1 - img2)**2)
     if mse == 0:
         return float('inf')
-    return 20 * math.log10(255.0 / math.sqrt(mse))
+    return 20 * np.log10(255.0 / np.sqrt(mse))
 ```
 
 # SSIM (Structural Similarity Index)
@@ -45,57 +45,68 @@ where μ<sub>x</sub> and μ<sub>y</sub> are the average of x and y;
 σ<sub>x</sub><sup>2</sup> and σ<sub>y</sub><sup>2</sup> are the variances of x
 and y; σ<sub>xy</sub> is the covariance of x and y;
 c<sub>1</sub>=(k<sub>1</sub>L)<sup>2</sup>,
-c<sub>2</sub>=(k<sub>2</sub>L)<sup>2</sup> are two variables to stabilize the division with weak denominator; L is the dynamic range of the pixel-values (usually this is 2#bits per pixel−1); and k<sub>1</sub>=0.01 and k<sub>2</sub>=0.03 by default.
+c<sub>2</sub>=(k<sub>2</sub>L)<sup>2</sup> are two variables to stabilize the division with weak denominator; L is the dynamic range of the pixel-values (usually this is 2<sup>bits per pixel−1</sup>); and k<sub>1</sub>=0.01 and k<sub>2</sub>=0.03 by default.
 
 ## Implementation
 
 ```python
-import math
 import numpy as np
-import cv2
+from scipy.signal import convolve2d
 
 def ssim(img1, img2):
-    C1 = (0.01 * 255)**2
-    C2 = (0.03 * 255)**2
+    C1 = (0.01 * 255)**2def ssim(img1, img2, window_size=11, K1=0.01, K2=0.03, L=255):
+    """
+    Optimized SSIM implementation using vectorized operations and convolution.
 
+    Args:
+        img1: First image as a NumPy array (grayscale).
+        img2: Second image as a NumPy array (grayscale).
+        window_size: Size of the sliding window (default is 11).
+        K1: Constant to stabilize the weak denominator (default is 0.01).
+        K2: Constant to stabilize the weak denominator (default is 0.03).
+        L: Dynamic range of the pixel values (default is 255 for 8-bit images).
+
+    Returns:
+        The SSIM index between the two images.
+    """
+    # Convert images to float64
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
-    kernel = cv2.getGaussianKernel(11, 1.5)
-    window = np.outer(kernel, kernel.transpose())
 
-    mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
-    mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
-    mu1_sq = mu1**2
-    mu2_sq = mu2**2
+    # Constants to avoid division by zero
+    C1 = (K1 * L) ** 2
+    C2 = (K2 * L) ** 2
+
+    # Window for local statistics (uniform)
+    window = np.ones((window_size, window_size)) / (window_size ** 2)
+    # or gaussian
+    #window = gaussian_kernel(window_size)
+
+    # Compute mu1 and mu2 using convolution
+    mu1 = convolve2d(img1, window, mode='same', boundary='symm')
+    mu2 = convolve2d(img2, window, mode='same', boundary='symm')
+
+    # Compute squares and products of mu1 and mu2
+    mu1_sq = mu1 ** 2
+    mu2_sq = mu2 ** 2
     mu1_mu2 = mu1 * mu2
-    sigma1_sq = cv2.filter2D(img1**2, -1, window)[5:-5, 5:-5] - mu1_sq
-    sigma2_sq = cv2.filter2D(img2**2, -1, window)[5:-5, 5:-5] - mu2_sq
-    sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
 
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
-                                                            (sigma1_sq + sigma2_sq + C2))
-    return ssim_map.mean()
+    # Compute sigma1_sq, sigma2_sq, and sigma12 using convolution
+    sigma1_sq = convolve2d(img1 * img1, window, mode='same', boundary='symm') - mu1_sq
+    sigma2_sq = convolve2d(img2 * img2, window, mode='same', boundary='symm') - mu2_sq
+    sigma12 = convolve2d(img1 * img2, window, mode='same', boundary='symm') - mu1_mu2
 
+    # Compute SSIM map
+    numerator1 = 2 * mu1_mu2 + C1
+    numerator2 = 2 * sigma12 + C2
+    denominator1 = mu1_sq + mu2_sq + C1
+    denominator2 = sigma1_sq + sigma2_sq + C2
+    ssim_map = (numerator1 * numerator2) / (denominator1 * denominator2)
 
-def calculate_ssim(img1, img2):
-    '''calculate SSIM
-    the same outputs as MATLAB's
-    img1, img2: [0, 255]
-    '''
-    if not img1.shape == img2.shape:
-        raise ValueError('Input images must have the same dimensions.')
-    if img1.ndim == 2:
-        return ssim(img1, img2)
-    elif img1.ndim == 3:
-        if img1.shape[2] == 3:
-            ssims = []
-            for i in range(3):
-                ssims.append(ssim(img1, img2))
-            return np.array(ssims).mean()
-        elif img1.shape[2] == 1:
-            return ssim(np.squeeze(img1), np.squeeze(img2))
-    else:
-        raise ValueError('Wrong input image dimensions.')
+    # Average the SSIM map to get the final SSIM index
+    ssim_index = np.mean(ssim_map)
+    return ssim_index
+
 ```
 PSNR (Peak Signal-to-Noise Ratio) and SSIM (Structural Similarity Index) are two different metrics used to evaluate the quality of an image or video. They assess quality in slightly different ways, and their primary distinctions are as follows:
 
