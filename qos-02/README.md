@@ -27,21 +27,20 @@ These concepts are essential for understanding and modeling uncertainty in vario
 
 The uniform distribution is one of the simplest probability distributions. It assigns the same probability to all values of a continuous random variable X within a specified interval of finite length. This means that every outcome within this interval is equally likely to occur.
 
- ![Uniform distribution](fig/uniform.png)
+![Uniform distribution](fig/uniform.png)
 
 For example, the uniform distribution can model scenarios where all outcomes have the same likelihood, such as the waiting time for a bus or the time it takes for a product to be processed on an automatic production line.
 
 #### Exponential distribution
+
 The exponential distribution is associated with a continuous random variable X, which represents the waiting time until the occurrence of a Poisson random event, or the length of the interval (in time or distance) between two such events. Examples include the waiting time for an operator or the distance between two damaged locations on a road.
 
 This distribution models the time between randomly occurring events that follow a Poisson distribution. It is characterized by the parameter λ, which is the inverse of the mean waiting time until the occurrence of the event being monitored.
 
- ![Exponential distribution](fig/exponential.png) 
-
-
-
+![Exponential distribution](fig/exponential.png)
 
 #### Normal distribution
+
 The normal distribution is one of the most important continuous distributions in probability theory and statistics. It often serves as an approximation for a wide range of random variables—variables whose values are determined by the outcomes of random experiments.
 
 For example, the normal distribution can describe the distribution of random errors in various activities, such as deviations in dimensions from a predetermined standard during the manufacturing of components. It also applies to many measurable characteristics in biological statistics, including traits in livestock, experimental cell cultures, and humans.
@@ -94,57 +93,57 @@ In this notation, "M" stands for Markovian, indicating that the system has a Poi
 
 ### Little's formula and system occupancy
 
-Theory According to **Little's Law**, the average number of requests in a system is equal to the arrival rate multiplied by the average time a request spends in the system. 
+Theory According to **Little's Law**, the average number of requests in a system is equal to the arrival rate multiplied by the average time a request spends in the system.
 
-**Formula:** 
+**Formula:**
 
-$$ L = \lambda W $$ 
+$$ L = \lambda W $$
 
-Where: 
+Where:
 
-- $L$ — Average number of requests in the **system** 
-- $\lambda$ — Average arrival rate of requests 
+- $L$ — Average number of requests in the **system**
+- $\lambda$ — Average arrival rate of requests
 - $W$ — Mean delay (average time a request spends in the **system**)
 
-Similarly, for the queue: 
+Similarly, for the queue:
 
-$$ L_q = \lambda W_q $$ 
+$$ L_q = \lambda W_q $$
 
-- $L_q$ — Average number of requests in the **queue** 
-- $W_q$ — Average time a request spends **waiting in the queue** 
+- $L_q$ — Average number of requests in the **queue**
+- $W_q$ — Average time a request spends **waiting in the queue**
 
-The **mean delay** can also be expressed as: 
+The **mean delay** can also be expressed as:
 
 $$ W = \dfrac{L}{\lambda} $$
 
-Offered Traffic $ A $:
+Offered Traffic $A$:
 
-$$ A = \lambda S = \frac{\lambda}{\mu} $$ 
+$$ A = \lambda S = \frac{\lambda}{\mu} $$
 
-- $A$ — Offered traffic or traffic intensity. 
-- $\lambda$ — Average arrival rate of requests (i.e. 2 req/hour). 
-- $S = 1/\mu$ — Average service time (i.e. 3 hours). 
-- $\mu$ — Average service rate (i.e. 1/3 req/hour). 
+- $A$ — Offered traffic or traffic intensity.
+- $\lambda$ — Average arrival rate of requests (i.e. 2 req/hour).
+- $S = 1/\mu$ — Average service time (i.e. 3 hours).
+- $\mu$ — Average service rate (i.e. 1/3 req/hour).
 
 System Utilization $\rho$ (the proportion of time the server is busy):
 
-$$ \rho = \frac{\lambda}{\mu} = A $$ 
+$$ \rho = \frac{\lambda}{\mu} = A $$
 
 > [!IMPORTANT]  
-> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = A/k$ 
+> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = A/k$
 
-Average Number of Requests in the System $L$ For an **M/M/1** queue: 
+Average Number of Requests in the System $L$ For an **M/M/1** queue:
 
-$$ L = \frac{\rho}{1 - \rho} $$ 
+$$ L = \frac{\rho}{1 - \rho} $$
 
 Average Number of Requests in the Queue $L_q$:
 
-$$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $$ 
+$$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $$
 
-Average Delay in the System $W$: 
+Average Delay in the System $W$:
 
-$$ W = \frac{1}{\mu - \lambda} $$ 
+$$ W = \frac{1}{\mu - \lambda} $$
 
 Average Delay in the Queue $W_q$ :
 
-$$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $$ 
+$$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $$
