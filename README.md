@@ -1,72 +1,62 @@
-# QoS
+# 🚦 QoS & QoE: The Code Course
 
-A short course with code on basics of QoS and QoE.
+Welcome! 👋 This project is your hands-on guide to the essentials of Quality of Service (QoS) and Quality of Experience (QoE).
 
-Please see individual READMEs in subfolders.
+Dive into the subfolders to find the code and experiments for each lesson. Let's get your environment set up!
 
-## How to install the individual projects and their requirements
+## 🚀 Getting Started: The `uv` Way!
 
-### Clone the repo
+We'll be using `uv`, a lightning-fast Python package manager that replaces `pip` and `venv`. It's all you need to get up and running in seconds.
 
-```bash
-$ git clone https://github.com/jrozhon/qos.git
-```
+### Step 1: Clone the Codebase 📂
 
-This will create a folder named "qos" in your current directory.
-
-Based on the instructions given by the lecturer, go to the appropriate folder, i.e. qos-01.
+First, get the project files onto your machine. Open your terminal and run:
 
 ```bash
-$ cd qos-01
+git clone https://github.com/jrozhon/qos.git
 ```
 
-### Set up a virtual environment
-
-It is considered a best practice to install Python dependencies in the virtual environment to prevent possible changes in the system.
-
-To create one, just issue the following command:
+This creates a `qos` directory. Now, navigate into the folder for the lesson you're working on.
 
 ```bash
-$ python3.11 -m venv venv
+# Example for the first lesson
+cd qos/qos-01
 ```
 
-This will invoke Python's "venv" module and create a "venv" folder. Inside the folder, there will be all the Python dependencies that we are going to install.
+### Step 2: Power Up Your Environment ⚡️
 
-But before we install them, we need to switch ourselves to the virtual environment using the command:
+Now, let's create an isolated environment for your project dependencies.
 
 ```bash
-$ source venv/bin/activate
+# Initialize a new virtual environment with uv
+uv init --bare
 ```
 
-This will activate the environment and change the prompt so that it will be prefixed by "(venv)".
-
-### Install the dependencies and the project
-
-In the folder, there is a "pyproject.toml" file that specifies the project dependencies.
-
-These, together with the current directory's content can be installed using "pip" - Python's package manager.
-
-Just issue the following:
+Next, sync your environment with the project's locked dependencies. This ensures everyone on your team uses the exact same package versions.
 
 ```bash
-$ pip install .
+# Install the project dependencies
+uv sync
 ```
 
-> [!IMPORTANT]  
-> If the pyproject.toml contains **jupyter_bokeh** package, then Jupyter needs to be restarted before moving on.
+### Step 3: Launch Jupyter Lab 🛰️
 
-Now, you are ready to go.
-
-## Running Jupyter on remote computer
-
-As you are probably going to run the code on virtual machines provided in the lab, you are going to need to instruct Jupyter to use other the localhost address. You can achieve it by using "--ip" switch as follows:
+You're all set! To run the notebooks, you'll likely be on a remote lab computer, so you need to make Jupyter accessible. Use the `uv run` command:
 
 ```bash
-$ jupyter lab --ip 0.0.0.0
+# Run Jupyter Lab and make it accessible from any IP address
+uv run jupyter lab --ip 0.0.0.0
 ```
 
-For more details check the Jupyter's help:
+Jupyter will give you a URL to open in your web browser. Happy coding!
+
+## ✨ Pro-Tip: Adding More Packages
+
+Need an extra library for your experiments? Adding it with `uv` is a breeze.
 
 ```bash
-$ jupyter lab --help
+# Example: Add the numpy and pandas packages
+uv add numpy pandas
 ```
+
+That's it! `uv` will handle the installation and update your `pyproject.toml`. Remember to re-run `uv sync` if you add packages manually to the `pyproject.toml` file!
