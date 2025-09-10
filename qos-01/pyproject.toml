@@ -1,21 +1,12 @@
-[tool.poetry]
+[project]
 name = "qos-01"
 version = "0.1.0"
-description = ""
-authors = ["Jan Rozhon <jan@rozhon.eu>"]
-readme = "README.md"
-packages = [{include = "qos_01"}]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-jupyterlab = "^4.0.4"
-bokeh = "^3.2.1"
-panel = "^1.2.1"
-numpy = "^1.25.2"
-matplotlib = "^3.7.2"
-jupyter-bokeh = "^4.0.5"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = [
+    "bokeh>=3.8.0",
+    "jupyter-bokeh>=4.0.5",
+    "jupyterlab>=4.4.7",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "panel>=1.8.0",
+]
