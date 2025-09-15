@@ -25,19 +25,16 @@ cd qos/qos-01
 
 ### Step 2: Power Up Your Environment ⚡️
 
-Now, let's create an isolated environment for your project dependencies.
+Now, let's create an isolated environment and install the project dependencies. The `pyproject.toml` file in this project already defines everything you need.
+
+Run the following command to sync your environment. This will create a virtual environment and install the exact package versions specified in the project.
 
 ```bash
-# Initialize a new virtual environment with uv
-uv init --bare
-```
-
-Next, sync your environment with the project's locked dependencies. This ensures everyone on your team uses the exact same package versions.
-
-```bash
-# Install the project dependencies
+# Create environment and install dependencies
 uv sync
 ```
+
+> **Note:** For your own future projects, you can create a new `pyproject.toml` file from scratch by running `uv init`. However, for this course, the file is already provided for you.
 
 ### Step 3: Launch Jupyter Lab 🛰️
 
