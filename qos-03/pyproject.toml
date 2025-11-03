@@ -1,20 +1,11 @@
-[tool.poetry]
+[project]
 name = "qos-03"
 version = "0.1.0"
-description = ""
-authors = ["Jan Rozhon <jan@rozhon.eu>"]
-readme = "README.md"
-packages = [{include = "qos_03"}]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-jupyterlab = "^4.2.5"
-scapy = "^2.6.0"
-matplotlib = "^3.9.2"
-numpy = "^2.1.2"
-scipy = "^1.14.1"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.12"
+dependencies = [
+    "jupyterlab>=4.4.10",
+    "matplotlib>=3.10.7",
+    "numpy>=2.3.4",
+    "scapy>=2.6.1",
+    "scipy>=1.16.3",
+]
