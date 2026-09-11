@@ -3,7 +3,8 @@
 Three switches in a tree, one host on each, and traffic-control parameters on
 the inter-switch links. Run on a laboratory server with
 
-    sudo mn --custom mytopo.py --topo mytopo --mac --link tc
+    sudo mn --custom mytopo.py --topo mytopo --mac --link tc \
+        --switch ovsbr --controller=none
 
 The ``topos`` dictionary at the end registers the topology under the name
 passed to ``--topo``.

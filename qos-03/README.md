@@ -13,13 +13,24 @@ This exercise connects the network layer to the perceived quality of a real-time
 - Emulate delay, jitter, and random or bursty packet loss with `tc netem`.
 - Assess speech quality with the ACR and DCR subjective methods and with the PESQ and ViSQOL objective models, and relate the scores to the measured network impairments and to each other.
 
+## Knowledge prerequisites
+
+Students should be able to:
+
+- Explain sampling and pulse-code modulation from [Exercise 01](../qos-01/README.md), and calculate a bit rate from the sample rate and bits per sample.
+- Distinguish Ethernet frames, IP packets, and transport-layer ports, and describe the basic roles of TCP and UDP.
+- Explain how queues introduce waiting time and interpret a probability as a fraction of events, using [Exercise 02](../qos-02/README.md).
+- Write Python functions and loops, and run terminal commands with file paths and arguments.
+
+Voice-call signaling, audio packetization, traffic-control commands, and speech quality assessment are introduced in this exercise. Packet capture and generation are practiced using Wireshark and Scapy.
+
 ## Theory
 
 ### Anatomy of a VoIP call
 
-A VoIP call consists of two independent flows. *Signaling* establishes, modifies, and terminates the session; in this course it is the Session Initiation Protocol (SIP), carried over UDP or TCP, whose messages (`INVITE`, `200 OK`, `ACK`, `BYE`) also negotiate the codec and transport addresses of the media. *Media* is carried by the Real-time Transport Protocol (RTP) over UDP. Each RTP packet has a 12-byte header containing a payload type, a sequence number, a timestamp, and a synchronization source identifier (SSRC), followed by a block of coded audio.
+Voice over IP (VoIP) separates signaling from media transport. *Signaling* establishes, modifies, and terminates the session; in this course it is the Session Initiation Protocol (SIP), carried over UDP or TCP, whose messages (`INVITE`, `200 OK`, `ACK`, `BYE`) also negotiate the codec and transport addresses of the media. *Media* is carried by the Real-time Transport Protocol (RTP) over UDP. The basic RTP header is 12 bytes long; optional fields can extend it. It contains a payload type, a sequence number, a timestamp, and a synchronization source identifier (SSRC), followed by a block of coded audio.
 
-With the G.711 codec of [Exercise 01](../qos-01/README.md#pulse-code-modulation), speech is sampled at 8 kHz with 8 bits per sample and packetized every 20 ms. One packet therefore carries 160 samples, that is 160 B of payload; with the 12 B RTP, 8 B UDP, and 20 B IP headers it is 200 B long. The call produces 50 packets per second in each direction, a 64 kbit/s payload stream and an 80 kbit/s IP stream:
+With the G.711 codec of [Exercise 01](../qos-01/README.md#pulse-code-modulation), speech is sampled at 8 kHz with 8 bits per sample and packetized every 20 ms. One packet therefore carries 160 samples, that is 160 B of payload; with the 12 B RTP, 8 B UDP, and 20 B IPv4 headers without options it is 200 B long. The call produces 50 packets per second in each direction, a 64 kbit/s payload stream and an 80 kbit/s IP stream:
 
 $$
 R_{\mathrm{IP}} = \frac{(160 + 12 + 8 + 20) \cdot 8}{0.02} = 80\,000 \ \mathrm{bit/s}
@@ -29,11 +40,11 @@ where the numerator is the packet length in bits and the denominator the packeti
 
 ### Network impairments
 
-Three properties of the network path determine the quality of the received audio.
+Three network impairments affect the received audio and the ease of conversation. Their perceptual effects also depend on the codec, receiver, and speech content.
 
-- **Delay** – the one-way latency from microphone to loudspeaker, including coding, packetization, queueing, propagation, and playout buffering. ITU-T G.114 recommends at most 150 ms for interactive conversation; above about 400 ms, turn-taking breaks down. Delay is invisible in a one-way (listening) test and dominant in a conversational test.
+- **Delay** – the one-way latency from microphone to loudspeaker, including coding, packetization, queueing, propagation, and playout buffering. The guidance in ITU-T G.114 emphasizes keeping conversational delay low. Large delays disrupt turn-taking; a listening-only test does not measure this conversational effect.
 - **Jitter** – the variation of delay between consecutive packets, caused by queueing. The receiver absorbs it in a *jitter buffer*, at the cost of additional delay; packets arriving later than the buffer allows are treated as lost.
-- **Packet loss** – packets discarded by congested queues or corrupted on the link. A lost G.711 packet removes 20 ms of speech. Random loss at a few percent is audible but intelligible; *bursty* loss of the same average rate removes whole syllables and is judged far worse.
+- **Packet loss** – packets discarded by congested queues or corrupted on the link. In the 20 ms packetization example, each missing packet removes 20 ms of coded speech. A receiver may replace it using packet-loss concealment. Consecutive losses can remove whole syllables, so *bursty* loss can be more disruptive than independent loss at the same average rate.
 
 ### Traffic control in Linux
 
@@ -43,15 +54,15 @@ The `tc` utility configures the kernel packet scheduler. Every interface has a r
 tc qdisc add dev DEVICE root netem delay TIME loss PERCENT%
 ```
 
-`dev DEVICE` selects the interface, `root netem` installs netem as the root qdisc, `delay TIME` adds a fixed delay to every outgoing packet, and `loss PERCENT%` drops packets independently at random with the given probability. Jitter is added by giving `delay` a second argument, the standard deviation, for example `delay 100ms 20ms`.
+`dev DEVICE` selects the interface, `root netem` installs netem as the root qdisc, `delay TIME` adds a fixed delay to every outgoing packet, and `loss PERCENT%` drops packets independently at random with the given probability. A second delay argument adds variation; specify the distribution explicitly, for example `delay 100ms 20ms distribution normal`. See the [netem manual](https://github.com/iproute2/iproute2/blob/main/man/man8/tc-netem.8).
 
 Bursty loss is emulated with the Gilbert–Elliott model, a two-state Markov chain that alternates between a *good* state with no loss and a *bad* state in which packets are lost:
 
 ```bash
-tc qdisc add dev DEVICE root netem loss gemodel P R
+tc qdisc add dev DEVICE root netem loss gemodel P R 100% 0%
 ```
 
-where `P` is the probability of moving from the good to the bad state after a packet and `R` the probability of returning from bad to good, both in percent. A small `R` relative to `P` produces long loss bursts.
+where `P` is the probability of moving from the good to the bad state after a packet and `R` the probability of returning from bad to good, both in percent. The final two parameters specify 100 % loss in the bad state and 0 % in the good state. With `P` and `R` converted to probabilities, the long-run loss fraction is $P/(P+R)$ and the mean bad-state duration is $1/R$ packets. Thus `R` controls the mean burst length; `P` must also change to hold the mean loss fixed.
 
 The current configuration is shown with `tc qdisc show dev DEVICE` and removed with `tc qdisc del dev DEVICE root`; the interface then returns to its default behavior.
 
@@ -60,14 +71,28 @@ The current configuration is shown with `tc qdisc show dev DEVICE` and removed w
 
 ### Speech quality assessment
 
-Quality is measured either by asking listeners (*subjective* methods, ITU-T P.800) or by algorithms that predict what listeners would say (*objective* methods). Both report a mean opinion score (MOS) on a five-point scale from 1 (bad) to 5 (excellent).
+Subjective methods collect judgments from listeners. Objective models estimate listening quality from audio signals. Keep the measurement names distinct when reporting results:
 
-- **Absolute Category Rating (ACR)** – each degraded sample is played once and rated on its own. Simple and fast, but sensitive to the listener's expectations.
-- **Degradation Category Rating (DCR)** – samples are played in pairs, the unimpaired reference first, and the listener rates the *degradation* of the second relative to the first (also called Double Stimulus Impairment Scale). More sensitive to small impairments.
-- **PESQ** (ITU-T P.862) – an intrusive objective model that compares the degraded signal with the reference and outputs a MOS-like score. The reference implementation is available in C.
-- **ViSQOL** (Virtual Speech Quality Objective Listener) – an open-source intrusive model from Google. It aligns the degraded signal with the reference, compares their spectrograms with a similarity measure (NSIM), and maps the similarity to a MOS-LQO score with a model trained on listening tests. It has a *speech* mode for narrow- and wide-band speech and an *audio* mode for 48 kHz music and general audio.
+| Method | What is assessed | Reported result |
+|---|---|---|
+| Absolute Category Rating (ACR) | Quality of a sample presented on its own | Mean opinion score (MOS) |
+| Degradation Category Rating (DCR) | Degradation of a sample relative to the clean reference played first | Degradation mean opinion score (DMOS) |
+| Perceptual Evaluation of Speech Quality (PESQ) | A model's comparison of reference and degraded speech | Raw prediction and, where provided, its mapped listening-quality estimate |
+| Virtual Speech Quality Objective Listener (ViSQOL) | A model's comparison of reference and degraded audio | Mean opinion score – listening quality objective (MOS-LQO) |
 
-Objective models are calibrated on listening tests and therefore do not account for delay; conversational effects must be judged separately.
+Use these rating anchors, following [ITU-T P.800](https://www.itu.int/rec/T-REC-P.800-199608-I/en):
+
+| Score | ACR: quality | DCR: degradation |
+|---|---|---|
+| 5 | Excellent | Inaudible |
+| 4 | Good | Audible but not annoying |
+| 3 | Fair | Slightly annoying |
+| 2 | Poor | Annoying |
+| 1 | Bad | Very annoying |
+
+PESQ and ViSQOL are *full-reference* or *intrusive* models: both need the clean reference as well as the degraded recording. ViSQOL compares patterns of energy across time and frequency and maps their similarity to an estimated quality score. Its speech mode expects 16 kHz audio; resampling an 8 kHz recording meets that input requirement but does not recover missing high-frequency content. See the [ViSQOL documentation](https://github.com/google/visqol).
+
+These two models estimate listening quality. This experiment does not measure the effect of conversational delay on turn-taking. Similar numerical ranges also do not make ACR MOS, DCR DMOS, and objective estimates interchangeable; compare their trends and explain their different meanings.
 
 ## Exercise
 
@@ -94,7 +119,19 @@ The audio part of the notebook expects `input.wav` in the notebook directory: mo
 ffmpeg -i recording.m4a -ar 8000 -ac 1 -sample_fmt s16 input.wav
 ```
 
-A sample capture of a call to the echo service is provided in `qos_03/pcap/asterisk-echo-test.pcapng`.
+A sample capture is provided in `qos_03/pcap/asterisk-echo-test.pcapng`. Its outgoing G.711 A-law stream has SSRC `0xabd66334`, source `10.100.100.3:42132`, and destination `158.196.146.236:16088`. It contains 1095 packets with 160 samples each, giving 21.9 s of audio. Use it to check stream selection and reconstruction before processing a new recording.
+
+For the commands in Steps 4–6, work in `qos-03/qos_03/`. Create a `results/` directory there. Keep a separate capture for every condition, and record:
+
+| Parameter | What to record |
+|---|---|
+| Sender and receiver | IP and Ethernet MAC addresses; laboratory interface names |
+| Stream | Source and destination ports, SSRC, codec, and packetization interval |
+| Impairment | Complete `tc` command, configured mean loss, and burst parameters |
+| Observation | Capture duration, sent and received packet counts, measured loss, and jitter |
+| Quality evaluation | Reference file, reconstruction method, listener count, and model version/settings |
+
+Step 1 uses the student's local Wireshark installation and telephone client. Packet generation, replay, reconstruction, and scoring run on the laboratory servers. Use the available PESQ and ViSQOL executables by setting their paths in the notebook. Source-build instructions are provided below as optional setup; a missing executable produces an unavailable score (`NaN`), not a zero quality rating.
 
 ### Step 1 – Make a call and capture it
 
@@ -106,47 +143,73 @@ Work through the notebook. Scapy composes packets layer by layer (`IP() / ICMP()
 
 ### Step 3 – Emulate impairments with `tc`
 
-On the laboratory interface, apply netem qdiscs with fixed delay, delay with jitter, random loss, and Gilbert–Elliott loss. Send traffic from Step 2 through the interface and confirm each impairment in a capture at the receiver.
+On the laboratory interface, apply fixed delay, delay with jitter, random loss, and Gilbert–Elliott loss in separate trials. Remove the previous root qdisc before adding the next one. Predict the effect, send the same traffic in each trial, and inspect the receiver capture. Use sequence numbers to measure loss and packet timing to examine jitter. Measuring absolute one-way delay requires corresponding sender and receiver observations with synchronized clocks; a receiver-only capture is insufficient.
 
 ### Step 4 – Replay a call under packet loss
 
-Prepare a clean capture containing only the RTP audio of a call. Replay it with `tcpreplay-edit` towards a colleague's server while the netem qdisc imposes 0.5 %, 1 % and 3 % random loss, and capture it there with `tcpdump`. The addresses and MAC addresses in the file must be rewritten to match the laboratory network:
+Prepare `rtp.pcap` containing one direction of one G.711 stream with 20 ms packetization and no missing packets. For the supplied example, export the outgoing stream:
 
 ```bash
-sudo tcpreplay-edit -i DEVICE -K --loop 1 --timer nano --pps 50 \
-  --srcipmap=127.0.0.1/32:SRC_IP --dstipmap=127.0.0.1/32:DST_IP \
+tshark -nr pcap/asterisk-echo-test.pcapng -Y "rtp.ssrc == 0xabd66334" -F pcap -w rtp.pcap
+```
+
+Replay a clean baseline first, then apply 0.5 %, 1 %, and 3 % independent loss in separate trials. Start the receiver capture before replay and stop it after replay finishes. Use `tcpreplay-edit` on the sender, substituting the original capture addresses for `OLD_SRC_IP` and `OLD_DST_IP`, and the laboratory addresses for the other placeholders:
+
+```bash
+sudo tcpreplay-edit -i DEVICE -K --loop 1 --timer nano --pps 50 --dlt=enet --fixcsum \
+  --srcipmap=OLD_SRC_IP/32:SRC_IP --dstipmap=OLD_DST_IP/32:DST_IP \
   --enet-smac=SRC_MAC --enet-dmac=DST_MAC rtp.pcap
 ```
 
-`-K` preloads the file into memory, `--timer nano` uses high-resolution timing, `--pps 50` enforces the G.711 packet rate, and the map options rewrite the IP and Ethernet addresses. In Wireshark, read the loss, delay, and jitter statistics of each received stream.
+`-K` preloads the capture, `--pps 50` requests 50 packets/s, and the map options rewrite the addresses. The supplied capture uses Linux cooked headers; `--dlt=enet` converts them to Ethernet headers, and `--fixcsum` recalculates checksums. See the [tcpreplay-edit manual](https://tcpreplay.appneta.com/reference/man/tcpreplay-edit/). This rate applies to the selected single stream; replaying two directions at 50 packets/s would change their timing. For the supplied stream, the original addresses are `10.100.100.3` and `158.196.146.236`.
 
-### Step 5 – Extract and evaluate the audio
+Check qdisc counters and receiver statistics to establish that the replay passed through the intended impairment. Record observed loss rather than assuming it equals the configured probability. Repeat with bursty loss at comparable mean rates, recording all Gilbert–Elliott parameters. Retain the received captures for reconstruction and comparison.
 
-Extract the payload of each received stream and convert it to WAV. `tshark` lists the RTP streams, or the UDP conversations if no SIP is present to identify them; the payload is dumped as hexadecimal, converted to raw bytes, and decoded by `ffmpeg`:
+### Step 5 – Reconstruct and evaluate the audio
 
-```bash
-tshark -nr input.pcap -q -z rtp,streams
-tshark -nr input.pcap -q -z conv,udp
-tshark -nr input.pcap -Y "rtp.ssrc == SSRC" -T fields -e rtp.payload > payload.txt
-tshark -nr input.pcap -d udp.port==PORT,rtp -Y rtp -T fields -e rtp.payload > payload.txt
-xxd -r -p payload.txt > payload.raw
-ffmpeg -f alaw -ar 8000 -ac 1 -i payload.raw output.wav
-```
+Reconstruct the source timeline before evaluating quality. Simply joining the received payloads would remove missing intervals and shorten the recording. RTP timestamps locate audio samples on the source timeline, and sequence numbers help identify missing or repeated packets. See [RFC 3550, Section 2.1](https://www.rfc-editor.org/rfc/rfc3550.html#section-2.1).
 
-The third and fourth commands are alternatives: select the stream by SSRC, or force RTP decoding on a known UDP port. Use `-f mulaw` for PCMU payloads.
+For example, if packets at timestamps 0, 160, and 320 carry 160 samples each, losing the middle packet should leave a 160-sample gap. At 8 kHz, that gap is 20 ms; the recording should still last 60 ms.
 
-Rate the recordings with ACR and with DCR against the clean reference, then score them with PESQ. The PESQ reference implementation is compiled from its C sources (link in References) with
+The supplied [reconstruction utility](reconstruct_rtp.py) decodes G.711, puts received samples at their original offsets, and inserts digital silence for missing packets, including losses at the beginning or end. It uses the complete clean stream to establish the duration. This is an offline loss model: it accepts reordered packets and does not simulate late-packet rejection or a receiver's jitter buffer. Silence insertion is a baseline, not a model of every real receiver's concealment algorithm.
+
+Export the clean stream and one received stream as tab-separated sequence number, timestamp, and payload fields. Replace `PORT` and `SSRC` with the recorded destination port and stream identifier; replay preserves the SSRC. Select the same direction in both files:
 
 ```bash
-gcc -o PESQ *.c -lm -fcommon
-./PESQ +8000 reference.wav degraded.wav
+tshark -nr rtp.pcap -d udp.port==PORT,rtp -Y "rtp.ssrc == SSRC" \
+  -T fields -e rtp.seq -e rtp.timestamp -e rtp.payload > results/reference.tsv
+tshark -nr received.pcap -d udp.port==PORT,rtp -Y "rtp.ssrc == SSRC" \
+  -T fields -e rtp.seq -e rtp.timestamp -e rtp.payload > results/received.tsv
 ```
 
-Tabulate MOS against loss rate and loss model, and compare the subjective and objective scores.
+For the supplied example, use `PORT=16088` and `SSRC=0xabd66334` as the placeholder values. The utility expects continuous G.711 audio from one stream, without silence suppression or codec changes. It rejects an incomplete clean timeline. Decode the clean and received exports with the same settings:
+
+```bash
+python3 ../reconstruct_rtp.py results/reference.tsv results/reference.tsv results/reference.wav --codec alaw
+python3 ../reconstruct_rtp.py results/reference.tsv results/received.tsv results/output_random_0.5.wav --codec alaw
+```
+
+Use `--codec mulaw` for PCMU. Name each output `output_<model>_<loss>.wav`, using `random` or `gemodel` and the configured mean loss percentage, so the notebook can find it. Keep repeated trials in separate result directories. Verify that every reconstructed recording has the same duration as the reference and that a capture with no loss reproduces its decoded samples.
+
+For listening tests, use consistent headphones, playback level, and a quiet setting. Assign anonymous sample labels and randomize the order of conditions. Collect ACR ratings separately from DCR ratings; for DCR, always play the reference before the degraded version. Retain individual ratings and report their mean, spread, and listener count. A small classroom group illustrates the method but does not establish a population-wide quality ranking.
+
+Set `PESQ_BIN` in the notebook and use its *Quality evaluation* section to score the files. Label the mapped PESQ score as MOS-LQO where available, and identify raw predictions separately. Tabulate configured and observed loss, jitter, ACR MOS, DCR DMOS, and objective estimates.
 
 ### Step 6 – Score with ViSQOL
 
-ViSQOL provides a second objective score for the same recordings. It is built from source with Bazel; the repository also ships a Dockerfile that performs the build in a container.
+Set `VISQOL_BIN` to the available executable and run the notebook's scoring cells. The helper resamples both files to 16 kHz and invokes speech mode. It uses `--use_unscaled_speech_mos_mapping`; record this option with the tool version because score mapping affects comparisons.
+
+The notebook combines these estimates with hand-entered network statistics and listener ratings. Treat `NaN` as an unavailable result and check executable paths if a score is missing. Compare how the methods rank the conditions and where their trends disagree. Do not infer a universal ordering of PESQ and ViSQOL from one recording or a small listener group.
+
+### Optional setup – Build the scoring tools
+
+If source builds are needed, prepare them separately from the measurements. For PESQ, use the reference C sources linked in References and run this command in their directory:
+
+```bash
+gcc -o PESQ *.c -lm -fcommon
+```
+
+For ViSQOL, follow the dependencies and version requirements in its [build documentation](https://github.com/google/visqol#build). From a chosen tools directory:
 
 ```bash
 git clone https://github.com/google/visqol.git
@@ -154,32 +217,18 @@ cd visqol
 bazel build :visqol -c opt
 ```
 
-The speech model expects 16 kHz input, so both the reference and every degraded file from Step 5 are resampled first. The comparison is then run in speech mode; the `--use_unscaled_speech_mos_mapping` flag reports the score on the full 1–5 range rather than the compressed range calibrated for the model's training set.
+Record the source revision and set the absolute executable paths in the notebook. Build steps do not need to be repeated for each measurement.
 
-```bash
-ffmpeg -i reference.wav -ar 16000 reference16.wav
-ffmpeg -i output.wav -ar 16000 output16.wav
-./bazel-bin/visqol --reference_file reference16.wav --degraded_file output16.wav \
-  --use_speech_mode --use_unscaled_speech_mos_mapping
-```
+### Results to retain
 
-Several pairs are scored in one run from a CSV file with `reference,degraded` columns:
-
-```bash
-./bazel-bin/visqol --batch_input_csv pairs.csv --results_csv results.csv \
-  --use_speech_mode --use_unscaled_speech_mos_mapping
-```
-
-The *Quality evaluation* section at the end of the notebook automates Steps 5 and 6: given the recordings in `qos_03/results/` and the paths to the two executables, it scores every file with `score_pair()` from `lib/core.py`, assembles the table together with the hand-entered network statistics and ACR/DCR ratings, and plots MOS against packet loss for all four methods.
-
-Add the ViSQOL column to the table from Step 5. Both PESQ and ViSQOL predict listening quality only, but they weigh impairments differently: ViSQOL is generally more tolerant of small time shifts and more sensitive to spectral distortion. Note where the two models disagree, and which of them tracks the ACR and DCR ratings more closely for random and for bursty loss.
+Save the completed notebook, clean and received captures, reconstructed WAV files, full impairment settings, and individual listener ratings. Include the comparison table and plots, a successful no-loss reconstruction check, and a short discussion of loss patterns, measurement variation, and disagreements between quality methods. Retain these artifacts as work progresses; groups may complete the steps at different rates.
 
 ## Questions
 
 1. Which layer of the TCP/IP stack does each of SIP, RTP, UDP, and IP belong to, and which of them carries the codec information?
 2. What is the IP-level bit rate of a G.711 call in both directions, and how does it change if the packetization interval is 40 ms?
-3. Why does Scapy fail to produce accurate 20 ms packet spacing, and what does a real VoIP client do differently?
-4. Two links have the same 3 % average loss, one random and one Gilbert–Elliott with a long bad state. Which yields the lower MOS, and why?
+3. How closely did the observed packet spacing match 20 ms? Which software and operating-system effects can introduce timing variation?
+4. Two links have the same 3 % average loss, one independent and one bursty. Predict how speech quality might differ, then explain how speech content and packet-loss concealment could affect the result.
 5. Which of your measurements would change between a listening test and a conversational test, and why do PESQ and ViSQOL ignore it?
 6. PESQ and ViSQOL are both intrusive models. What does a *non-intrusive* model have to do differently, and where in a VoIP system would it be needed?
 

@@ -181,8 +181,9 @@ def ssim_loop(
 
     M, N = img1.shape
     pad = window_size // 2
-    p1 = np.pad(img1, pad, mode="reflect")
-    p2 = np.pad(img2, pad, mode="reflect")
+    # Match convolve2d(boundary="symm"), including the edge pixels.
+    p1 = np.pad(img1, pad, mode="symmetric")
+    p2 = np.pad(img2, pad, mode="symmetric")
 
     total = 0.0
     for i in range(M):

@@ -2,7 +2,7 @@
 
 Course material for *Quality of Service and Quality of Experience* (QoS & QoE), taught at the Faculty of Electrical Engineering and Computer Science, VSB – Technical University of Ostrava. The course introduces the properties of signals and network traffic that determine the perceived quality of multimedia services, and the mechanisms networks use to control them.
 
-Each exercise is a self-contained directory with a `README.md` covering the theory and a Jupyter notebook containing the practical tasks. Exercises are intended to be worked through in order.
+Each exercise is a self-contained directory with a `README.md` covering the theory and tasks. Exercises 01–04 include a Jupyter notebook; Exercise 05 uses the Mininet command line. Exercises are intended to be worked through in order.
 
 ## Exercises
 
@@ -14,9 +14,23 @@ Each exercise is a self-contained directory with a `README.md` covering the theo
 | [04](qos-04/README.md) | Objective image quality metrics: PSNR and SSIM | Jupyter |
 | [05](qos-05/README.md) | Software-defined network emulation in Mininet: topologies, flow tables, link parameters, and performance testing | Mininet |
 
-All exercises are carried out on the laboratory servers, accessed over SSH.
+Simulations and network experiments run on the laboratory servers, accessed over SSH. Exercise 03 also uses a telephone client and Wireshark on the student's computer to capture a call.
 
 ## Prerequisites
+
+### Knowledge
+
+Students should be able to:
+
+- Rearrange simple equations, evaluate powers and logarithms, and interpret graphs of functions.
+- Convert between common units, including seconds and milliseconds, and distinguish bits from bytes.
+- Write basic Python code using variables, loops, functions, and imports, and perform simple calculations on NumPy arrays.
+- Explain the purpose of an Internet Protocol (IP) address, a network packet, and a transport-layer port, and distinguish a client from a server.
+- Navigate directories and run commands in a terminal.
+
+The course introduces signal sampling, probability distributions, queueing models, and multimedia quality assessment. Each exercise states the additional knowledge needed from earlier lessons. The laboratory tools are introduced through the practical tasks.
+
+### Software and access
 
 - Python 3.12 or newer.
 - [`uv`](https://docs.astral.sh/uv/), which manages virtual environments and dependencies for each exercise. Installation instructions are in the `uv` documentation.
@@ -32,7 +46,7 @@ Log in to a laboratory server over SSH and clone the repository once.
 git clone https://github.com/jrozhon/qos.git
 ```
 
-Each exercise directory contains its own `pyproject.toml`, so the environment is created per exercise. Change into the exercise directory and synchronize it; this creates a virtual environment in `.venv` and installs the pinned dependencies.
+Exercises 01–04 each contain a `pyproject.toml`, so the environment is created per exercise. Change into the exercise directory and synchronize it; this creates a virtual environment in `.venv` and installs the declared dependencies. Exercise 05 has separate setup instructions in its README.
 
 ```bash
 cd qos/qos-01
