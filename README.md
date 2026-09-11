@@ -12,9 +12,7 @@ Each exercise is a self-contained directory with a `README.md` covering the theo
 | [02](qos-02/README.md) | Probability distributions, the Poisson process, and M/M/1 queueing systems | Jupyter |
 | [03](qos-03/README.md) | Network traffic properties and their effect on QoE: packet crafting, VoIP, traffic control | Jupyter, Wireshark, `tc` |
 | [04](qos-04/README.md) | Objective image quality metrics: PSNR and SSIM | Jupyter |
-| 05 | Software-defined network emulation in Mininet | Mininet |
-| 06 | Mininet: topologies, link parameters, and performance testing | Mininet |
-| [07](qos-07/README.md) | Quality of Service in networks: marking, shaping, and queueing disciplines | Mininet |
+| [05](qos-05/README.md) | Software-defined network emulation in Mininet: topologies, flow tables, link parameters, and performance testing | Mininet |
 
 All exercises are carried out on the laboratory servers, accessed over SSH.
 
@@ -77,7 +75,7 @@ qos-NN/
         └── params.py  shared matplotlib style
 ```
 
-Exercises 05–07 contain only a notebook because their tasks are executed in the Mininet command line rather than in Python.
+Exercise 05 has no notebook because its tasks are executed in the Mininet command line; its README carries the complete procedure, and the Python topology file is placed next to it.
 
 ## Contributing
 

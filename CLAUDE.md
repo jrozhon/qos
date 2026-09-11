@@ -18,7 +18,7 @@ Lesson map:
 | `qos-02` | Probability distributions, Poisson process, M/M/1 queues — discrete-event simulation | simpy, loguru, networkx |
 | `qos-03` | Packet crafting, VoIP/RTP, `tc netem`, audio extraction from pcap, PESQ/ViSQOL scoring | scapy, scipy; needs Wireshark/tshark, tcpreplay, root/capabilities; PESQ and ViSQOL binaries are external (paths set in the notebook, `score_pair` returns NaN without them) |
 | `qos-04` | PSNR / SSIM image quality metrics | pillow, scipy |
-| `qos-05`–`qos-07` | Mininet SDN emulation, QoS queuing (PQ/CQ/WFQ/LLQ) | notebook-only; tasks run in the Mininet CLI, not in Python |
+| `qos-05` | Mininet SDN emulation: topologies, OpenFlow flow tables, `tc` links, iperf | README-only (no notebook); `mytopo.py` is a Mininet topology file run on the lab servers, not locally |
 
 ## Commands
 
@@ -38,7 +38,7 @@ Notebooks are the only "runnable" thing. To execute one headlessly for a sanity 
 cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/exercise_02.ipynb --output /tmp/out.ipynb
 ```
 
-(qos-03 and qos-05+ notebooks require network capabilities / external hosts and will not execute cleanly unattended.)
+(The qos-03 notebook requires network capabilities and will not execute cleanly unattended.)
 
 ## Structure conventions
 
