@@ -1,149 +1,171 @@
-# Exercise 02
+# Exercise 02 – Random variables, the Poisson process, and queueing systems
 
-### History of Probability Theory
+This exercise introduces the probabilistic tools used to describe network traffic. It reviews random variables and the uniform, exponential, and normal distributions, defines the Poisson process as the standard model of packet arrivals, and presents the M/M/1 queue together with Little's law. In the practical part, students generate random samples, build a discrete-event simulation of packet sources, a switch, and sinks in SimPy, and compare the measured delay and occupancy of a simulated M/M/1 system with the analytical formulas.
 
-Probability theory originated from the study of games of chance in the 16th and 17th centuries. Early mathematicians, intrigued by gambling, began to formalize the rules of probability. This work laid the foundation for understanding how likely events are to occur. Over time, probability theory expanded beyond gambling to include a wide range of applications in science, economics, and everyday decision-making.
+## Learning objectives
 
-In the 18th and 19th centuries, probability theory was further developed with key concepts like the Law of Large Numbers, which explains how the average of many trials converges to the expected value. By the 20th century, probability had become a rigorous mathematical discipline, thanks to the work of mathematicians who established its formal axioms and principles.
+- Distinguish discrete and continuous random variables and read a probability mass or density function.
+- Generate samples from the uniform, exponential, and normal distributions and interpret their histograms.
+- Explain why the Poisson process models aggregated traffic and how it relates to exponential inter-arrival times.
+- Read Kendall notation and state the assumptions of the M/M/1 model.
+- Compute offered traffic, utilization, mean occupancy, and mean delay of an M/M/1 system and verify them by simulation.
 
-### Random Variables
+## Theory
 
-A random variable is a fundamental concept in probability, representing a numerical outcome of a random process. It allows us to quantify uncertainty and make predictions about future events. There are two main types of random variables:
+### Random variables
 
-1. **Discrete Random Variables**: These have a finite or countable number of possible outcomes. For example, the result of rolling a six-sided die is a discrete random variable, as it can only result in one of six specific numbers.
-2. **Continuous Random Variables**: These can take on any value within a given range. An example is the exact height of individuals in a population, which can vary continuously and is not limited to specific values.
+A *random variable* assigns a number to the outcome of a random experiment. It is *discrete* when it takes finitely or countably many values (the number of packets arriving in one second) and *continuous* when it takes any value in an interval (the time between two arrivals).
 
-### Key Concepts
+The behavior of a random variable $X$ is described by its *probability distribution*: a probability mass function (PMF) $P(X = k)$ for discrete variables, or a probability density function (PDF) $f(x)$ for continuous ones, where the probability of $X$ falling into an interval is the area under $f$ over that interval. Two numbers summarize a distribution:
 
-- **Probability Distribution**: This describes how probabilities are assigned to the possible values of a random variable. For discrete random variables, this is often represented by a probability mass function (PMF), which lists the probabilities of each possible outcome. For continuous random variables, a probability density function (PDF) is used, which describes the likelihood of the variable taking on a particular value within a range.
-- **Expectation**: Also known as the expected value, this is a measure of the central tendency of a random variable. It is akin to an average and provides a single summary value that represents the typical outcome of the random process.
-- **Variance**: This measures the spread or dispersion of the values of a random variable. A high variance indicates that the values are spread out over a wide range, while a low variance indicates that they are clustered closely around the expected value.
+- the *expectation* (mean) $E[X]$, the value around which outcomes are centered, and
+- the *variance* $\operatorname{Var}[X] = E\big[(X - E[X])^2\big]$, the spread of outcomes around the mean; its square root is the standard deviation $\sigma$.
 
-These concepts are essential for understanding and modeling uncertainty in various fields, from predicting stock market trends to assessing risks in engineering projects. They provide the tools needed to analyze random processes and make informed decisions based on probabilistic reasoning.
+### Uniform distribution
 
-### Statistical distributions
+The continuous uniform distribution on the interval $[a, b]$ assigns equal density to every value in the interval:
 
-#### Uniform distribution
+$$
+f(x) = \frac{1}{b - a}, \qquad a \leq x \leq b
+$$
 
-The uniform distribution is one of the simplest probability distributions. It assigns the same probability to all values of a continuous random variable X within a specified interval of finite length. This means that every outcome within this interval is equally likely to occur.
+where $a$ and $b$ are the interval bounds; the mean is $(a + b)/2$. Pseudo-random generators produce uniform samples on $[0, 1)$, from which samples of every other distribution are derived.
 
 ![Uniform distribution](fig/uniform.png)
 
-For example, the uniform distribution can model scenarios where all outcomes have the same likelihood, such as the waiting time for a bus or the time it takes for a product to be processed on an automatic production line.
+### Exponential distribution
 
-#### Exponential distribution
+The exponential distribution describes the waiting time until the next event of a Poisson process, or equivalently the interval between two consecutive events:
 
-The exponential distribution is associated with a continuous random variable X, which represents the waiting time until the occurrence of a Poisson random event, or the length of the interval (in time or distance) between two such events. Examples include the waiting time for an operator or the distance between two damaged locations on a road.
+$$
+f(x) = \lambda e^{-\lambda x}, \qquad x \geq 0
+$$
 
-This distribution models the time between randomly occurring events that follow a Poisson distribution. It is characterized by the parameter λ, which is the inverse of the mean waiting time until the occurrence of the event being monitored.
+where $\lambda$ is the event rate [s⁻¹] and $1/\lambda$ the mean waiting time [s]. The distribution is *memoryless*: the time still to wait does not depend on how long one has already waited. This property is what makes the queueing models below tractable.
 
 ![Exponential distribution](fig/exponential.png)
 
-#### Normal distribution
+### Normal distribution
 
-The normal distribution is one of the most important continuous distributions in probability theory and statistics. It often serves as an approximation for a wide range of random variables—variables whose values are determined by the outcomes of random experiments.
-
-For example, the normal distribution can describe the distribution of random errors in various activities, such as deviations in dimensions from a predetermined standard during the manufacturing of components. It also applies to many measurable characteristics in biological statistics, including traits in livestock, experimental cell cultures, and humans.
-
-Specifically, normal distributions are commonly observed in characteristics such as weight, IQ, and height.
+The normal distribution, introduced in [Exercise 01](../qos-01/README.md#gaussian-noise), approximates any quantity that results from the sum of many small independent effects: measurement errors, dimensions of manufactured parts, or the noise on a channel. It is fully described by its mean $\mu$ and standard deviation $\sigma$. In this exercise it serves as a contrasting model of inter-arrival times that is *not* memoryless.
 
 ### Poisson process
 
-The most used input flow model. We use the Poisson flow model always when customers (incoming calls, data packets, ...) come from a large set of mutually independent users.
+The Poisson process is the standard model of an *input flow*: the arrival of calls, packets, or requests originating from a large population of mutually independent users. It is characterized by a single parameter, the arrival rate $\lambda$, and has two equivalent descriptions. First, the number of arrivals $N$ in an interval of length $t$ has the Poisson distribution
 
-**Example:**
+$$
+P(N = k) = \frac{(\lambda t)^k}{k!} \, e^{-\lambda t}, \qquad k = 0, 1, 2, \dots
+$$
 
-On an hourly on average, 15 customers come to the payphone. Each call takes an average of 3 minutes. Is it necessary to buy another payphone if we don't want customers to wait longer than 3 minutes? The arrival of customers follows a Poisson process, the time to make a call is random and follows an exponential distribution.
+where $\lambda$ is the arrival rate [s⁻¹] and $t$ the interval length [s]; the mean number of arrivals is $\lambda t$. Second, the intervals between consecutive arrivals are independent and exponentially distributed with rate $\lambda$.
 
-### Basics of Queuing Systems
+The second description is the one used in simulation: a source that draws each inter-arrival time from an exponential distribution generates a Poisson process.
 
-A Queuing System is a framework used to manage and service incoming requests, often referred to as customers. These systems can consist of one or more parallel lines, also known as channels, that handle these requests.
+### Queueing systems
 
-The fundamental components of queuing systems include:
+A *queueing system* serves incoming *requests* (customers, calls, packets) using one or more *service channels* (servers, lines). Its capacity is the number of requests that can be served simultaneously. A request that finds a free channel is served immediately; otherwise it either waits in a *queue* (a router buffer) or is rejected (a PBX without call waiting). A system is characterized by
 
-**1. Requests** (customers, packets, requests, tickets...)
+- the input flow – how requests arrive,
+- the service – the number of channels and the distribution of service times, and
+- the queueing discipline – how waiting requests are managed (queue length, service order).
 
-**2. Service Channels** (service lines)
+*Kendall notation* $A/B/n$ summarizes these: $A$ is the arrival process, $B$ the service-time distribution, and $n$ the number of channels. The symbol M (*Markovian*) denotes a Poisson process for $A$ and an exponential distribution for $B$; D denotes deterministic times and G a general distribution.
 
-In a Queuing System, requests (customers) arrive at a service point, which may consist of one or more parallel service lines. Each system has a finite number of service lines, which determines its service capacity—the maximum number of requests that can be handled simultaneously. If a service line is available, the request is accepted and service begins immediately. System can contain memory/queue (e.g. router) or be memoryless (e.g. PBX).
+### The M/M/1 system
 
-#### Classification of Queuing Systems:
+M/M/1 is the simplest queueing model: Poisson arrivals with rate $\lambda$, exponentially distributed service times with rate $\mu$ (mean service time $S = 1/\mu$), one channel, an unbounded queue, and first-in-first-out service. A switch port with a Poisson packet flow, exponentially distributed packet sizes, and a large buffer is an M/M/1 system.
 
-- **Input Flow**: Describes how requests originate and arrive at the system.
-- **Service Lines**: Details the number of service lines and the nature of the service process.
-- **Queuing Mode**: Explains how requests are managed when they cannot be served immediately.
+The *offered traffic* (traffic intensity) is
 
-The most widely used classification method is the Kendall notation, which succinctly describes the type of Queuing System based on its key characteristics.
+$$
+A = \lambda S = \frac{\lambda}{\mu}
+$$
 
-**A/B/n Notation:**
+where $A$ is the offered traffic [erl], $\lambda$ the arrival rate [s⁻¹], $S$ the mean service time [s], and $\mu$ the service rate [s⁻¹]. For a single channel the *utilization* $\rho$, the fraction of time the server is busy, equals the offered traffic:
 
-- **A**: Type of process describing request arrivals.
-- **B**: Type of service time distribution.
-- **n**: Number of service lines.
+$$
+\rho = \frac{\lambda}{\mu} = A
+$$
 
-#### Basic Model - M/M/1 Type:
+The system is stable only for $\rho < 1$; otherwise the queue grows without bound.
 
-This is the simplest form of a queuing model, characterized by:
+> [!IMPORTANT]
+> With $k$ channels (M/M/k) the utilization is $\rho = A/k$; the remaining formulas of this section hold for M/M/1 only.
 
-- A single service channel.
-- Exponential distribution for both the intervals between request arrivals and service times.
-- Unlimited queue size and incoming requests, with all requests waiting patiently in a First-In-First-Out (FIFO) manner, even if the service capacity is exceeded.
+For a stable M/M/1 system the mean number of requests in the system $L$ and in the queue $L_q$ are
 
-In this notation, "M" stands for Markovian, indicating that the system has a Poisson arrival process, an exponential service time distribution, and one server.
+$$
+L = \frac{\rho}{1 - \rho}, \qquad L_q = L - \rho = \frac{\rho^2}{1 - \rho}
+$$
 
-### Little's formula and system occupancy
+and the mean time a request spends in the system $W$ and in the queue $W_q$ are
 
-Theory According to **Little's Law**, the average number of requests in a system is equal to the arrival rate multiplied by the average time a request spends in the system.
+$$
+W = \frac{1}{\mu - \lambda}, \qquad W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda}
+$$
 
-**Formula:**
+where $L$ and $L_q$ are dimensionless [–] and $W$ and $W_q$ are times [s]. All four quantities grow without bound as $\rho \to 1$, which is why links are operated well below full utilization.
 
-$$ L = \lambda W $$
+### Little's law
 
-Where:
+Little's law relates occupancy and delay for *any* stable queueing system, regardless of the arrival and service distributions:
 
-- $L$ — Average number of requests in the **system**
-- $\lambda$ — Average arrival rate of requests
-- $W$ — Mean delay (average time a request spends in the **system**)
+$$
+L = \lambda W, \qquad L_q = \lambda W_q
+$$
 
-Similarly, for the queue:
+where $L$ is the mean number of requests in the system [–], $\lambda$ the arrival rate [s⁻¹], and $W$ the mean time in the system [s]; the second form applies to the queue alone. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
 
-$$ L_q = \lambda W_q $$
+## Exercise
 
-- $L_q$ — Average number of requests in the **queue**
-- $W_q$ — Average time a request spends **waiting in the queue**
+### Preparation
 
-The **mean delay** can also be expressed as:
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_02/exercise_02.ipynb`.
 
-$$ W = \dfrac{L}{\lambda} $$
+```bash
+cd qos-02
+uv sync
+uv run jupyter lab --ip 0.0.0.0
+```
 
-Offered Traffic $A$:
+The simulation components live in `lib/core.py` and are built on [SimPy](https://simpy.readthedocs.io/): `PacketSource` generates packets with a given inter-arrival time and size, `Switch` owns a set of `SwitchPort` objects, each a FIFO buffer of limited capacity draining at a fixed bit rate, `PacketSink` records the delay of every packet it receives, `NetworkTap` samples the occupancy of a port, and `PacketFork` splits a flow between destinations with given probabilities. Components are wired by assigning their `destination` attributes. Inter-arrival times and sizes may be constants or zero-argument callables; `functools.partial` applied to a NumPy random generator supplies the latter. Time is measured in simulation time units (STU).
 
-$$ A = \lambda S = \frac{\lambda}{\mu} $$
+### Step 1 – Generate random samples
 
-- $A$ — Offered traffic or traffic intensity.
-- $\lambda$ — Average arrival rate of requests (i.e. 2 req/hour).
-- $S = 1/\mu$ — Average service time (i.e. 3 hours).
-- $\mu$ — Average service rate (i.e. 1/3 req/hour).
+Draw 10 000 samples from the uniform, exponential, and normal distributions with `numpy.random.Generator` and plot their histograms. Compare the sample minimum, mean, and maximum with the parameters of each distribution.
 
-System Utilization $\rho$ (the proportion of time the server is busy):
+### Step 2 – Source and sink
 
-$$ \rho = \frac{\lambda}{\mu} = A $$
+Run the simplest simulation: one `PacketSource` sending directly to a `PacketSink`. Then extend it to two sources with different sizes and inter-arrival times, and replace the constants by distributions using `partial`.
 
-> [!IMPORTANT]  
-> This works for M/M/1 system. In case of an **M/M/k** system, more general formula must be used: $\rho = A/k$
+### Step 3 – Source, switch, and sink
 
-Average Number of Requests in the System $L$ For an **M/M/1** queue:
+Insert a `Switch` between source and sink. The port has a buffer of 100 B and a transmission rate of 1000 bit/s; packets arrive with normally distributed intervals and exponentially distributed sizes. From the sink output, determine how long the packets spent in the system and whether any were dropped.
 
-$$ L = \frac{\rho}{1 - \rho} $$
+### Step 4 – Network tap
 
-Average Number of Requests in the Queue $L_q$:
+Attach a `NetworkTap` to the switch port used in Step 3 and inspect the packet and byte counts it records over time.
 
-$$ L_q = L - \rho = \frac{\rho^2}{1 - \rho} $$
+### Step 5 – M/M/1 system
 
-Average Delay in the System $W$:
+Simulate the M/M/1 configuration in the notebook: exponential inter-arrival times with mean 2 STU, exponential packet sizes with mean 100 B, one port at 1000 bit/s with a 10 000 B buffer, for 8000 STU. Compute $\lambda$, $\mu$, and $\rho$ from these parameters, evaluate $L$, $W$, and $W_q$ analytically, and compare them with the average occupancy and average wait shown on the dashboard.
 
-$$ W = \frac{1}{\mu - \lambda} $$
+### Step 6 – A network of queues
 
-Average Delay in the Queue $W_q$ :
+Run the final simulation, in which three sources, two forks, and four switch ports form a small network. Identify the offered traffic on each port and explain the differences in the delays observed at the two sinks.
 
-$$ W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda} $$
+## Questions
+
+1. Fifteen customers per hour arrive at a payphone according to a Poisson process, and a call lasts on average 3 minutes with an exponential distribution. Is a second payphone needed if the mean waiting time is not to exceed 3 minutes?
+2. In Step 5, what are $\lambda$, $\mu$, and $\rho$, and which formula should the measured average wait match: $W$ or $W_q$?
+3. What does Little's law predict for the mean occupancy in Step 5, and does the network tap confirm it?
+4. Why does the mean delay of an M/M/1 system increase sharply as $\rho$ approaches 1, even though the server is still not saturated?
+5. Which of the three distributions in Step 1 is memoryless, and why does that matter for the choice of a traffic model?
+
+## References
+
+1. L. Kleinrock, *Queueing Systems, Volume I: Theory*. Wiley, 1975.
+2. D. Gross, J. F. Shortle, J. M. Thompson, and C. M. Harris, *Fundamentals of Queueing Theory*, 4th ed. Wiley, 2008.
+3. J. D. C. Little, "A Proof for the Queuing Formula: L = λW," *Operations Research*, vol. 9, no. 3, pp. 383–387, 1961.
+4. G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking, https://www.grotto-networking.com/DiscreteEventPython.html — origin of the simulation components used in this exercise.
+5. SimPy documentation, https://simpy.readthedocs.io/.

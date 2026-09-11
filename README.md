@@ -1,59 +1,88 @@
-# 🚦 QoS & QoE: The Code Course
+# Quality of Service and Quality of Experience
 
-Welcome! 👋 This project is your hands-on guide to the essentials of Quality of Service (QoS) and Quality of Experience (QoE).
+Course material for *Quality of Service and Quality of Experience* (QoS & QoE), taught at the Faculty of Electrical Engineering and Computer Science, VSB – Technical University of Ostrava. The course introduces the properties of signals and network traffic that determine the perceived quality of multimedia services, and the mechanisms networks use to control them.
 
-Dive into the subfolders to find the code and experiments for each lesson. Let's get your environment set up!
+Each exercise is a self-contained directory with a `README.md` covering the theory and a Jupyter notebook containing the practical tasks. Exercises are intended to be worked through in order.
 
-## 🚀 Getting Started: The `uv` Way!
+## Exercises
 
-We'll be using `uv`, a lightning-fast Python package manager that replaces `pip` and `venv`. It's all you need to get up and running in seconds.
+| Exercise | Topic | Tools |
+|---|---|---|
+| [01](qos-01/README.md) | Signals, pulse-code modulation, Gaussian noise, and channel capacity | Jupyter |
+| [02](qos-02/README.md) | Probability distributions, the Poisson process, and M/M/1 queueing systems | Jupyter |
+| [03](qos-03/README.md) | Network traffic properties and their effect on QoE: packet crafting, VoIP, traffic control | Jupyter, Wireshark, `tc` |
+| [04](qos-04/README.md) | Objective image quality metrics: PSNR and SSIM | Jupyter |
+| 05 | Software-defined network emulation in Mininet | Mininet |
+| 06 | Mininet: topologies, link parameters, and performance testing | Mininet |
+| [07](qos-07/README.md) | Quality of Service in networks: marking, shaping, and queueing disciplines | Mininet |
 
-### Step 1: Clone the Codebase 📂
+All exercises are carried out on the laboratory servers, accessed over SSH.
 
-First, get the project files onto your machine. Open your terminal and run:
+## Prerequisites
+
+- Python 3.12 or newer.
+- [`uv`](https://docs.astral.sh/uv/), which manages virtual environments and dependencies for each exercise. Installation instructions are in the `uv` documentation.
+- Git.
+- SSH access to the laboratory servers, on which all exercises are run. Addresses and credentials are distributed through the LMS.
+- For Exercise 03, Wireshark and the ability to run commands as root or to set Linux capabilities; details are given in the exercise README.
+
+## Setting up an exercise
+
+Log in to a laboratory server over SSH and clone the repository once.
 
 ```bash
 git clone https://github.com/jrozhon/qos.git
 ```
 
-This creates a `qos` directory. Now, navigate into the folder for the lesson you're working on.
+Each exercise directory contains its own `pyproject.toml`, so the environment is created per exercise. Change into the exercise directory and synchronize it; this creates a virtual environment in `.venv` and installs the pinned dependencies.
 
 ```bash
-# Example for the first lesson
 cd qos/qos-01
-```
-
-### Step 2: Power Up Your Environment ⚡️
-
-Now, let's create an isolated environment and install the project dependencies. The `pyproject.toml` file in this project already defines everything you need.
-
-Run the following command to sync your environment. This will create a virtual environment and install the exact package versions specified in the project.
-
-```bash
-# Create environment and install dependencies
 uv sync
 ```
 
-> **Note:** For your own future projects, you can create a new `pyproject.toml` file from scratch by running `uv init`. However, for this course, the file is already provided for you.
-
-### Step 3: Launch Jupyter Lab 🛰️
-
-You're all set! To run the notebooks, you'll likely be on a remote lab computer, so you need to make Jupyter accessible. Use the `uv run` command:
+Start JupyterLab from within the same directory. The server is bound to all interfaces so that it can be reached from the local browser.
 
 ```bash
-# Run Jupyter Lab and make it accessible from any IP address
 uv run jupyter lab --ip 0.0.0.0
 ```
 
-Jupyter will give you a URL to open in your web browser. Happy coding!
+JupyterLab prints a URL containing an access token; replace its host part with the address of the laboratory server and open it in a local browser. Notebooks are located in the `qos_NN/` package directory of each exercise and expect to be opened from there, because they import helper code from the adjacent `lib/` directory.
 
-## ✨ Pro-Tip: Adding More Packages
+> [!NOTE]
+> The `pyproject.toml` files are provided. For independent projects, `uv init` creates a new one; that step is not needed in this course.
 
-Need an extra library for your experiments? Adding it with `uv` is a breeze.
+### Adding a package
+
+Additional libraries are added to the current exercise only.
 
 ```bash
-# Example: Add the numpy and pandas packages
 uv add numpy pandas
 ```
 
-That's it! `uv` will handle the installation and update your `pyproject.toml`. Remember to re-run `uv sync` if you add packages manually to the `pyproject.toml` file!
+`uv` installs the package and records it in `pyproject.toml`. If `pyproject.toml` is edited by hand, run `uv sync` again to apply the change.
+
+## Repository layout
+
+```
+qos-NN/
+├── README.md          theory and task description for the exercise
+├── pyproject.toml     dependencies, managed by uv
+├── fig/               figures referenced from the README
+└── qos_NN/
+    ├── exercise_NN.ipynb
+    ├── logo.png       university symbol used as a figure watermark
+    └── lib/
+        ├── core.py    reference implementations and simulation components
+        └── params.py  shared matplotlib style
+```
+
+Exercises 05–07 contain only a notebook because their tasks are executed in the Mininet command line rather than in Python.
+
+## Contributing
+
+Style conventions for text, equations, figures, and code are defined in [`STYLE.md`](STYLE.md). Contributions should follow them.
+
+## License
+
+Released under the terms of the [MIT License](LICENSE).

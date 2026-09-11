@@ -6,8 +6,12 @@ import numpy as np
 from bokeh.models import ColumnDataSource, Slider
 from bokeh.plotting import figure
 
+from lib.params import colors
 
-# These are meant for the teacher to use in the lecture
+FONT = "Carlito, Calibri, Liberation Sans, sans-serif"
+
+
+# Reference implementations — students implement these first
 def calc_channel_capacity(S: float, N: float, B: float) -> float:
     """
     Calculate the channel capacity.
@@ -71,6 +75,7 @@ class Signal(Protocol):
         y_axis_label: str,
         title: str,
         source: ColumnDataSource,
+        color: str = colors[0],
     ) -> figure:
         plot = figure(
             height=400,
@@ -83,7 +88,12 @@ class Signal(Protocol):
             y_range=[-12, 12],
         )
 
-        plot.line("x", "y", source=source, line_width=3, line_alpha=0.6)
+        plot.line("x", "y", source=source, line_width=3, line_alpha=0.6, color=color)
+        plot.title.text_font = FONT
+        plot.title.text_font_style = "bold"
+        plot.axis.axis_label_text_font = FONT
+        plot.axis.axis_label_text_font_style = "bold"
+        plot.axis.major_label_text_font = FONT
         return plot
 
     def __add__(self, other: Self) -> Signal:
@@ -102,7 +112,7 @@ class CombinedSignal(Signal):
         self.linked_signal = None
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
         self.plot = self.add_plot(
-            self.x, "time [s]", self.y, "amplitude [V]", "Combined signal", self.source
+            self.x, "Time [s]", self.y, "Amplitude [V]", "Signal with noise", self.source, color=colors[5]
         )
 
     def generate(self, f: Callable, **kwargs):
@@ -142,9 +152,9 @@ class HarmSignal(Signal):
         f: Callable = np.sin,
         no_samples: int = 1000,
         max_range: float = 2 * np.pi,
-        title: str = "Input signal",
-        x_axis_label: str = "time [s]",
-        y_axis_label: str = "amplitude [V]",
+        title: str = "Harmonic signal",
+        x_axis_label: str = "Time [s]",
+        y_axis_label: str = "Amplitude [V]",
     ):
         """
         Initialize a harmonic signal.
@@ -177,23 +187,23 @@ class HarmSignal(Signal):
 
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
         self.amplitude = Slider(
-            title="amplitude [V]",
+            title="Amplitude [V]",
             value=amplitude,
             start=0.0,
             end=self.MAX_AMPLITUDE,
             step=self.AMPLITUDE_STEP,
         )
         self.freq = Slider(
-            title="frequency [Hz]",
+            title="Frequency [Hz]",
             value=freq,
             start=0,
             end=self.MAX_FREQ,
             step=self.FREQ_STEP,
         )
-        self.phase = Slider(title="phase [rad]", value=phase, start=0.0, end=2 * np.pi)
+        self.phase = Slider(title="Phase [rad]", value=phase, start=0.0, end=2 * np.pi)
 
         self.band = Slider(
-            title="bandwidth [Hz]",
+            title="Bandwidth [Hz]",
             value=0.1 * self.freq.value,
             start=0.1 * self.freq.value,
             end=1 * self.freq.value,
@@ -292,8 +302,8 @@ class NoiseSignal(Signal):
         no_samples: int = 1000,
         max_range: float = 2 * np.pi,
         title: str = "Noise signal",
-        x_axis_label: str = "time [s]",
-        y_axis_label: str = "amplitude [V]",
+        x_axis_label: str = "Time [s]",
+        y_axis_label: str = "Amplitude [V]",
     ):
         """
         Initialize a noise signal.
@@ -322,7 +332,7 @@ class NoiseSignal(Signal):
 
         self.source = ColumnDataSource(data=dict(x=self.x, y=self.y))
         self.amplitude = Slider(
-            title="amplitude [V]",
+            title="Amplitude [V]",
             value=amplitude,
             start=0.0,
             end=self.MAX_AMPLITUDE,
@@ -331,7 +341,7 @@ class NoiseSignal(Signal):
 
         self._add_callbacks()
         self.plot = self.add_plot(
-            self.x, x_axis_label, self.y, y_axis_label, title, source=self.source
+            self.x, x_axis_label, self.y, y_axis_label, title, source=self.source, color=colors[4]
         )
 
     def _add_callbacks(self) -> None:
