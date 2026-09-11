@@ -192,6 +192,7 @@ Environment, commands, credentials pointer (never the credentials themselves).
 - Stored in `qos-NN/fig/`, PNG, lowercase snake_case names describing content (`exponential_pdf.png`, not `fig1.png`).
 - Referenced with a relative path and a meaningful alt text: `![Exponential distribution PDF](fig/exponential_pdf.png)`.
 - Generated figures are produced by code that lives in the lesson (notebook or `lib/`), following §5, so they can be regenerated.
+- Diagrams (topologies, block schemes) are hand-written SVG, not raster exports, so they can be edited in place. Conventions, as in `qos-05/fig/`: hosts `fill #E6F6F5 / stroke #00A499`, switches `fill #E6F9FC / stroke #05C3DE` with `rx 8`, controllers and other infrastructure `fill #F2F3F3 / stroke #818386`; data links solid `#292929` 2.5 px, control links dashed `#818386`; node names 18 px bold centred, secondary text 14 px, annotations 14 px in `#818386`; the §3 font stack on the root element; a `<title>` describing the diagram. No drop shadows, gradients, or icons.
 
 ---
 

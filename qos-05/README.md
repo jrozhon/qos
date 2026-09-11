@@ -64,7 +64,7 @@ Start Mininet without arguments. The default topology is one switch with two hos
 sudo mn
 ```
 
-![Default topology: two hosts connected to one switch](fig/simple.png)
+![Default topology: two hosts connected to one switch](fig/simple.svg)
 
 Mininet reports what it builds:
 
@@ -137,17 +137,9 @@ mininet> dump
 sudo mn --topo tree,depth=2,fanout=2 --controller=none
 ```
 
-```text
-        s1
-     ___|___
-    |       |
-   s2       s3
-  _|_      _|_
- |   |    |   |
-h1  h2   h3  h4
-```
+![Tree topology with depth 2 and fanout 2](fig/tree.svg)
 
-Without a controller, the switches learn MAC addresses themselves. Verify with `pingall` that every host reaches every other, then compare the output of `net` with the drawing.
+Without a controller, the switches learn MAC addresses themselves. Verify with `pingall` that every host reaches every other, then compare the output of `net` with the figure.
 
 ### Step 5 – The switch and its flow table
 
@@ -277,7 +269,7 @@ topos = {"mytopo": lambda: MyTopo()}
 
 The topology to build is shown below: three switches in a tree, one host on each, and bandwidth and delay on the inter-switch links.
 
-![Custom topology with three switches and three hosts](fig/custom.png)
+![Custom topology with three switches and three hosts](fig/custom.svg)
 
 Hosts are added with an explicit address, switches with a name only:
 
