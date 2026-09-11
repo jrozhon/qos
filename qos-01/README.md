@@ -1,137 +1,151 @@
-# Exercise 01
+# Exercise 01 – Signals, noise, and channel capacity
 
-## Signal
+This exercise establishes the vocabulary used throughout the course. It introduces the signal as the carrier of information, the conversion of an analog signal into a digital one by pulse-code modulation, Gaussian noise as the basic model of a disturbance, and the Shannon–Hartley formula that bounds the information rate of a noisy channel. In the practical part, students model a harmonic signal corrupted by noise, compute its signal-to-noise ratio and channel capacity, and apply noise to real audio and image data.
 
-An excerpt from [Wikipedia](https://en.wikipedia.org/wiki/Signal):
+## Learning objectives
 
-- In [electronics](https://en.wikipedia.org/wiki/Electronics) and [telecommunications](https://en.wikipedia.org/wiki/Telecommunications), *signal* refers to any time-varying [voltage](https://en.wikipedia.org/wiki/Voltage), [current](https://en.wikipedia.org/wiki/Electric_current), or [electromagnetic wave](https://en.wikipedia.org/wiki/Electromagnetic_wave) that carries information.
+- Classify signals as analog or digital, continuous-time or discrete-time, periodic or aperiodic, deterministic or random.
+- Describe the three steps of pulse-code modulation and state the sampling theorem.
+- Characterize Gaussian noise by its probability density function and standard deviation.
+- Compute signal power, signal-to-noise ratio, and channel capacity from a sampled signal.
+- Relate the bandwidth and signal-to-noise ratio of common access technologies to their achievable data rates.
 
-- In [signal processing](https://en.wikipedia.org/wiki/Signal_processing), signals are analog and digital representations of analog physical quantities.
-- In [information theory](https://en.wikipedia.org/wiki/Information_theory), a signal is a codified message, that is, the sequence of [states](https://en.wikipedia.org/wiki/State_variable) in a [communication channel](https://en.wikipedia.org/wiki/Communication_channel) that encodes a message.
-- In a communication system, a *transmitter* encodes a *message* to create a signal, which is carried to a *receiver* by the communication channel.  For example, the words "[Mary had a little lamb](https://en.wikipedia.org/wiki/Mary_had_a_little_lamb)" might be the message spoken into a [telephone](https://en.wikipedia.org/wiki/Telephone). The telephone transmitter converts the sounds into an electrical  signal. The signal is transmitted to the receiving telephone by wires;  at the receiver it is reconverted into sounds.
-- In telephone networks, [signaling](https://en.wikipedia.org/wiki/Signaling_(telecommunications)), for example [common-channel signaling](https://en.wikipedia.org/wiki/Common-channel_signaling), refers to phone number and other digital control information rather than the actual voice signal.
+## Theory
 
-Signal classification:
+### Signal
 
-1. **Analog vs. Digital Signals**:
+A signal is a physical quantity that varies in time (or space) and carries information. In telecommunications it is typically a voltage, a current, or an electromagnetic wave; in information theory it is the sequence of channel states that encodes a message. A communication system consists of a *transmitter* that encodes a message into a signal, a *channel* that carries it, and a *receiver* that decodes it. In telephony, for example, the microphone converts speech into an electrical signal, the network transports it, and the earpiece converts it back into sound.
 
-   - **Analog Signals**: These are continuous signals that vary over time and can take any value in a given range. Examples include audio signals and traditional television broadcasts.
+Signals are classified along several independent axes:
 
-   - **Digital Signals**: These are discrete signals that have specific values, often represented as binary numbers (0s and 1s). Examples include computer data and digital television.
+| Criterion | Classes | Example |
+|---|---|---|
+| Amplitude | *Analog* – any value in a continuous range; *digital* – a finite set of values, usually binary codes | microphone output; computer data |
+| Time | *Continuous-time* – defined at every instant; *discrete-time* – defined only at sampling instants | voltage on a wire; samples in a WAV file |
+| Repetition | *Periodic* – repeats with period $T$; *aperiodic* – does not repeat | sine wave; single pulse |
+| Predictability | *Deterministic* – described exactly by a function; *random* – described only statistically | $\sin(2\pi f t)$; thermal noise |
 
-1. **Periodic vs. Aperiodic Signals**:
+![Continuous-time signal](fig/continuous.png)
 
-   - **Periodic Signals**: These repeat at regular intervals over time. An example is a sine wave.
+![Discrete-time signal obtained by sampling](fig/discrete.png)
 
-   - **Aperiodic Signals**: These do not repeat at regular intervals. An example is a single pulse or a random signal.
+Two quantities describe a periodic signal: the period $T$ [s], the duration of one repetition, and the frequency $f = 1/T$ [Hz], the number of repetitions per second.
 
-1. **Deterministic vs. Random Signals**:
+### Pulse-code modulation
 
-   - **Deterministic Signals**: These can be precisely described by mathematical functions. Their behavior is predictable.
+Pulse-code modulation (PCM) converts an analog signal into a digital one in three steps.
 
-   - **Random Signals**: These cannot be precisely described by mathematical functions and are often modeled statistically. Their behavior is not predictable.
+1. **Sampling.** The continuous signal is read at regular instants spaced by the sampling period $T_s$, or equivalently at the sampling frequency $f_s = 1/T_s$. The result is a finite sequence of analog samples.
+2. **Quantization.** Each sample is rounded to the nearest of a finite set of levels. The result is a sequence of samples with a finite number of values, each representable by a binary code. The rounding error is called *quantization noise*.
+3. **Coding.** The binary codes are replaced by a code better suited to storage, transmission, or compression (for example the A-law or μ-law companding used in telephony, or MPEG audio coding).
 
-1. **Continuous-Time vs. Discrete-Time Signals**:
-
-   - **Continuous-Time Signals**: These are defined for every instant of time.
-
-   - **Discrete-Time Signals**: These are defined only at discrete intervals of time.
-
-   - **Continuous** - A continuous or piecewise continuous function of a continuous independent variable.
-
-
-<img src="fig/continuous.png" alt="Continuous signal"  />
-
-<img src="fig/discrete.png" alt="Discrete signal"  />
-      
-
-## PCM (Pulse Coded Modulation)
-
-**Sampling** 
-
-We select a limited number of samples from the continuous analog signal that represents the recorded sound or image. 
-The result is a finite number of analog samples that are captured with a period $T_{sr}$ given by the sampling rate.
-
-**Quantization**
-
-This is level discretization (i.e. rounding the actual value to pre-selected values). 
-The result of this operation is a finite number of samples (that were already available after sampling) with a finite number of their values, which are expressed by a certain binary code.
-
-**Coding**
-
-Replace the obtained simple binary code with a code that is more suitable for further processing.
-
-> **TIP:** The sampling circuit introduces error in the form of (overlapping) aliasing, the quantization circuit in the form of quantization noise.
-
-**Conditions for correct sampling (Shannon-Kotelnik theorem)**
-
-The sampling theorem applies here, which states that a signal is only describable if it is bounded by a frequency $f_{max}$, and if $f_{sr}$ => 2 * $f_{max}$, i.e. it means that the sampling frequency must be at least twice the highest frequency of the signal.  
-
-Use e.g. for DPS (Digital Signaling Processor) - allows frequency adjustment, volume adjustment, or signal compression. E.g. MP3 - the analogue signal is converted to a digital signal, then to a DSP, which encodes the signal and decodes it back using a DSP (MPEG-1/2 for audio compression).
-
-$T[s]$ (Period) - denotes in physics a physical quantity that indicates the duration of one repetition of a periodic event
-$f[Hz = s^{-1}]$ (Frequency or frequency) - indicates the number of periods per unit time
-
-## Gaussian noise
-
-Gaussian noise represents random changes in intensity corresponding to a Gaussian (normal) distribution.
-
-![Normal Distribution](fig/normal.png)
-
+Sampling is lossless only when the signal contains no frequency above $f_{\max}$ and the sampling frequency satisfies the sampling theorem (Nyquist–Shannon–Kotelnikov):
 
 $$
-P(x) = \frac{1}{\sigma \sqrt{2\pi}}e^{-\frac{(x - \mu )^2}{2\sigma ^2}}
+f_s \geq 2 f_{\max}
 $$
 
+where $f_s$ is the sampling frequency [Hz] and $f_{\max}$ the highest frequency present in the signal [Hz]. If the condition is violated, components above $f_s/2$ are folded back into the lower band; this distortion is called *aliasing*.
 
-The standard deviation ($\sigma$) is a measure of statistical variability often used in probability theory and statistics. 
-It is the square root of the variance of a random variable. The sampling standard deviation is a characteristic of the variability (variability) of a statistical population.
+> [!NOTE]
+> Telephone speech is band-limited to 300–3400 Hz and sampled at $f_s = 8$ kHz with 8-bit quantization, giving the 64 kbit/s PCM stream of the G.711 codec. This stream is the payload of the RTP packets examined in Exercise 03.
 
-<img src="fig/noise.png" alt="Gaussian Noise with Variance 0.1"  />
+### Gaussian noise
 
-## Channel capacity (Shannon's formula)
+Noise is an unwanted random signal added to the useful one. The most common model is *Gaussian noise*, whose amplitude at any instant is a random variable with the normal distribution
 
 $$
-C = B \cdot log_2 \left( 1+\frac{S}{N} \right)
+p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
-where:
+where $x$ is the noise amplitude, $\mu$ its mean (zero for noise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is.
 
-- **C:** channel capacity (bps)
-- **B:** channel bandwidth (Hz)
-- **S:** signal power (W)
+![Probability density function of the normal distribution](fig/normal.png)
 
-- **N:** noise power (W)
+![Harmonic signal with additive Gaussian noise of variance 0.1](fig/noise.png)
 
-- **S/N:** signal to noise ratio (-)
+When the noise is additionally *white*, its samples are mutually independent and its power is spread evenly over all frequencies. Additive white Gaussian noise (AWGN) is the standard channel model used in the next section.
 
-### Technologies
+### Signal power and signal-to-noise ratio
 
-The technologies are listed here, with frequency, bandwidth and SNR information:
+For a discrete signal of $n$ samples $x_1, \dots, x_n$ the mean power is
 
-- **Telephone channel**
-    - BW = 3100 Hz  (300 - 3400 Hz)
-    - SNR = 1584.89
-- **ADSL**
-    - BW = 4.3125 kHz
-    - SNR = 1000 *(256 channels - Technology uses multiple channels simultaneously)*
-- **VDSL**
-    - BW = 30/35 MHz
-    - SNR = 1000
-- **WiFi 802.11n**
-    - BW = 20 MHz (2.4 GHz) / 40 MHz (5 GHz)
-    - SNR = 316.227 / 630.957
-- **5G**
-    - BW = 100 MHz (2300 MHz)
-    - SNR = 31.62  / 100.00
-- **5G mmWave**
-    - BW = 500/1000/2000 MHz (28/38/72 GHz)
-    - SNR = 6.3
+$$
+P = \frac{1}{n} \sum_{i=1}^{n} x_i^2
+$$
 
-*[xDSL frequencies](https://vi.wikipedia.org/wiki/VDSL#/media/T%E1%BA%ADp_tin:VDSL2_frequencies.png).*
+where $P$ is the power [W] when $x_i$ are voltages across a 1 Ω load; the same expression serves as a relative measure otherwise. The signal-to-noise ratio (SNR) is the ratio of signal power to noise power,
 
+$$
+\mathrm{SNR} = \frac{S}{N}
+$$
 
+where $S$ is the signal power [W] and $N$ the noise power [W]; the ratio itself is dimensionless [–].
 
-**MIMO:** 2x2, 4x4, 8x8, 16x16, 32x32, and 64x64 (Antennas)
-The numbers refer to the number of streams the router is working with. The router in the 2x2 variant has two antennas that are used for 2 simultaneous streams. 
+### Channel capacity
 
+The Shannon–Hartley theorem gives the highest rate at which information can be transmitted over an AWGN channel with an arbitrarily small error probability:
+
+$$
+C = B \log_2 \left( 1 + \frac{S}{N} \right)
+$$
+
+where $C$ is the channel capacity [bit/s], $B$ the channel bandwidth [Hz], and $S/N$ the linear signal-to-noise ratio [–]. Capacity grows linearly with bandwidth but only logarithmically with SNR; doubling the bandwidth doubles the capacity, whereas doubling the SNR adds only one bit per second per hertz.
+
+The table lists the bandwidth and typical linear SNR of several access technologies. Multi-channel systems (ADSL, MIMO) use several such channels in parallel.
+
+| Technology | Bandwidth $B$ | Carrier | SNR [–] | Note |
+|---|---|---|---|---|
+| Telephone channel | 3.1 kHz | 300–3400 Hz | 1585 | |
+| ADSL | 4.3125 kHz per channel | up to 1.1 MHz | 1000 | 256 parallel channels |
+| VDSL | 30 / 35 MHz | up to 35 MHz | 1000 | |
+| Wi-Fi 802.11n | 20 / 40 MHz | 2.4 / 5 GHz | 316 / 631 | |
+| 5G | 100 MHz | 2.3 GHz | 32 / 100 | |
+| 5G mmWave | 500 / 1000 / 2000 MHz | 28 / 38 / 72 GHz | 6.3 | |
+
+Multiple-input multiple-output (MIMO) systems use several antennas at both ends, denoted 2×2, 4×4, up to 64×64, to carry the same number of independent spatial streams over the same bandwidth.
+
+## Exercise
+
+### Preparation
+
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_01/exercise_01.ipynb`.
+
+```bash
+cd qos-01
+uv sync
+uv run jupyter lab --ip 0.0.0.0
+```
+
+The notebook builds an interactive model from `lib/core.py`: a `HarmSignal` with adjustable amplitude, frequency, phase, and bandwidth, and a `NoiseSignal` with adjustable amplitude, displayed with Bokeh plots and Panel widgets.
+
+### Step 1 – Model a signal with noise
+
+Run the notebook up to the interactive dashboard. Vary the signal and noise parameters with the sliders and observe the combined signal. Before implementing anything, estimate qualitatively how the signal-to-noise ratio and the channel capacity should react to each slider.
+
+### Step 2 – Implement the channel metrics
+
+Implement `calc_signal_power` and `calc_channel_capacity` in the notebook using the formulas above, keeping the signatures of the template cell, which the *Calculate* button calls by name. Verify the displayed values against a manual computation for one setting. Only afterwards compare the result with the reference implementation in `lib/core.py`.
+
+### Step 3 – Apply noise to audio
+
+Record or generate a short audio signal, preferably speech. Add Gaussian white noise of increasing variance and listen to the result. Relate the perceived quality to the computed SNR.
+
+### Step 4 – Apply noise to an image
+
+Load `fig/android_gray.jpeg` as a grayscale array, add Gaussian noise of increasing variance, and display the results. The same image is used again in Exercise 04, where the degradation is measured objectively.
+
+## Questions
+
+1. What is the unit in which SNR is commonly expressed, and how does it relate to the linear ratio used in the Shannon–Hartley formula?
+2. How does MIMO affect the channel capacity, given that the bandwidth per stream is unchanged?
+3. For the telephone channel in the table, what capacity does the formula give, and how does it compare with the 64 kbit/s PCM stream?
+4. What happens to a 5 kHz tone sampled at $f_s = 8$ kHz?
+
+## References
+
+1. C. E. Shannon, "A Mathematical Theory of Communication," *Bell System Technical Journal*, vol. 27, pp. 379–423, 623–656, 1948.
+2. C. E. Shannon, "Communication in the Presence of Noise," *Proceedings of the IRE*, vol. 37, no. 1, pp. 10–21, 1949.
+3. J. G. Proakis and M. Salehi, *Digital Communications*, 5th ed. McGraw-Hill, 2008.
+4. ITU-T Recommendation G.711, *Pulse code modulation (PCM) of voice frequencies*, 1988.
+5. Wikipedia, "Signal," https://en.wikipedia.org/wiki/Signal.

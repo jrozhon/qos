@@ -1,6 +1,7 @@
-**/__pychache__/*
+**/__pycache__/*
 **/*.pyc
 **/.ipynb_checkpoints/*
 **/.mypy_cache/*
 **/dist/*
-
+manual.pdf
+**/results/*

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" font-family="Carlito, Calibri, 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif" font-size="16" fill="#292929">
+  <title>Default Mininet topology: two hosts on one OpenFlow switch with a controller</title>
+  <defs>
+    <style>
+      .host   { fill: #E6F6F5; stroke: #00A499; stroke-width: 2; }
+      .switch { fill: #E6F9FC; stroke: #05C3DE; stroke-width: 2; rx: 8; ry: 8; }
+      .ctrl   { fill: #F2F3F3; stroke: #818386; stroke-width: 2; rx: 8; ry: 8; }
+      .link   { stroke: #292929; stroke-width: 2.5; fill: none; }
+      .ctl    { stroke: #818386; stroke-width: 2; stroke-dasharray: 8 6; fill: none; }
+      .name   { font-size: 18px; font-weight: bold; text-anchor: middle; }
+      .sub    { font-size: 14px; text-anchor: middle; }
+      .label  { font-size: 14px; }
+      .param  { font-size: 14px; fill: #818386; }
+    </style>
+  </defs>
+
+  <!-- links -->
+  <line class="ctl"  x1="320" y1="80"  x2="320" y2="180" />
+  <line class="link" x1="320" y1="250" x2="130" y2="350" />
+  <line class="link" x1="320" y1="250" x2="510" y2="350" />
+
+  <!-- controller -->
+  <rect class="ctrl" x="230" y="10" width="180" height="70" />
+  <text class="name" x="320" y="42">c0</text>
+  <text class="sub" x="320" y="64">controller, port 6653</text>
+  <text class="param" x="332" y="120">OpenFlow</text>
+  <text class="param" x="332" y="138">127.0.0.1:6653</text>
+
+  <!-- switch -->
+  <rect class="switch" x="230" y="180" width="180" height="70" />
+  <text class="name" x="320" y="212">s1</text>
+  <text class="sub" x="320" y="234">Open vSwitch</text>
+  <text class="param" x="241" y="274" text-anchor="end">s1-eth1</text>
+  <text class="param" x="399" y="274">s1-eth2</text>
+
+  <!-- hosts -->
+  <text class="param" x="120" y="338" text-anchor="end">h1-eth0</text>
+  <rect class="host" x="60" y="350" width="140" height="60" />
+  <text class="name" x="130" y="376">h1</text>
+  <text class="sub" x="130" y="398">10.0.0.1</text>
+
+  <text class="param" x="520" y="338">h2-eth0</text>
+  <rect class="host" x="440" y="350" width="140" height="60" />
+  <text class="name" x="510" y="376">h2</text>
+  <text class="sub" x="510" y="398">10.0.0.2</text>
+</svg>
