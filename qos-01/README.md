@@ -10,6 +10,16 @@ This exercise establishes the vocabulary used throughout the course. It introduc
 - Compute signal power, signal-to-noise ratio, and channel capacity from a sampled signal.
 - Relate the bandwidth and signal-to-noise ratio of common access technologies to their achievable data rates.
 
+## Knowledge prerequisites
+
+Students should be able to:
+
+- Interpret a sine-wave graph and evaluate expressions containing powers, square roots, logarithms, and sums.
+- Calculate an arithmetic mean and convert between seconds and milliseconds, and between bits and bytes.
+- Define a Python function and use NumPy arrays for element-wise arithmetic and simple plots.
+
+Signal classification, sampling, Gaussian noise, and channel capacity are introduced in this exercise.
+
 ## Theory
 
 ### Signal
@@ -35,14 +45,16 @@ Two quantities describe a periodic signal: the period $T$ [s], the duration of o
 
 Pulse-code modulation (PCM) converts an analog signal into a digital one in three steps.
 
-1. **Sampling.** The continuous signal is read at regular instants spaced by the sampling period $T_s$, or equivalently at the sampling frequency $f_s = 1/T_s$. The result is a finite sequence of analog samples.
+1. **Sampling.** The continuous signal is read at regular instants spaced by the sampling period $T_s$, or equivalently at the sampling frequency $f_s = 1/T_s$. The result is a sequence of samples that are discrete in time but can still take any amplitude value.
 2. **Quantization.** Each sample is rounded to the nearest of a finite set of levels. The result is a sequence of samples with a finite number of values, each representable by a binary code. The rounding error is called *quantization noise*.
-3. **Coding.** The binary codes are replaced by a code better suited to storage, transmission, or compression (for example the A-law or μ-law companding used in telephony, or MPEG audio coding).
+3. **Encoding.** Each quantization level is assigned a binary code word. With $b$ bits per sample, up to $2^b$ levels can be represented.
 
-Sampling is lossless only when the signal contains no frequency above $f_{\max}$ and the sampling frequency satisfies the sampling theorem (Nyquist–Shannon–Kotelnikov):
+These steps are illustrated in the [MIT lecture on PCM](https://ocw.mit.edu/courses/16-36-communication-systems-engineering-spring-2009/d91cdcc10683c573cc668c5b1ab3aab6_MIT16_36s09_lec04.pdf). G.711 uses A-law or μ-law *companding*: nonuniform quantization gives finer amplitude resolution to weaker signals. This is distinct from additional audio compression.
+
+For an ideally band-limited signal, exact reconstruction from its samples is possible when the sampling frequency is greater than twice the highest signal frequency:
 
 $$
-f_s \geq 2 f_{\max}
+f_s > 2 f_{\max}
 $$
 
 where $f_s$ is the sampling frequency [Hz] and $f_{\max}$ the highest frequency present in the signal [Hz]. If the condition is violated, components above $f_s/2$ are folded back into the lower band; this distortion is called *aliasing*.
@@ -58,13 +70,13 @@ $$
 p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
-where $x$ is the noise amplitude, $\mu$ its mean (zero for noise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is.
+where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this exercise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is.
 
 ![Probability density function of the normal distribution](fig/normal.png)
 
 ![Harmonic signal with additive Gaussian noise of variance 0.1](fig/noise.png)
 
-When the noise is additionally *white*, its samples are mutually independent and its power is spread evenly over all frequencies. Additive white Gaussian noise (AWGN) is the standard channel model used in the next section.
+White noise has a flat power spectral density over the modeled frequency band. In the simulation, it is represented by independent Gaussian samples. Additive white Gaussian noise (AWGN) is the standard channel model used in the next section.
 
 ### Signal power and signal-to-noise ratio
 
@@ -82,6 +94,14 @@ $$
 
 where $S$ is the signal power [W] and $N$ the noise power [W]; the ratio itself is dimensionless [–].
 
+SNR is commonly expressed in decibels:
+
+$$
+\mathrm{SNR}_{\mathrm{dB}} = 10 \log_{10}(S/N), \qquad S/N = 10^{\mathrm{SNR}_{\mathrm{dB}}/10}
+$$
+
+where $\mathrm{SNR}_{\mathrm{dB}}$ is the signal-to-noise ratio [dB] and $S/N$ is the linear ratio [–]. For example, a linear ratio of 100 corresponds to 20 dB. Convert decibels to a linear ratio before using the channel-capacity formula.
+
 ### Channel capacity
 
 The Shannon–Hartley theorem gives the highest rate at which information can be transmitted over an AWGN channel with an arbitrarily small error probability:
@@ -90,9 +110,11 @@ $$
 C = B \log_2 \left( 1 + \frac{S}{N} \right)
 $$
 
-where $C$ is the channel capacity [bit/s], $B$ the channel bandwidth [Hz], and $S/N$ the linear signal-to-noise ratio [–]. Capacity grows linearly with bandwidth but only logarithmically with SNR; doubling the bandwidth doubles the capacity, whereas doubling the SNR adds only one bit per second per hertz.
+where $C$ is the channel capacity [bit/s], $B$ the channel bandwidth [Hz], and $S/N$ the linear signal-to-noise ratio [–]. At fixed SNR, doubling the bandwidth doubles the capacity. Increasing SNR produces diminishing gains because it appears inside a logarithm; doubling SNR adds approximately 1 bit/s/Hz only at high SNR. If bandwidth changes, the noise power may also change, so the fixed-SNR assumption must be checked.
 
-The table lists the bandwidth and typical linear SNR of several access technologies. Multi-channel systems (ADSL, MIMO) use several such channels in parallel.
+For example, a channel with $B = 3000$ Hz and $S/N = 15$ has $C = 3000 \log_2(16) = 12\,000$ bit/s. Here, bandwidth describes a frequency interval [Hz], while capacity describes an information rate [bit/s]. Application throughput can be lower because practical coding and protocol overhead consume resources.
+
+The table provides illustrative inputs for capacity calculations, rather than specifications or guaranteed performance of the named technologies. Actual bandwidths and SNR depend on the system configuration and operating conditions. Calculate each listed channel separately.
 
 | Technology | Bandwidth $B$ | Carrier | SNR [–] | Note |
 |---|---|---|---|---|
@@ -103,7 +125,7 @@ The table lists the bandwidth and typical linear SNR of several access technolog
 | 5G | 100 MHz | 2.3 GHz | 32 / 100 | |
 | 5G mmWave | 500 / 1000 / 2000 MHz | 28 / 38 / 72 GHz | 6.3 | |
 
-Multiple-input multiple-output (MIMO) systems use several antennas at both ends, denoted 2×2, 4×4, up to 64×64, to carry the same number of independent spatial streams over the same bandwidth.
+As an extension, consider multiple-input multiple-output (MIMO) systems, which use several antennas at both ends. Multiple spatial streams can share the same frequency band when the propagation conditions allow the receiver to distinguish them. The antenna count alone does not guarantee that many independent streams.
 
 ## Exercise
 
@@ -121,7 +143,7 @@ The notebook builds an interactive model from `lib/core.py`: a `HarmSignal` with
 
 ### Step 1 – Model a signal with noise
 
-Run the notebook up to the interactive dashboard. Vary the signal and noise parameters with the sliders and observe the combined signal. Before implementing anything, estimate qualitatively how the signal-to-noise ratio and the channel capacity should react to each slider.
+Run the notebook up to the interactive dashboard. Predict how each slider will affect SNR and capacity, then vary one parameter at a time. Record the parameter values, measured results, and whether they support the prediction.
 
 ### Step 2 – Implement the channel metrics
 
@@ -129,17 +151,21 @@ Implement `calc_signal_power` and `calc_channel_capacity` in the notebook using 
 
 ### Step 3 – Apply noise to audio
 
-Record or generate a short audio signal, preferably speech. Add Gaussian white noise of increasing variance and listen to the result. Relate the perceived quality to the computed SNR.
+Record or generate a short audio signal, preferably speech. Keep the clean signal fixed and add Gaussian white noise at three variances. Record the random seed and compute the SNR for each version. Listen at a consistent, comfortable playback level and describe which speech features become harder to hear.
 
 ### Step 4 – Apply noise to an image
 
-Load `fig/android_gray.jpeg` as a grayscale array, add Gaussian noise of increasing variance, and display the results. The same image is used again in Exercise 04, where the degradation is measured objectively.
+From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise at three variances and clip the displayed pixel values to $[0, 1]$. Record the variances and random seed, and save the degraded images for Exercise 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image.
+
+### Results to retain
+
+Save the completed notebook, the audio and image examples, and a table of parameters and calculated metrics. Include one manual capacity calculation and a short explanation of differences between predicted, measured, and perceived quality.
 
 ## Questions
 
 1. What is the unit in which SNR is commonly expressed, and how does it relate to the linear ratio used in the Shannon–Hartley formula?
-2. How does MIMO affect the channel capacity, given that the bandwidth per stream is unchanged?
-3. For the telephone channel in the table, what capacity does the formula give, and how does it compare with the 64 kbit/s PCM stream?
+2. **Extension:** How can independent spatial streams increase total capacity while sharing the same frequency band? Why is antenna count alone insufficient to predict the gain?
+3. Compute the capacity of the analog voiceband telephone channel in the table. The 64 kbit/s PCM stream represents the sampled speech and travels over a digital network connection. Why does comparing these two rates not show a violation of the channel-capacity bound?
 4. What happens to a 5 kHz tone sampled at $f_s = 8$ kHz?
 
 ## References
