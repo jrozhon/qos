@@ -1,0 +1,312 @@
+/* ============================================================================
+   VŠB-TUO / FEI visual style for Slidev
+   Rules and section references: see VSB-STYLE.md
+   ========================================================================== */
+
+/* --- Fonts (self-hosted, see VSB-STYLE.md R8a-R8c) ----------------------- */
+
+@font-face {
+  font-family: 'Carlito';
+  src: url('/fonts/Carlito-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Carlito';
+  src: url('/fonts/Carlito-Italic.woff2') format('woff2');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Carlito';
+  src: url('/fonts/Carlito-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Carlito';
+  src: url('/fonts/Carlito-BoldItalic.woff2') format('woff2');
+  font-weight: 700; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/IBMPlexMono-SemiBold.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+
+/* --- Palette ------------------------------------------------------------- */
+
+:root {
+  /* identity — manual 2.1 */
+  --vsb-green:       #00A499;  /* Pantone 3272 C — primary. Fills, rules, large headings */
+  --vsb-green-text:  #00736B;  /* darkened, 5.73:1 on white — body-size green text (R6) */
+  --vsb-green-dark:  #005F58;  /* 7.56:1 on white */
+  --vsb-green-light: #4DD8CE;  /* dark-mode accent only (R7) */
+
+  /* faculty — FEI, Pantone 311 C, manual 2.2. Fills and rules only, never text (R5) */
+  --vsb-fei:         #05C3DE;
+
+  --vsb-black:       #000000;
+  --vsb-white:       #FFFFFF;
+  --vsb-ink:         #1A1A1A;
+  --vsb-muted:       #5A6664;
+  --vsb-hairline:    rgba(0, 164, 153, 0.22);
+
+  /* surfaces */
+  --vsb-bg:          #FFFFFF;
+
+  /* type — 1.4x steps off the 1.1rem Slidev base, manual 3.5 wants >=1.33x */
+  --vsb-text:   1.1rem;    /* 17.6px — TEXT   (level 1) */
+  --vsb-h3:     1.32rem;   /* 21.1px — dense step, manual 3.5 second example (1.2x) */
+  --vsb-perex:  1.54rem;   /* 24.6px — PEREX  (level 2) */
+  --vsb-title:  2.156rem;  /* 34.5px — TITULEK (level 3) */
+
+  --vsb-font-text: 'Drive', 'Carlito', 'Calibri', system-ui, sans-serif;
+  --vsb-font-code: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* wire into Slidev / seriph */
+  --slidev-theme-primary: var(--vsb-green);
+  --slidev-code-font-family: var(--vsb-font-code);
+  --slidev-code-font-size: 15px;
+  --slidev-code-line-height: 21px;
+  --slidev-code-radius: 0px;  /* R24 — hard edges, no rounded corners */
+}
+
+/* Dark mode is not covered by the manual — see R7 */
+html.dark {
+  --vsb-green-text:  var(--vsb-green-light);
+  --vsb-green-dark:  #7FE3DA;
+  --vsb-ink:         #E8ECEB;
+  --vsb-muted:       #9BA8A6;
+  --vsb-bg:          #0E1A19;
+  --vsb-hairline:    rgba(77, 216, 206, 0.25);
+  --slidev-theme-primary: var(--vsb-green-light);
+}
+
+html, body, #slide-content {
+  background: var(--vsb-bg);
+  color: var(--vsb-ink);
+}
+
+/* --- Base typography ----------------------------------------------------- */
+
+.slidev-layout {
+  font-family: var(--vsb-font-text);
+  font-size: var(--vsb-text);
+  color: var(--vsb-ink);
+  background: var(--vsb-bg);
+}
+
+.slidev-layout h1,
+.slidev-layout h2,
+.slidev-layout h3,
+.slidev-layout h4,
+.slidev-layout h5,
+.slidev-layout h6 {
+  font-family: var(--vsb-font-text);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.slidev-layout h1 {
+  font-size: var(--vsb-title);
+  line-height: 1.15;
+  color: var(--vsb-green);       /* large text, 3.10:1 — AA large (R5, R6) */
+  margin-bottom: 0.5rem;
+}
+
+/* Seriph dims the first paragraph after a title as a "subtitle". On a content
+   slide it is body text — the lead sentence of the slide — so keep it black. */
+.slidev-layout.default h1 + p,
+.slidev-layout.center h1 + p { opacity: 1; margin-top: 0.4rem; }
+
+/* R21 — thin green rule under the slide title */
+.slidev-layout.default h1::after,
+.slidev-layout.center h1::after {
+  content: '';
+  display: block;
+  width: 2.6rem;
+  height: 3px;
+  margin-top: 0.55rem;
+  background: var(--vsb-green);
+}
+
+.slidev-layout h2 { font-size: var(--vsb-perex); color: var(--vsb-green-text); }
+.slidev-layout h3 { font-size: var(--vsb-h3);    color: var(--vsb-green-text); }
+.slidev-layout h4 { font-size: var(--vsb-text);  color: var(--vsb-ink); }
+.slidev-layout h5 { font-size: var(--vsb-text);  color: var(--vsb-muted); font-weight: 400; }
+
+.slidev-layout h6 {
+  font-size: 0.78rem;
+  color: var(--vsb-green-text);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.slidev-layout h6:not(.opacity-100) { opacity: 1; }
+
+.slidev-layout strong { font-weight: 700; color: var(--vsb-ink); }
+.slidev-layout em     { color: var(--vsb-green-text); font-style: italic; }
+
+.slidev-layout a {
+  color: var(--vsb-green-text);
+  border-bottom: 1px solid var(--vsb-hairline);
+  border-bottom-style: solid;
+}
+.slidev-layout a:hover {
+  color: var(--vsb-green-dark);
+  border-bottom-color: var(--vsb-green);
+}
+
+/* R24 — square bullets, flush alignment, no decoration */
+.slidev-layout ul { list-style: square; }
+.slidev-layout ul li::marker { color: var(--vsb-green); }
+.slidev-layout ol li::marker { color: var(--vsb-green-text); font-weight: 700; }
+
+/* KaTeX sets itself at 1.21em to match Computer Modern's small x-height
+   against a serif body. Next to Carlito that reads as oversized, so inline
+   math sits at the body size; display blocks keep a modest step up. */
+.slidev-layout .katex { font-size: 1em; }
+.slidev-layout .katex-display .katex { font-size: 1.15em; }
+
+/* --- Blocks -------------------------------------------------------------- */
+
+/* R24 — hard-edged rectangles, no rounding, no shadows */
+.slidev-layout blockquote {
+  background: transparent;
+  color: var(--vsb-ink);
+  border-radius: 0;
+  border-left: 3px solid var(--vsb-fei);   /* FEI cyan as a fill/rule only (R5) */
+  padding: 0.35rem 0 0.35rem 0.9rem;
+  font-size: var(--vsb-text);
+}
+
+.slidev-layout table { border-collapse: collapse; }
+.slidev-layout th {
+  font-weight: 700;
+  color: var(--vsb-green-text);
+  border-bottom: 2px solid var(--vsb-green);
+  text-transform: none;
+}
+.slidev-layout tr { border-bottom: 1px solid var(--vsb-hairline); }
+
+.slidev-layout kbd {
+  border-radius: 0;
+  border-color: var(--vsb-hairline);
+  font-family: var(--vsb-font-code);
+}
+
+/* Code is content, not identity — brand colours do not apply (R3, R8c) */
+.slidev-layout pre,
+.slidev-layout .slidev-code {
+  border-radius: 0;
+  border-left: 3px solid var(--vsb-green);
+}
+
+/* --- Bringing the deck's existing utility classes into the palette -------- */
+
+/* R24 — hard-edged rectangles. The deck uses `rounded` on its comparison
+   cards; neutralise it everywhere rather than editing 13 call sites. */
+.slidev-layout [class*='rounded'] { border-radius: 0 !important; }
+
+/* The deck encodes meaning with Tailwind's generic accent colours. Remap them
+   onto the actual VŠB faculty palette (manual 2.2) so the distinctions survive
+   but nothing off-palette reaches the slide (R3, R26). */
+.slidev-layout .border-gray-400   { border-color: var(--vsb-hairline) !important; }
+.slidev-layout .border-green-400  { border-color: var(--vsb-green) !important; }
+.slidev-layout .border-red-400    { border-color: #E4002B !important; }  /* FMT,  Pantone 185 C  */
+.slidev-layout .border-blue-400   { border-color: #0047BB !important; }  /* EKF,  Pantone 2728 C */
+.slidev-layout .border-purple-400 { border-color: #8246AF !important; }  /* FAST, Pantone 2587 C */
+.slidev-layout .border-orange-400 { border-color: #FF8200 !important; }  /* FBI,  Pantone 151 C  */
+
+/* Left edge carries the colour, as on the manual's poster blocks */
+.slidev-layout [class*='border-'][class*='-400'] { border-left-width: 3px; }
+
+/* Mermaid is rendered into a ShadowRoot by Slidev, so page CSS cannot reach
+   the diagram itself. All diagram styling - colours, stroke weights, corner
+   radii - lives in setup/mermaid.ts, via themeVariables and themeCSS. Do not
+   add rules for diagram internals here; they will silently do nothing.
+   The shadow *host* is ordinary page markup, so its box can still be styled. */
+.slidev-layout .mermaid {
+  display: block;
+  text-align: center;
+  margin: 0.4rem 0;
+}
+
+/* --- Utility classes for slide authoring --------------------------------- */
+
+.vsb-lead   { font-size: var(--vsb-perex); line-height: 1.4; color: var(--vsb-ink); }
+.vsb-muted  { color: var(--vsb-muted); }
+.vsb-green  { color: var(--vsb-green-text); }
+
+/* Solid brand fill — white text on #00A499 is 3.10:1, so large text only (R5) */
+.vsb-fill {
+  background: var(--vsb-green);
+  color: var(--vsb-white);
+  padding: 0.9rem 1.2rem;
+}
+.vsb-fill :is(h1, h2, h3, h4, strong, a) { color: var(--vsb-white); }
+
+.vsb-rule   { height: 3px; background: var(--vsb-green); border: 0; }
+.vsb-rule-fei { height: 3px; background: var(--vsb-fei); border: 0; }
+
+/* --- Chrome -------------------------------------------------------------- */
+
+/* R11 — nothing but background inside the logo's clear zone.
+   The mark appears on the cover only; see R19. */
+.vsb-logo { display: block; height: 72px; width: auto; }
+
+.vsb-slideno {
+  position: absolute;
+  right: 3.5rem;
+  bottom: 1.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--vsb-muted);
+}
+
+.slidev-layout :is(.slidev-page, .slidev-code-wrapper) { border-radius: 0; }
+
+/* Authored SVG figures: explicit geometry, embedded Carlito, stable PDF output.
+   White figure surfaces preserve the same contrast in light and dark mode. */
+.slidev-layout .lecture-diagram {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  margin: 0.65rem auto;
+  background: #FFFFFF;
+}
+
+/* Keep the complete explanation on diagram slides at the 980 × 552 canvas. */
+.slidev-layout:has(.lecture-diagram) p { margin-top: 0.55rem; margin-bottom: 0.55rem; }
+.slidev-layout:has(.lecture-diagram) .pt-4 { padding-top: 0.5rem; }
+.slidev-layout:has(.lecture-diagram) .pt-6 { padding-top: 0.75rem; }
+.slidev-layout:has(.lecture-diagram) li { margin-top: 0.2rem; margin-bottom: 0.2rem; }
+.slidev-layout:has(.lecture-diagram) .lecture-diagram { margin-top: 0.4rem; margin-bottom: 0.4rem; }
+
+/* Dense reference tables must retain their final rows in the PDF. */
+.slidev-layout.compact-table :is(th, td) { padding: 0.35rem 0.5rem; }
+
+/* A single-page-per-slide handout should show the whole CLI example clearly. */
+@media print {
+  .slidev-code .line { opacity: 1 !important; filter: none !important; }
+}
+/* Slidev's PDF renderer uses screen media on its dedicated print route. */
+html.print .slidev-code .line { opacity: 1 !important; filter: none !important; }
+
+/* One SVG unit equals one slide CSS pixel: shared 18px labels / 15px notes.
+   Full-width artwork is 880px; the ring is 420px inside a 428px column.
+   The presentation may scale its entire canvas to the viewport, uniformly. */
+.slidev-layout:has(.lecture-diagram) {
+  padding-left: 50px;
+  padding-right: 50px;
+}
+
+/* Small labels are still readable from the classroom; role sizes stay shared. */
+.slidev-layout :is(.text-xs, .text-sm) { font-size: 15px; line-height: 1.35; }
+.checkpoint-question { margin: 2rem 0 1.5rem; font-size: 24px; line-height: 1.4; }
+.checkpoint-answer { margin-top: 1.5rem; padding: 0.5rem 1rem; border-left: 4px solid var(--vsb-green); background: #EBF8F7; color: #1A1A1A; }
+html.dark .checkpoint-answer { background: #143633; color: var(--vsb-ink); }

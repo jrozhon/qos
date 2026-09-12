@@ -6,3 +6,5 @@
 manual.pdf
 **/results/*
 support/quiz/out/*
+
+slides/node_modules/
