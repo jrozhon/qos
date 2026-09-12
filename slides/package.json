@@ -1,0 +1,19 @@
+{
+  "name": "qos-lectures",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export",
+    "export-notes": "slidev export-notes"
+  },
+  "dependencies": {
+    "@slidev/cli": "latest",
+    "@slidev/theme-seriph": "latest",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "playwright-chromium": "^1.62.1"
+  }
+}
