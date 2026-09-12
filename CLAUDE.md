@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-Teaching material for a university course on Quality of Service / Quality of Experience (VSB-TUO, FEECS). Students work on laboratory servers over SSH for every lesson; Jupyter is served with `--ip 0.0.0.0` for that reason. Each `qos-NN/` directory is one lesson: a `README.md` with theory, a Jupyter notebook with tasks for students, and (for lessons 01–04) a small Python library the notebook imports. There is no application, no test suite, and no CI. `support/` holds scratch notebooks and media used while authoring lessons — not student-facing.
+Teaching material for a university course on Quality of Service / Quality of Experience (VSB-TUO, FEECS). Students work on laboratory servers over SSH for every lesson; Jupyter is served with `--ip 0.0.0.0` for that reason. Each `qos-NN/` directory is one lesson: a `README.md` with theory, a Jupyter notebook with tasks for students, and (for lessons 01–04) a small Python library the notebook imports. There is no application, no test suite, and no CI. `support/` holds scratch notebooks and media used while authoring lessons — not student-facing. `support/quiz/` is teacher-only (Moodle test generator with answer keys) and is git-crypt encrypted via `.gitattributes`; on a fresh clone run `git-crypt unlock` before touching it, and never move its contents outside that folder (the encryption pattern is path-based).
 
 Lesson map:
 
