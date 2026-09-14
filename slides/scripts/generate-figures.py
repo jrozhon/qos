@@ -281,7 +281,7 @@ for row, (title, L) in enumerate([('M = 2 states · 1 bit per symbol', 2), ('M =
     s.polyline(pts, G, 3)
     s.text(650, y0 + 25, f'{n} symbols / s', 'bold')
     s.text(650, y0 + 50, f'→ {len(bits)} bit/s' if L == 2 else '→ 10 bit/s = 5 Bd × 2', 'green')
-s.text(440, 244, 'R_raw = Rₛ · log₂ M   —   raw bit rate = symbol rate × bits per symbol', 'big', 'middle')
+s.text(440, 244, 'R_raw = Rₛ · log₂ M   →   raw bit rate = symbol rate × bits per symbol', 'big', 'middle')
 s.save()
 
 # --- Spectral efficiency vs SNR ---------------------------------------------
@@ -362,6 +362,57 @@ for p, lab, dx, dy, anchor in [(0.5, 'fair coin: 1 bit', 0, -12, 'middle'), (0.1
 s.text(670, 70, 'Certain outcome', 'bold'); s.text(670, 92, 'p = 0 or 1  →  H = 0', 'small')
 s.text(670, 132, 'Most uncertain', 'bold'); s.text(670, 154, 'p = 0.5  →  H = 1 bit', 'small')
 s.text(670, 194, 'Uniform is the maximum:', 'bold'); s.text(670, 216, 'H ≤ log₂ N,  equal iff uniform', 'small')
+s.save()
+
+# --- Multiplexing: FDM splits the band, TDM splits the time -----------------
+s = SVG(DECK, 'multiplexing', 300, 'Frequency-division and time-division multiplexing',
+        'Left: frequency-division multiplexing gives three channels separate, permanent frequency bands, '
+        'separated by guard bands, all transmitting at the same time. Right: time-division multiplexing gives '
+        'each channel the full bandwidth in turn, in repeating time slots grouped into a frame.')
+chan = [G, EKF, FBI]  # channel 1, 2, 3 — border + accent colour only, fill stays white (contrast)
+
+# FDM panel — three frequency bands, each occupying the full width (all the time)
+x0, y0, w, h = 50, 42, 340, 148
+s.text(x0, 24, 'FDM · FREQUENCY-DIVISION', 'label')
+band_h, band_gap = 40, 10
+for i in range(3):  # i=0 lowest band (channel 1) … i=2 highest (channel 3)
+    by = y0 + h - 4 - (i + 1) * band_h - i * band_gap
+    bx, bw = x0 + 10, w - 20
+    s.rect(bx, by, bw, band_h, '#FFFFFF', chan[i], 2)
+    s.rect(bx, by, bw, 4, chan[i], 'none')  # accent bar, same language as box()
+    s.text(bx + bw / 2, by + band_h / 2 + 8, f'Channel {i + 1}', 'bold', 'middle')
+# Axes drawn last so their arrowheads sit on top of the band rectangles, not behind them.
+s.line(x0, y0 + h, x0, y0, INK, 1.5, arrow='ink'); s.text(x0 - 6, y0 - 6, 'f', 'small', 'end')
+s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1.5, arrow='ink'); s.text(x0 + w + 8, y0 + h + 5, 't', 'small')
+s.text(x0, y0 + h + 30, 'Every channel transmits all the time,', 'small')
+s.text(x0, y0 + h + 48, 'in its own slice of bandwidth.', 'small')
+
+# TDM panel — one full-bandwidth channel, sliced into a repeating frame of time slots
+x0, y0, w, h = 490, 42, 340, 148
+s.text(x0, 24, 'TDM · TIME-DIVISION', 'label')
+n_slots = 9
+slot_w = (w - 20) / n_slots
+slot_y, slot_h = y0 + 4, h - 8
+for k in range(n_slots):
+    ch = k % 3
+    sx = x0 + 10 + k * slot_w
+    s.rect(sx, slot_y, slot_w, slot_h, '#FFFFFF', chan[ch], 2)
+    s.rect(sx, slot_y, slot_w, 4, chan[ch], 'none')
+    s.text(sx + slot_w / 2, slot_y + slot_h / 2 + 8, str(ch + 1), 'bold', 'middle')
+# Axes drawn last so their arrowheads sit on top of the slot rectangles, not behind them.
+s.line(x0, y0 + h, x0, y0, INK, 1.5, arrow='ink'); s.text(x0 - 6, y0 - 6, 'f', 'small', 'end')
+s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1.5, arrow='ink'); s.text(x0 + w + 8, y0 + h + 5, 't', 'small')
+fx1, fx2, fy = x0 + 10, x0 + 10 + 3 * slot_w, y0 + h + 10
+s.line(fx1, fy, fx2, fy, MUT, 1.5)
+s.line(fx1, fy - 6, fx1, fy + 6, MUT, 1.5); s.line(fx2, fy - 6, fx2, fy + 6, MUT, 1.5)
+s.text((fx1 + fx2) / 2, fy + 18, 'one frame', 'bold', 'middle')
+s.text(x0, y0 + h + 48, 'Every channel gets the full bandwidth,', 'small')
+s.text(x0, y0 + h + 66, 'once per frame.', 'small')
+
+for i in range(3):  # shared legend
+    lx = 300 + i * 130
+    s.rect(lx, 262, 14, 14, '#FFFFFF', chan[i], 2)
+    s.text(lx + 22, 273, f'Channel {i + 1}', 'small')
 s.save()
 
 # =============================================================================

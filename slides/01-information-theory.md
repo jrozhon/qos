@@ -26,7 +26,7 @@ Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
 
 <!--
 Ninety minutes including checkpoints: 5 min motivation, 18 signals/PCM, 15 noise/SNR, 20 symbols/capacity,
-10 network rates and qualitative MIMO, 17 information/entropy, 5 exit questions and exercise setup.
+12 network rates, FDM/TDM, and qualitative MIMO, 15 information/entropy, 5 exit questions and exercise setup.
 Parts 1–2 support Exercise 01 Step 1; Parts 2–4 support the metrics and noise experiments in Steps 2–4.
 Part 5 introduces source coding. Keep the 90-minute route to the slides before the closing slide. The course overview, signal recap, biography, technology/English surveys, and mathematical extensions are Extras slides
 after the closing slide; skip them in the main lecture.
@@ -928,17 +928,51 @@ Less overhead per second, but more packetization delay and more speech affected 
 
 No IPv4 options, no RTP extensions, no link-layer overhead; continuous speech transmission. Same calculation as Exercise 03.
 
+**ČTÚ note:** the Czech Telecommunication Office (Český telekomunikační úřad) requires access-line speed to always be measured at **OSI layer 4** — transport-layer throughput, not the raw physical or IP-layer rate.
+
 </div>
 
 <!--
 Trace microphone → PCM → packets → link → playout again. Ask the room to calculate the 40 ms case before the
 reveal. This is a concrete QoS tradeoff, not a universal percentage reduction between protocol layers.
 Rates are per direction. Successful reception is assumed when comparing these offered rates with goodput.
+ČTÚ methodology ties back to Lecture 7's invited talk on quality of Internet access services.
 -->
 
 ---
 
-# MIMO — antennas can separate spatial streams
+# Sharing one channel — FDM and TDM
+
+<img class="lecture-diagram" src="/figures/01/multiplexing.svg" alt="FDM stacks three channels in separate, permanent frequency bands, all transmitting at the same time, separated by guard bands. TDM gives each channel the full bandwidth in turn, in repeating time slots grouped into a frame." />
+
+<div class="grid grid-cols-2 gap-8 pt-2">
+<div>
+
+**Frequency-division multiplexing (FDM)** splits the bandwidth into sub-bands, one per channel. Analog radio and TV; guard bands stop them bleeding into each other.
+
+</div>
+<div>
+
+**Time-division multiplexing (TDM)** splits time into slots, one per channel, repeating every frame. Telephony trunks (T1/E1), and the scheduling inside Wi-Fi and LTE.
+
+</div>
+</div>
+
+<div class="pt-5 vsb-muted text-sm">
+
+Both hand every channel a guaranteed share of one physical link — bandwidth nobody else gets, or time nobody else gets.
+
+</div>
+
+<!--
+The classic ways several users share one physical channel: divide it by frequency or by time. Statistical
+multiplexing — packets, sharing a link on demand instead of by reservation — trades the guaranteed share for
+efficiency; that trade-off is Lecture 2's queueing theory. MIMO next is a third axis to divide a channel by: space.
+-->
+
+---
+
+# MIMO — a third axis, space, to divide a channel by
 
 <div class="grid grid-cols-2 gap-8 pt-3">
 <div>
