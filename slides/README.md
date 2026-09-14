@@ -7,8 +7,9 @@ Markdown file at the project root.
 | Deck | Lecture | Companion exercise |
 |---|---|---|
 | `01-information-theory.md` | Channel capacity and an introduction to information theory | `qos-01` |
+| `02-queuing_theory.md` | Kendall's notation, the Poisson process, Little's law, the M/M/1 queue, and the Erlang traffic formulas | `qos-02` |
 
-Decks are numbered like the lessons; add `02-queueing.md`, `03-qos-qoe.md`, … alongside.
+Decks are numbered like the lessons; add `03-qos-qoe.md`, … alongside.
 
 ## Run a deck
 

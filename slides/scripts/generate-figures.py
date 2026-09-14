@@ -281,7 +281,7 @@ for row, (title, L) in enumerate([('M = 2 states · 1 bit per symbol', 2), ('M =
     s.polyline(pts, G, 3)
     s.text(650, y0 + 25, f'{n} symbols / s', 'bold')
     s.text(650, y0 + 50, f'→ {len(bits)} bit/s' if L == 2 else '→ 10 bit/s = 5 Bd × 2', 'green')
-s.text(440, 244, 'R_raw = Rₛ · log₂ M   —   raw bit rate = symbol rate × bits per symbol', 'big', 'middle')
+s.text(440, 244, 'R_raw = Rₛ · log₂ M   →   raw bit rate = symbol rate × bits per symbol', 'big', 'middle')
 s.save()
 
 # --- Spectral efficiency vs SNR ---------------------------------------------
@@ -362,6 +362,178 @@ for p, lab, dx, dy, anchor in [(0.5, 'fair coin: 1 bit', 0, -12, 'middle'), (0.1
 s.text(670, 70, 'Certain outcome', 'bold'); s.text(670, 92, 'p = 0 or 1  →  H = 0', 'small')
 s.text(670, 132, 'Most uncertain', 'bold'); s.text(670, 154, 'p = 0.5  →  H = 1 bit', 'small')
 s.text(670, 194, 'Uniform is the maximum:', 'bold'); s.text(670, 216, 'H ≤ log₂ N,  equal iff uniform', 'small')
+s.save()
+
+# --- Multiplexing: FDM splits the band, TDM splits the time -----------------
+s = SVG(DECK, 'multiplexing', 300, 'Frequency-division and time-division multiplexing',
+        'Left: frequency-division multiplexing gives three channels separate, permanent frequency bands, '
+        'separated by guard bands, all transmitting at the same time. Right: time-division multiplexing gives '
+        'each channel the full bandwidth in turn, in repeating time slots grouped into a frame.')
+chan = [G, EKF, FBI]  # channel 1, 2, 3 — border + accent colour only, fill stays white (contrast)
+
+# FDM panel — three frequency bands, each occupying the full width (all the time)
+x0, y0, w, h = 50, 42, 340, 148
+s.text(x0, 24, 'FDM · FREQUENCY-DIVISION', 'label')
+band_h, band_gap = 40, 10
+for i in range(3):  # i=0 lowest band (channel 1) … i=2 highest (channel 3)
+    by = y0 + h - 4 - (i + 1) * band_h - i * band_gap
+    bx, bw = x0 + 10, w - 20
+    s.rect(bx, by, bw, band_h, '#FFFFFF', chan[i], 2)
+    s.rect(bx, by, bw, 4, chan[i], 'none')  # accent bar, same language as box()
+    s.text(bx + bw / 2, by + band_h / 2 + 8, f'Channel {i + 1}', 'bold', 'middle')
+# Axes drawn last so their arrowheads sit on top of the band rectangles, not behind them.
+s.line(x0, y0 + h, x0, y0, INK, 1.5, arrow='ink'); s.text(x0 - 6, y0 - 6, 'f', 'small', 'end')
+s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1.5, arrow='ink'); s.text(x0 + w + 8, y0 + h + 5, 't', 'small')
+s.text(x0, y0 + h + 30, 'Every channel transmits all the time,', 'small')
+s.text(x0, y0 + h + 48, 'in its own slice of bandwidth.', 'small')
+
+# TDM panel — one full-bandwidth channel, sliced into a repeating frame of time slots
+x0, y0, w, h = 490, 42, 340, 148
+s.text(x0, 24, 'TDM · TIME-DIVISION', 'label')
+n_slots = 9
+slot_w = (w - 20) / n_slots
+slot_y, slot_h = y0 + 4, h - 8
+for k in range(n_slots):
+    ch = k % 3
+    sx = x0 + 10 + k * slot_w
+    s.rect(sx, slot_y, slot_w, slot_h, '#FFFFFF', chan[ch], 2)
+    s.rect(sx, slot_y, slot_w, 4, chan[ch], 'none')
+    s.text(sx + slot_w / 2, slot_y + slot_h / 2 + 8, str(ch + 1), 'bold', 'middle')
+# Axes drawn last so their arrowheads sit on top of the slot rectangles, not behind them.
+s.line(x0, y0 + h, x0, y0, INK, 1.5, arrow='ink'); s.text(x0 - 6, y0 - 6, 'f', 'small', 'end')
+s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1.5, arrow='ink'); s.text(x0 + w + 8, y0 + h + 5, 't', 'small')
+fx1, fx2, fy = x0 + 10, x0 + 10 + 3 * slot_w, y0 + h + 10
+s.line(fx1, fy, fx2, fy, MUT, 1.5)
+s.line(fx1, fy - 6, fx1, fy + 6, MUT, 1.5); s.line(fx2, fy - 6, fx2, fy + 6, MUT, 1.5)
+s.text((fx1 + fx2) / 2, fy + 18, 'one frame', 'bold', 'middle')
+s.text(x0, y0 + h + 48, 'Every channel gets the full bandwidth,', 'small')
+s.text(x0, y0 + h + 66, 'once per frame.', 'small')
+
+for i in range(3):  # shared legend
+    lx = 300 + i * 130
+    s.rect(lx, 262, 14, 14, '#FFFFFF', chan[i], 2)
+    s.text(lx + 22, 273, f'Channel {i + 1}', 'small')
+s.save()
+
+# =============================================================================
+# 02 — Kendall's notation and the M/M/1 queue
+# =============================================================================
+DECK = '02'
+
+# --- Model of a queueing system ----------------------------------------------
+s = SVG(DECK, 'queue-model', 210, 'Model of a queueing system',
+        'Arrivals enter a buffer of waiting positions and are served by one or more servers before departing. '
+        'The system is described by the arrival rate lambda, the service rate mu, the number of servers, the '
+        'number of waiting positions, and the queueing discipline that orders waiting requests.')
+# Row is vertically centred on y=100 (matches the boxes: top 68, height 64); "Arrivals" and
+# "Departures" sit on that same row instead of floating above it, and all three arrows share one
+# length so the chain reads as one evenly paced flow. The whole row is centred in the 880-wide
+# canvas: left edge of "Arrivals" and right edge of "Departures" sit at roughly equal margins.
+s.text(114, 106, 'Arrivals', 'bold', 'end')
+s.line(128, 100, 188, 100, G, 2, arrow='green')
+s.text(158, 90, 'λ', 'bold', 'middle')
+s.box(188, 68, 230, 64, 'Waiting positions', 'buffer capacity D', TINT)
+s.line(418, 100, 478, 100, INK, 2, arrow='ink')
+s.box(478, 68, 200, 64, 'Server(s)', 'n channels, rate μ each', TINT)
+s.line(678, 100, 738, 100, INK, 2, arrow='ink')
+s.text(752, 106, 'Departures', 'bold')
+s.text(440, 160, 'Queueing discipline orders the waiting positions: FIFO/FCFS, LIFO/LCFS, SIRO, priority, …', 'small', 'middle')
+s.text(440, 190, 'Kendall notation A/B/C/D/E/F packages all of these choices into one string.', 'small', 'middle')
+s.save()
+
+# --- A realization of a Poisson arrival process ------------------------------
+s = SVG(DECK, 'poisson-process', 230, 'A realization of a Poisson arrival process',
+        'A realization of a Poisson arrival process on a time axis: dots mark arrival instants; the gaps between '
+        'consecutive arrivals, T1, T2, T3, are the inter-arrival times. Each gap is drawn independently from an '
+        'exponential distribution with the same rate; this description is what drives the simulation.')
+s.text(40, 24, 'ARRIVALS ON THE TIME AXIS', 'label')
+s.line(60, 110, 820, 110, INK, 1.5, arrow='ink')
+s.text(832, 116, 't', 'small')
+# Hand-picked gaps illustrate irregular, independent spacing (including a burst) while
+# keeping the first three inter-arrival intervals wide enough to label without crowding.
+gaps = [1.1, 0.8, 1.0, 0.3, 0.2, 0.6, 1.5, 0.4, 0.7, 0.9]
+arrivals = [sum(gaps[:i + 1]) for i in range(len(gaps))]
+X = lambda tt: 60 + tt / 7.6 * 740  # noqa: E731
+for a in arrivals:
+    s.line(X(a), 96, X(a), 110, G, 2.5)
+    s.dot(X(a), 96, 4.5, G)
+bounds = [0.0] + arrivals
+for i in range(3):
+    x1, x2, y = X(bounds[i]), X(bounds[i + 1]), 142
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y - 6, x1, y + 6, MUT, 1.5)
+    s.line(x2, y - 6, x2, y + 6, MUT, 1.5)
+    s.text((x1 + x2) / 2, y + 22, f'T{i + 1}', 'bold', 'middle')
+s.text(440, 200, 'Inter-arrival times T₁, T₂, … are i.i.d. Exponential(λ) — the description used in simulation.', 'small', 'middle')
+s.text(440, 222, 'Equivalently: the number of arrivals in any interval of length t is Poisson with mean λt.', 'small', 'middle')
+s.save()
+
+# --- Exponential probability density -----------------------------------------
+s = SVG(DECK, 'exponential-pdf', 270, 'Probability density of the exponential distribution',
+        'Probability density of the exponential distribution for two rates: lambda equals 2 has a short mean '
+        'wait of 0.5 seconds; lambda equals 0.5 has a longer mean wait of 2 seconds. Both curves peak at x '
+        'equals zero and decay monotonically. The distribution is memoryless.')
+ax = Axes(s, 70, 36, 560, 190, (0, 6), (0, 2.1), xlabel='x  (waiting time) [s]', ylabel='f(x)',
+          xticks=[(v, str(v)) for v in (1, 2, 3, 4, 5, 6)], yticks=[(1, '1'), (2, '2')])
+epdf = lambda lam: (lambda x: lam * math.exp(-lam * x))  # noqa: E731
+ax.curve(epdf(2.0), G, 3, n=300)
+ax.curve(epdf(0.5), EKF, 2.5, n=300)
+s.line(660, 70, 700, 70, G, 3); s.text(708, 75, 'λ = 2  (mean 1/λ = 0.5 s)')
+s.line(660, 105, 700, 105, EKF, 2.5); s.text(708, 110, 'λ = 0.5  (mean 1/λ = 2 s)')
+s.text(660, 160, 'Mean E(T) = 1/λ', 'small')
+s.text(660, 185, 'Variance D(T) = 1/λ²', 'small')
+s.text(660, 210, 'Memoryless:', 'small')
+s.text(660, 230, 'P(T>s+t | T>s) = P(T>t)', 'small')
+s.save()
+
+# --- M/M/1 birth-death diagram ------------------------------------------------
+s = SVG(DECK, 'mm1-birth-death', 210, 'Birth-death diagram of the M/M/1 queue',
+        'Birth-death diagram of the M/M/1 queue: states are the number of customers in the system. Arrivals at '
+        'rate lambda move the state up by one; service completions at rate mu move it down by one. Steady state '
+        'requires rho equals lambda over mu, less than one.')
+states = ['0', '1', '2', '3', '…']
+x0, bw, bh, gap, y = 105, 70, 70, 150, 60  # x0 centres the chain in the 880-wide canvas
+for i, st in enumerate(states):
+    x = x0 + i * gap
+    s.rect(x, y, bw, bh, TINT, G, 2)
+    s.text(x + bw / 2, y + bh / 2 + 8, st, 'big', 'middle')
+    if i < len(states) - 1:
+        # The last transition leads into the literal "…" box, not a numbered state — draw it
+        # dashed so it reads as "the chain continues", not as one more concrete step.
+        last = i == len(states) - 2
+        s.line(x + bw, y + bh * 0.35, x + gap, y + bh * 0.35, G, 2.5, dash=last, arrow='green')
+        s.text(x + bw + (gap - bw) / 2, y + bh * 0.35 - 10, 'λ', 'bold', 'middle')
+        s.line(x + gap, y + bh * 0.75, x + bw, y + bh * 0.75, MUT, 2.5, dash=last, arrow='muted')
+        s.text(x + bw + (gap - bw) / 2, y + bh * 0.75 + 24, 'μ', 'bold', 'middle')
+s.text(440, 190, 'State = number of customers in the system. Arrivals (λ) push it up; services (μ) pull it down.', 'small', 'middle')
+s.save()
+
+# --- Little's law: delay decomposition ---------------------------------------
+s = SVG(DECK, 'littles-law', 230, "Delay decomposition in a queueing system",
+        'Delay decomposition in a queueing system: an arriving request waits Wq in the queue, then receives one '
+        'over mu of service; the total time in the system is W, the sum of the two. Occupancy L counts requests '
+        'in service and waiting; Lq counts only those waiting.')
+# x0 and the arrival arrow's start are both shifted right by the same amount from the original
+# layout so the whole diagram (arrow to arrow) sits centred in the 880-wide canvas.
+x0 = 206
+s.line(126, 100, x0, 100, G, 2, arrow='green')
+s.text(126, 85, 'λ', 'bold')
+s.box(x0, 68, 220, 64, 'Queue', 'waiting, Lq', '#F6F8F8')
+s.box(x0 + 220, 68, 180, 64, 'Server', 'in service, rate μ', TINT)
+s.line(x0 + 400, 100, x0 + 450, 100, INK, 2, arrow='ink')
+s.text(x0 + 458, 105, 'Departures', 'bold')
+
+
+def bracket(x1, x2, y, label):
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y - 6, x1, y + 6, MUT, 1.5)
+    s.line(x2, y - 6, x2, y + 6, MUT, 1.5)
+    s.text((x1 + x2) / 2, y + 22, label, 'bold', 'middle')
+
+
+bracket(x0, x0 + 220, 155, 'Wq — queueing delay')
+bracket(x0, x0 + 400, 195, 'W — total time in system')
+s.text(440, 40, 'L (system occupancy) = Lq (queue occupancy) + ρ (the fraction in service)', 'small', 'middle')
 s.save()
 
 print(f'Figures written to {FIGURES}')
