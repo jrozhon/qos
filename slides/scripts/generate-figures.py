@@ -536,4 +536,223 @@ bracket(x0, x0 + 400, 195, 'W — total time in system')
 s.text(440, 40, 'L (system occupancy) = Lq (queue occupancy) + ρ (the fraction in service)', 'small', 'middle')
 s.save()
 
+
+# =============================================================================
+# 03 — QoS mechanisms: from packet handling to perceived quality
+# =============================================================================
+DECK = '03'
+
+# --- QoS as one input to QoE --------------------------------------------------
+s = SVG(DECK, 'qoe-qos-scope', 330, 'Quality of Service as one input to Quality of Experience',
+        'Three stacked layers. At the bottom, the network layer provides Quality of Service: throughput, '
+        'delay, jitter, and packet loss. An arrow leads up to the middle layer, the application and content, '
+        'covering codec choice, encoding, and adaptive bitrate. A second arrow leads up to the top layer, the '
+        'user, whose Quality of Experience depends on perception, expectations, context, and satisfaction.')
+bx, bw = 160, 560
+s.box(bx, 195, bw, 65, 'Network — Quality of Service (QoS)', 'throughput · delay · jitter · packet loss', TINT)
+s.line(440, 195, 440, 163, G, 2, arrow='green')
+s.text(452, 183, 'is encoded into', 'small')
+s.box(bx, 100, bw, 65, 'Application / content', 'codec choice, encoding, adaptive bitrate', TINT)
+s.line(440, 100, 440, 68, G, 2, arrow='green')
+s.text(452, 88, 'is perceived by the user as', 'small')
+s.box(bx, 5, bw, 65, 'User — Quality of Experience (QoE)', 'perception, expectations, context, satisfaction', TINT)
+s.text(440, 295, 'QoS parameters are necessary inputs to QoE, but they are not sufficient on their own —', 'small', 'middle')
+s.text(440, 313, 'expectations and context shape how the same measured QoS is experienced.', 'small', 'middle')
+s.save()
+
+# --- End-to-end one-way delay budget ------------------------------------------
+s = SVG(DECK, 'delay-budget', 275, 'A one-way delay budget, fixed and variable components',
+        'A horizontal timeline of six delay components that add up along a path: codec, serialization, and '
+        'propagation delay are fixed by the codec and the link; queuing, forwarding, and shaping delay are '
+        'variable and grow under load. ITU-T G.114 recommends keeping total one-way delay below about 150 '
+        'milliseconds for good conversational quality.')
+# Legend as one centered row (not a right-side float) so the bar itself can be centered below it.
+s.rect(207, 12, 18, 18, TINT, G, 2)
+s.text(233, 26, 'Fixed — codec & link', 'small')
+s.rect(430, 12, 18, 18, '#E8F9FC', C, 2)
+s.text(456, 26, 'Variable — traffic-dependent', 'small')
+segments = [('Codec', 55, True), ('Serialization', 45, True), ('Propagation', 100, True),
+            ('Queuing', 140, False), ('Forwarding', 35, False), ('Shaping', 85, False)]
+total_w = sum(w for _, w, _ in segments)
+cursor, bar_y, bar_h = (880 - total_w) // 2, 110, 60  # centre the bar itself in the 880-wide canvas
+for i, (name, w, fixed) in enumerate(segments):
+    fill, stroke = (TINT, G) if fixed else ('#E8F9FC', C)
+    s.rect(cursor, bar_y, w, bar_h, fill, stroke, 2)
+    mid = cursor + w / 2
+    if i % 2 == 0:  # alternate labels above/below so narrow segments still get room for a leader line
+        s.line(mid, bar_y, mid, bar_y - 22, MUT, 1.5)
+        s.text(mid, bar_y - 32, name, 'small bold', 'middle')
+    else:
+        s.line(mid, bar_y + bar_h, mid, bar_y + bar_h + 22, MUT, 1.5)
+        s.text(mid, bar_y + bar_h + 38, name, 'small bold', 'middle')
+    cursor += w
+s.text(440, 230, 'Fixed components are set once the codec and link are chosen; variable components grow under load.', 'small', 'middle')
+s.text(440, 248, 'ITU-T G.114 recommends keeping total one-way delay below about 150 ms for good conversational quality.', 'small', 'middle')
+s.save()
+
+# --- Weighted scheduling across two queues ------------------------------------
+s = SVG(DECK, 'weighted-queues', 260, 'Weighted scheduling across two output queues',
+        'Packets arriving at router R1 are split between two output queues before leaving on one link. Queue '
+        '1 is scheduled to use 25 percent of the link capacity, queue 2 the remaining 75 percent — '
+        'proportional scheduling, not strict priority, so queue 1 is never starved.')
+# +102 x-offset centres the whole assembly (Arrivals label to R2 box) in the 880-wide canvas.
+s.text(402, 28, 'R1 — OUTPUT SCHEDULER', 'label', 'middle')
+s.text(216, 130, 'Arrivals', 'bold', 'end')
+s.line(230, 125, 252, 125, G, 2, arrow='green')
+s.rect(252, 40, 300, 170, '#FFFFFF', INK, 1.5)
+s.rect(277, 68, 62, 30, G, 'none')
+s.rect(339, 68, 188, 30, EKF, 'none')
+s.text(308, 58, '25%', 'bold', 'middle')
+s.text(433, 58, '75%', 'bold', 'middle')
+s.rect(277, 110, 16, 16, G, 'none')
+s.text(301, 123, 'Queue 1 — priority traffic')
+s.rect(277, 145, 16, 16, EKF, 'none')
+s.text(301, 158, 'Queue 2 — best-effort traffic')
+s.line(552, 125, 642, 125, INK, 2, arrow='ink')
+s.rect(642, 95, 90, 60, TINT, G, 2)
+s.text(687, 130, 'R2', 'big', 'middle')
+s.text(440, 235, 'The scheduler serves queue 2 three times as often as queue 1 (75:25) — proportional sharing,', 'small', 'middle')
+s.text(440, 253, 'not strict priority, so queue 1 is never starved of bandwidth.', 'small', 'middle')
+s.save()
+
+# --- Token bucket traffic enforcement -----------------------------------------
+s = SVG(DECK, 'token-bucket', 300, 'The token bucket enforces a rate and a burst limit',
+        'Tokens accumulate in a bucket at rate r, up to a maximum depth b. A packet needs one token per byte '
+        'to be sent. If the bucket holds enough tokens the packet is sent immediately and the tokens are '
+        'removed; otherwise it must wait for tokens to accumulate, or be dropped or marked as non-conformant.')
+s.text(114, 148, 'Arrivals', 'bold', 'end')
+s.line(128, 135, 160, 135, G, 2, arrow='green')
+s.rect(160, 30, 240, 210, '#FFFFFF', INK, 1.5)
+s.text(280, 20, 'TOKEN BUCKET', 'label', 'middle')
+s.rect(185, 70, 90, 140, '#FFFFFF', INK, 1.5)
+token_cols = [192, 228]
+token_rows = [185, 163, 141, 119]
+for ri, ty in enumerate(token_rows):
+    fill = TINT if ri < 3 else '#FFFFFF'
+    stroke = G if ri < 3 else LINE
+    for tx in token_cols:
+        s.rect(tx, ty, 18, 18, fill, stroke, 1.5)
+s.line(230, 30, 230, 70, G, 2, arrow='green')
+s.text(238, 50, 'rate r', 'small')
+s.line(295, 70, 305, 70, MUT, 1.5)
+s.line(295, 210, 305, 210, MUT, 1.5)
+s.line(300, 70, 300, 210, MUT, 1.5)
+s.text(312, 135, 'depth b', 'bold')
+s.text(312, 153, 'capacity', 'small')
+s.line(400, 85, 470, 85, INK, 2, arrow='ink')
+s.line(400, 175, 470, 175, INK, 2, arrow='ink')
+s.rect(470, 50, 330, 70, TINT, G, 2)
+s.text(485, 80, 'Enough tokens', 'bold')
+s.text(485, 102, 'packet sent immediately, tokens removed', 'small')
+s.rect(470, 140, 330, 70, '#E8F9FC', C, 2)
+s.text(485, 170, 'Not enough tokens', 'bold')
+s.text(485, 192, 'wait (shaping) or drop/mark (policing)', 'small')
+s.text(440, 260, 'Traffic entering any interval of length T is bounded by b + rT: bursts up to b tokens pass', 'small', 'middle')
+s.text(440, 278, 'immediately, but the long-run rate never exceeds r.', 'small', 'middle')
+s.save()
+
+# --- RED drop-probability profile ----------------------------------------------
+s = SVG(DECK, 'red-drop-profile', 285, 'Random Early Detection drop-probability profile',
+        'Drop probability as a function of average queue depth. Below the minimum threshold no packets are '
+        'dropped. Between the minimum and maximum thresholds, drop probability rises linearly to a maximum '
+        'value. At or above the maximum threshold every arriving packet is dropped, a tail drop.')
+min_th, max_th, max_p = 30, 70, 0.1
+red_prob = lambda x: 0.0 if x <= min_th else (max_p * (x - min_th) / (max_th - min_th) if x < max_th else 1.0)  # noqa: E731
+ax = Axes(s, 90, 30, 560, 150, (0, 100), (0, 1.05), xlabel='Average queue depth [packets]', ylabel='Drop probability',
+          xticks=[(min_th, 'min_th'), (max_th, 'max_th'), (100, '100')], yticks=[(max_p, 'max_p'), (1, '1.0')])
+ax.curve(red_prob, G, 3, n=400)
+s.text(660, 75, 'Below min_th:', 'small')
+s.text(660, 95, 'no drops', 'small')
+s.text(660, 125, 'min_th–max_th:', 'small')
+s.text(660, 145, 'random early drops', 'small')
+s.text(660, 175, '≥ max_th: tail drop', 'small')
+s.text(440, 250, 'Early, random drops signal congestion before the buffer fills. A TCP sender backs off in', 'small', 'middle')
+s.text(440, 268, 'response; a UDP/RTP voice stream does not — it keeps sending at the same rate regardless.', 'small', 'middle')
+s.save()
+
+# --- Link fragmentation and interleaving --------------------------------------
+s = SVG(DECK, 'lfi-fragmentation', 300, 'Link fragmentation and interleaving reduces serialization wait',
+        'Without link fragmentation and interleaving, a small delay-sensitive packet must wait behind an '
+        'entire large packet already being sent. With fragmentation and interleaving, the large packet is '
+        'split into fragments and the small packet is inserted after just the first fragment, cutting its '
+        'wait roughly to a third.')
+
+
+def timeline_block(x, y, w, h, fill, stroke, line1, line2=''):
+    s.rect(x, y, w, h, fill, stroke, 2)
+    if line2:
+        s.text(x + w / 2, y + h / 2 - 2, line1, 'bold', 'middle')
+        s.text(x + w / 2, y + h / 2 + 18, line2, 'small', 'middle')
+    else:
+        s.text(x + w / 2, y + h / 2 + 6, line1, 'bold', 'middle')
+    return x + w
+
+
+def span_bracket(x1, x2, y, label):
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y - 6, x1, y + 6, MUT, 1.5)
+    s.line(x2, y - 6, x2, y + 6, MUT, 1.5)
+    s.text((x1 + x2) / 2, y + 22, label, 'small', 'middle')
+
+
+# +105 x-offset centres the assembly (both rows run narrower than the 880-wide canvas otherwise).
+ox = 105
+s.text(80 + ox, 25, 'WITHOUT LFI', 'label')
+cursor = timeline_block(80 + ox, 45, 320, 55, TINT, G, 'Large packet', '1500 B')
+cursor = timeline_block(cursor, 45, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+s.line(cursor + 10, 72, cursor + 50, 72, INK, 2, arrow='ink')
+s.text(cursor + 58, 77, 'link', 'small')
+span_bracket(80 + ox, 400 + ox, 120, 'the urgent packet waits for the whole 1500 B packet')
+
+s.text(80 + ox, 165, 'WITH LFI (FRAGMENTATION + INTERLEAVING)', 'label')
+cursor = timeline_block(80 + ox, 185, 100, 55, TINT, G, 'F1')
+cursor = timeline_block(cursor, 185, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F2')
+cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F3')
+s.line(cursor + 10, 212, cursor + 50, 212, INK, 2, arrow='ink')
+s.text(cursor + 58, 217, 'link', 'small')
+span_bracket(80 + ox, 280 + ox, 260, 'the urgent packet follows just one fragment')
+s.save()
+
+# --- IP Precedence and DSCP marking -------------------------------------------
+s = SVG(DECK, 'dscp-header', 320, 'From IP Precedence to the Differentiated Services field',
+        'Two 8-bit fields of the IP header. The pre-DiffServ Type of Service byte splits into 3 bits of IP '
+        'Precedence, 4 ToS bits, and 1 unused bit. The Differentiated Services field defined by RFC 2474 '
+        'reuses the same byte as 6 bits of Differentiated Services Code Point, DSCP, plus 2 bits for '
+        'Explicit Congestion Notification. Class-selector codepoints keep the same ordering as IP Precedence.')
+
+
+def cell_row(x0, y, groups):
+    x = x0
+    for w, fill in groups:
+        s.rect(x, y, w, 50, fill, LINE, 1.5)
+        x += w
+    return x
+
+
+def span_above(x1, x2, y, label):
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y, x1, y - 8, MUT, 1.5)
+    s.line(x2, y, x2, y - 8, MUT, 1.5)
+    s.text((x1 + x2) / 2, y - 14, label, 'bold', 'middle')
+
+
+x0, cw = 240, 50
+s.text(x0, 25, 'TOS BYTE — PRE-DIFFSERV (RFC 791/1349)', 'label')
+cell_row(x0, 60, [(3 * cw, TINT), (4 * cw, '#F3F6F5'), (cw, '#FFFFFF')])
+span_above(x0, x0 + 3 * cw, 60, 'IP Precedence (3 bits)')
+span_above(x0 + 3 * cw, x0 + 7 * cw, 60, 'ToS bits (4 bits)')
+span_above(x0 + 7 * cw, x0 + 8 * cw, 60, 'Unused')
+
+s.text(440, 145, 'Same 8 bits, reinterpreted:', 'small', 'middle')
+
+s.text(x0, 185, 'DS FIELD — DIFFSERV (RFC 2474)', 'label')
+cell_row(x0, 220, [(6 * cw, TINT), (2 * cw, '#F3F6F5')])
+span_above(x0, x0 + 6 * cw, 220, 'DSCP (6 bits)')
+span_above(x0 + 6 * cw, x0 + 8 * cw, 220, 'ECN (2 bits)')
+
+s.text(440, 290, 'Class-selector codepoints (000xxx) preserve IP Precedence’s ordering; DSCP adds finer-grained', 'small', 'middle')
+s.text(440, 308, 'per-hop behaviors: EF = 101110 (voice, RFC 3246) · AF41 = 100010 (video, RFC 2597) · default = 000000.', 'small', 'middle')
+s.save()
+
 print(f'Figures written to {FIGURES}')

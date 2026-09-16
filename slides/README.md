@@ -8,8 +8,9 @@ Markdown file at the project root.
 |---|---|---|
 | `01-information-theory.md` | Channel capacity and an introduction to information theory | `qos-01` |
 | `02-queuing_theory.md` | Kendall's notation, the Poisson process, Little's law, the M/M/1 queue, and the Erlang traffic formulas | `qos-02` |
+| `03-qos-mechanisms.md` | QoS vs QoE definitions, the end-to-end delay budget, congestion management (CAC, queuing, RED), and link efficiency and marking (compression, LFI, DSCP) | `qos-03` |
 
-Decks are numbered like the lessons; add `03-qos-qoe.md`, … alongside.
+Decks are numbered like the lessons; add `04-…md`, … alongside.
 
 ## Run a deck
 
