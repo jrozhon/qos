@@ -9,8 +9,9 @@ Markdown file at the project root.
 | `01-information-theory.md` | Channel capacity and an introduction to information theory | `qos-01` |
 | `02-queuing_theory.md` | Kendall's notation, the Poisson process, Little's law, the M/M/1 queue, and the Erlang traffic formulas | `qos-02` |
 | `03-qos-mechanisms.md` | QoS vs QoE definitions, the end-to-end delay budget, congestion management (CAC, queuing, RED), and link efficiency and marking (compression, LFI, DSCP) | `qos-03` |
+| `04-network-traffic-modelling.md` | Time-domain traffic distributions (exponential, Weibull, jitter), Markov-chain packet-loss models (Bernoulli through the four-state model), and self-similarity / long-range dependence | none — extends `qos-02`'s `simpy` pipeline |
 
-Decks are numbered like the lessons; add `04-…md`, … alongside.
+Decks are numbered like the lessons; add `05-…md`, … alongside.
 
 ## Run a deck
 
@@ -51,6 +52,18 @@ references → `end`. Conventions that keep the decks consistent:
 
   ```bash
   python3 scripts/generate-figures.py
+  ```
+
+  Node/edge diagrams (Markov state diagrams, graphs) are the exception — hand-rolled SVG bezier math cannot match
+  matplotlib's `FancyArrowPatch` (`connectionstyle="arc3"` plus `patchA`/`patchB` auto-clip a curved arrow to a
+  node's boundary, no manual trig required). These live in their own `scripts/generate-<topic>-figures.py`
+  script, need matplotlib (not a project dependency — run it via `uv`), and still write into the same
+  `public/figures/<deck>/` paths, still self-contained (Carlito baked in as vector outlines via
+  `svg.fonttype = 'path'`, no runtime font dependency). Deck 04's five loss-model diagrams are the current
+  example:
+
+  ```bash
+  uv run --with matplotlib python3 scripts/generate-markov-figures.py
   ```
 
 - **Units in prose** must be escaped, `\[Hz\]`, because MDC syntax treats `[...]` as a span. Inside `$…$` KaTeX

@@ -41,7 +41,7 @@ class SVG:
             f'<marker id="{n}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" '
             f'markerWidth="14" markerHeight="14" orient="auto-start-reverse">'
             f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{c}"/></marker>'
-            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT)])
+            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT), ('red', FMT)])
         self.parts = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
             f'role="img" aria-labelledby="title desc">',
@@ -59,6 +59,11 @@ class SVG:
 
     def text(self, x, y, s, cls='', anchor='start'):
         self.parts.append(f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" text-anchor="{anchor}">{escape(s)}</text>')
+
+    def text_rot(self, x, y, s, cls='', anchor='middle', angle=-90):
+        self.parts.append(
+            f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" text-anchor="{anchor}" '
+            f'transform="rotate({angle} {x:.1f} {y:.1f})">{escape(s)}</text>')
 
     def line(self, x1, y1, x2, y2, color=G, sw=2, dash=False, arrow=None):
         self.path(f'M{x1:.1f},{y1:.1f} L{x2:.1f},{y2:.1f}', color, sw, dash, arrow)
@@ -110,7 +115,7 @@ class Axes:
         if xlabel:
             svg.text(x0 + w, y0 + h + 40, xlabel, 'small', 'end')
         if ylabel:
-            svg.text(x0 - 8, y0 - 12, ylabel, 'small', 'start')
+            svg.text_rot(x0 - 46, y0 + h / 2, ylabel, 'small')
 
     def px(self, x):
         return self.x0 + (x - self.xr[0]) / (self.xr[1] - self.xr[0]) * self.w
@@ -753,6 +758,157 @@ span_above(x0 + 6 * cw, x0 + 8 * cw, 220, 'ECN (2 bits)')
 
 s.text(440, 290, 'Class-selector codepoints (000xxx) preserve IP Precedence’s ordering; DSCP adds finer-grained', 'small', 'middle')
 s.text(440, 308, 'per-hop behaviors: EF = 101110 (voice, RFC 3246) · AF41 = 100010 (video, RFC 2597) · default = 000000.', 'small', 'middle')
+s.save()
+
+# =============================================================================
+# 04 — Network traffic modelling: distributions and self-similarity
+# =============================================================================
+# The five Markov loss-model state diagrams for this deck (Bernoulli, Simple Gilbert, Gilbert,
+# Gilbert-Elliott, four-state) are NOT generated here — hand-rolled SVG bezier math could not match
+# matplotlib's FancyArrowPatch (auto node-edge clipping via patchA/patchB, properly weighted arc3
+# curves). They live in generate-markov-figures.py instead; run both scripts to regenerate the deck.
+DECK = '04'
+
+# --- Exponential distribution: density and cumulative distribution -----------
+s = SVG(DECK, 'exp-pdf-cdf', 270, 'Exponential distribution: density and cumulative distribution',
+        'Probability density and cumulative distribution of the exponential distribution with rate 1. The '
+        'density starts at 1 and decays monotonically; the cumulative distribution rises from 0 towards 1. '
+        'This distribution models Poisson-process inter-arrival times.')
+ax = Axes(s, 70, 30, 560, 200, (0, 5), (0, 1.05), xlabel='x', ylabel='f(x), F(x)',
+          xticks=[(v, str(v)) for v in (0, 1, 2, 3, 4, 5)], yticks=[(0, '0'), (0.5, '0.5'), (1, '1.0')])
+ax.curve(lambda x: math.exp(-x), G, 3, n=300)
+ax.curve(lambda x: 1 - math.exp(-x), EKF, 2.5, n=300)
+s.line(660, 60, 700, 60, G, 3); s.text(708, 65, 'pdf  f(x) = λe⁻λˣ')
+s.line(660, 95, 700, 95, EKF, 2.5); s.text(708, 100, 'cdf  F(x) = 1 − e⁻λˣ')
+s.text(660, 150, 'Models packet/call/session', 'small')
+s.text(660, 170, 'inter-arrivals of a Poisson', 'small')
+s.text(660, 190, 'process — Lecture 02.', 'small')
+s.text(660, 222, 'Memoryless: most inter-', 'small')
+s.text(660, 242, 'arrivals are short; the tail', 'small')
+s.text(660, 262, 'relates to packet drop.', 'small')
+s.save()
+
+# --- Weibull distribution: shape family ---------------------------------------
+s = SVG(DECK, 'weibull-pdf', 270, 'Weibull probability density for five shape parameters',
+        'Probability density of the Weibull distribution with scale 1 and shape k from 1 to 5. Larger k '
+        'concentrates the density more tightly around x = 1, moving away from the exponential shape at k = 1 '
+        'towards an increasingly peaked, near-symmetric one.')
+ax = Axes(s, 70, 30, 560, 200, (0, 3), (0, 2.0), xlabel='x', ylabel='f(x)',
+          xticks=[(v, str(v)) for v in (0, 1, 2, 3)], yticks=[(0, '0'), (1, '1'), (2, '2')])
+wpdf = lambda k: (lambda x: 0.0 if x < 0 else k * x ** (k - 1) * math.exp(-x ** k))  # noqa: E731
+for k, col in zip(range(1, 6), (G, D, EKF, FBI, C)):
+    ax.curve(wpdf(k), col, 2.5, n=300)
+    s.line(660, 46 + (k - 1) * 30, 700, 46 + (k - 1) * 30, col, 2.5)
+    s.text(708, 51 + (k - 1) * 30, f'k = {k}' + ('  (exponential)' if k == 1 else ''), 'small')
+s.text(660, 220, 'k = 1 is the exponential;', 'small')
+s.text(660, 240, 'better fit for access→core', 'small')
+s.text(660, 260, 'and packet→session scaling [1]', 'small')
+s.save()
+
+# --- Normal distribution: jitter -----------------------------------------------
+s = SVG(DECK, 'normal-jitter', 270, 'Normal distribution: density and cumulative distribution of jitter',
+        'Probability density and cumulative distribution of a zero-mean, unit-variance Normal distribution, '
+        'used to model packet delay variation, jitter, within one flow. The density is symmetric and '
+        'bell-shaped; the cumulative distribution is its S-shaped integral.')
+ax = Axes(s, 70, 30, 560, 200, (-5, 5), (0, 1.05), xlabel='x  (jitter)', ylabel='f(x), F(x)',
+          xticks=[(v, str(v)) for v in (-4, -2, 0, 2, 4)], yticks=[(0, '0'), (0.5, '0.5'), (1, '1.0')])
+npdf = lambda x: math.exp(-x * x / 2) / math.sqrt(2 * math.pi)  # noqa: E731
+ncdf = lambda x: 0.5 * (1 + math.erf(x / math.sqrt(2)))  # noqa: E731
+ax.curve(npdf, G, 3, n=300)
+ax.curve(ncdf, EKF, 2.5, n=300)
+s.line(660, 60, 700, 60, G, 3); s.text(708, 65, 'pdf f(x)')
+s.line(660, 95, 700, 95, EKF, 2.5); s.text(708, 100, 'cdf F(x)')
+s.text(660, 150, 'Models delay variation', 'small')
+s.text(660, 170, '(jitter) between', 'small')
+s.text(660, 190, 'consecutive packets of', 'small')
+s.text(660, 210, 'the same flow.', 'small')
+s.save()
+
+# --- Simple Gilbert model: convergence to steady state --------------------------
+s = SVG(DECK, 'gilbert-convergence', 330, 'Simple Gilbert model: convergence to steady state',
+        'Two panels show the empirical probability of the Transmit and Loss states over time, averaged over '
+        'many independent realizations of a simple Gilbert chain with p = 0.8 and q = 0.4, starting in '
+        'Transmit (left) and in Loss (right). Both converge to the same steady-state probabilities.')
+p, q = 0.8, 0.4
+piL, piT = p / (p + q), q / (p + q)
+N, M = 160, 600
+rng = random.Random(7)
+
+
+def simulate(start_loss):
+    counts = [0] * (N + 1)
+    for _ in range(M):
+        st = start_loss
+        counts[0] += st
+        for t in range(1, N + 1):
+            st = (rng.random() >= q) if st else (rng.random() < p)
+            counts[t] += st
+    return [c / M for c in counts]
+
+
+for x0, start_loss, title in [(70, False, 'STARTING IN T'), (500, True, 'STARTING IN L')]:
+    s.text(x0, 16, title, 'label')
+    PL = simulate(start_loss)
+    ax = Axes(s, x0, 46, 330, 170, (0, N), (0, 1.05), xlabel='step',
+              xticks=[(v, str(v)) for v in (0, 40, 80, 120, 160)], yticks=[(0, '0'), (piT, '0.333'), (piL, '0.667'), (1, '1.0')])
+    s.polyline([(ax.px(t), ax.py(1 - PL[t])) for t in range(N + 1)], G, 2)
+    s.polyline([(ax.px(t), ax.py(PL[t])) for t in range(N + 1)], FMT, 2)
+s.line(310, 288, 340, 288, G, 2.5); s.text(348, 293, 'P(T)', 'small')
+s.line(430, 288, 460, 288, FMT, 2.5); s.text(468, 293, 'P(L)', 'small')
+s.text(440, 318, 'p = 0.8, q = 0.4 — every realization converges to the same steady state, independent of the start.', 'small', 'middle')
+s.save()
+
+# --- Self-similar synthetic traffic at four aggregation levels ------------------
+s = SVG(DECK, 'self-similar-traffic', 320, 'Synthetic traffic at four levels of aggregation',
+        'A synthetic trace built from the superposition of many ON/OFF sources with heavy-tailed, Pareto '
+        'distributed period lengths, zoomed from 1 fine time bin per bar up to the whole trace aggregated into '
+        'about 328 bins per bar. Unlike a Poisson process, which flattens toward a smooth average as bins are '
+        'aggregated, this trace stays visibly bursty at every scale.')
+NFINE, NSRC, ALPHA, SCALE = 65536, 40, 1.4, 4
+rng = random.Random(11)
+
+
+def onoff_source():
+    trace = [0] * NFINE
+    t, on = 0, rng.random() < 0.5
+    while t < NFINE:
+        dur = max(1, int(SCALE * rng.paretovariate(ALPHA)))
+        if on:
+            for i in range(t, min(NFINE, t + dur)):
+                trace[i] = 1
+        t += dur
+        on = not on
+    return trace
+
+
+agg = [0] * NFINE
+for _ in range(NSRC):
+    src = onoff_source()
+    for i in range(NFINE):
+        agg[i] += src[i]
+
+
+def bar_panel(x0, y0, w, h, vals, color, title):
+    s.text(x0, y0 - 10, title, 'label')
+    n = len(vals)
+    bw = w / n
+    vmax = max(vals) or 1
+    for i, v in enumerate(vals):
+        bh = v / vmax * h
+        s.rect(x0 + i * bw, y0 + h - bh, max(bw - 0.3, 0.4), bh, color, 'none')
+    s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1)
+
+
+BARS = 200  # cap per panel — the whole-trace panel would otherwise draw 65536 individual rects
+factors = [1, 8, 64, NFINE // BARS]
+titles = ['FINE — 1 bin/bar', '×8 aggregation', '×64 aggregation', f'×{factors[3]} aggregation (whole trace)']
+colors = [G, D, EKF, FBI]
+for i, (factor, title) in enumerate(zip(factors, titles)):
+    n_bars = min(BARS, NFINE // factor)  # panels 1-3 zoom into the trace's first n_bars*factor bins
+    vals = [sum(agg[b * factor:(b + 1) * factor]) / factor for b in range(n_bars)]
+    col, row = i % 2, i // 2
+    bar_panel(60 + col * 440, 48 + row * 130, 380, 90, vals, colors[i], title)
+s.text(440, 300, 'A Poisson-based model would flatten towards a smooth average as aggregation grows — this one does not.', 'small', 'middle')
 s.save()
 
 print(f'Figures written to {FIGURES}')
