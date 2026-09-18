@@ -41,7 +41,7 @@ class SVG:
             f'<marker id="{n}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" '
             f'markerWidth="14" markerHeight="14" orient="auto-start-reverse">'
             f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{c}"/></marker>'
-            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT)])
+            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT), ('red', FMT)])
         self.parts = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
             f'role="img" aria-labelledby="title desc">',
@@ -59,6 +59,11 @@ class SVG:
 
     def text(self, x, y, s, cls='', anchor='start'):
         self.parts.append(f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" text-anchor="{anchor}">{escape(s)}</text>')
+
+    def text_rot(self, x, y, s, cls='', anchor='middle', angle=-90):
+        self.parts.append(
+            f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" text-anchor="{anchor}" '
+            f'transform="rotate({angle} {x:.1f} {y:.1f})">{escape(s)}</text>')
 
     def line(self, x1, y1, x2, y2, color=G, sw=2, dash=False, arrow=None):
         self.path(f'M{x1:.1f},{y1:.1f} L{x2:.1f},{y2:.1f}', color, sw, dash, arrow)
@@ -110,7 +115,7 @@ class Axes:
         if xlabel:
             svg.text(x0 + w, y0 + h + 40, xlabel, 'small', 'end')
         if ylabel:
-            svg.text(x0 - 8, y0 - 12, ylabel, 'small', 'start')
+            svg.text_rot(x0 - 46, y0 + h / 2, ylabel, 'small')
 
     def px(self, x):
         return self.x0 + (x - self.xr[0]) / (self.xr[1] - self.xr[0]) * self.w
@@ -534,6 +539,376 @@ def bracket(x1, x2, y, label):
 bracket(x0, x0 + 220, 155, 'Wq — queueing delay')
 bracket(x0, x0 + 400, 195, 'W — total time in system')
 s.text(440, 40, 'L (system occupancy) = Lq (queue occupancy) + ρ (the fraction in service)', 'small', 'middle')
+s.save()
+
+
+# =============================================================================
+# 03 — QoS mechanisms: from packet handling to perceived quality
+# =============================================================================
+DECK = '03'
+
+# --- QoS as one input to QoE --------------------------------------------------
+s = SVG(DECK, 'qoe-qos-scope', 330, 'Quality of Service as one input to Quality of Experience',
+        'Three stacked layers. At the bottom, the network layer provides Quality of Service: throughput, '
+        'delay, jitter, and packet loss. An arrow leads up to the middle layer, the application and content, '
+        'covering codec choice, encoding, and adaptive bitrate. A second arrow leads up to the top layer, the '
+        'user, whose Quality of Experience depends on perception, expectations, context, and satisfaction.')
+bx, bw = 160, 560
+s.box(bx, 195, bw, 65, 'Network — Quality of Service (QoS)', 'throughput · delay · jitter · packet loss', TINT)
+s.line(440, 195, 440, 163, G, 2, arrow='green')
+s.text(452, 183, 'is encoded into', 'small')
+s.box(bx, 100, bw, 65, 'Application / content', 'codec choice, encoding, adaptive bitrate', TINT)
+s.line(440, 100, 440, 68, G, 2, arrow='green')
+s.text(452, 88, 'is perceived by the user as', 'small')
+s.box(bx, 5, bw, 65, 'User — Quality of Experience (QoE)', 'perception, expectations, context, satisfaction', TINT)
+s.text(440, 295, 'QoS parameters are necessary inputs to QoE, but they are not sufficient on their own —', 'small', 'middle')
+s.text(440, 313, 'expectations and context shape how the same measured QoS is experienced.', 'small', 'middle')
+s.save()
+
+# --- End-to-end one-way delay budget ------------------------------------------
+s = SVG(DECK, 'delay-budget', 275, 'A one-way delay budget, fixed and variable components',
+        'A horizontal timeline of six delay components that add up along a path: codec, serialization, and '
+        'propagation delay are fixed by the codec and the link; queuing, forwarding, and shaping delay are '
+        'variable and grow under load. ITU-T G.114 recommends keeping total one-way delay below about 150 '
+        'milliseconds for good conversational quality.')
+# Legend as one centered row (not a right-side float) so the bar itself can be centered below it.
+s.rect(207, 12, 18, 18, TINT, G, 2)
+s.text(233, 26, 'Fixed — codec & link', 'small')
+s.rect(430, 12, 18, 18, '#E8F9FC', C, 2)
+s.text(456, 26, 'Variable — traffic-dependent', 'small')
+segments = [('Codec', 55, True), ('Serialization', 45, True), ('Propagation', 100, True),
+            ('Queuing', 140, False), ('Forwarding', 35, False), ('Shaping', 85, False)]
+total_w = sum(w for _, w, _ in segments)
+cursor, bar_y, bar_h = (880 - total_w) // 2, 110, 60  # centre the bar itself in the 880-wide canvas
+for i, (name, w, fixed) in enumerate(segments):
+    fill, stroke = (TINT, G) if fixed else ('#E8F9FC', C)
+    s.rect(cursor, bar_y, w, bar_h, fill, stroke, 2)
+    mid = cursor + w / 2
+    if i % 2 == 0:  # alternate labels above/below so narrow segments still get room for a leader line
+        s.line(mid, bar_y, mid, bar_y - 22, MUT, 1.5)
+        s.text(mid, bar_y - 32, name, 'small bold', 'middle')
+    else:
+        s.line(mid, bar_y + bar_h, mid, bar_y + bar_h + 22, MUT, 1.5)
+        s.text(mid, bar_y + bar_h + 38, name, 'small bold', 'middle')
+    cursor += w
+s.text(440, 230, 'Fixed components are set once the codec and link are chosen; variable components grow under load.', 'small', 'middle')
+s.text(440, 248, 'ITU-T G.114 recommends keeping total one-way delay below about 150 ms for good conversational quality.', 'small', 'middle')
+s.save()
+
+# --- Weighted scheduling across two queues ------------------------------------
+s = SVG(DECK, 'weighted-queues', 260, 'Weighted scheduling across two output queues',
+        'Packets arriving at router R1 are split between two output queues before leaving on one link. Queue '
+        '1 is scheduled to use 25 percent of the link capacity, queue 2 the remaining 75 percent — '
+        'proportional scheduling, not strict priority, so queue 1 is never starved.')
+# +102 x-offset centres the whole assembly (Arrivals label to R2 box) in the 880-wide canvas.
+s.text(402, 28, 'R1 — OUTPUT SCHEDULER', 'label', 'middle')
+s.text(216, 130, 'Arrivals', 'bold', 'end')
+s.line(230, 125, 252, 125, G, 2, arrow='green')
+s.rect(252, 40, 300, 170, '#FFFFFF', INK, 1.5)
+s.rect(277, 68, 62, 30, G, 'none')
+s.rect(339, 68, 188, 30, EKF, 'none')
+s.text(308, 58, '25%', 'bold', 'middle')
+s.text(433, 58, '75%', 'bold', 'middle')
+s.rect(277, 110, 16, 16, G, 'none')
+s.text(301, 123, 'Queue 1 — priority traffic')
+s.rect(277, 145, 16, 16, EKF, 'none')
+s.text(301, 158, 'Queue 2 — best-effort traffic')
+s.line(552, 125, 642, 125, INK, 2, arrow='ink')
+s.rect(642, 95, 90, 60, TINT, G, 2)
+s.text(687, 130, 'R2', 'big', 'middle')
+s.text(440, 235, 'The scheduler serves queue 2 three times as often as queue 1 (75:25) — proportional sharing,', 'small', 'middle')
+s.text(440, 253, 'not strict priority, so queue 1 is never starved of bandwidth.', 'small', 'middle')
+s.save()
+
+# --- Token bucket traffic enforcement -----------------------------------------
+s = SVG(DECK, 'token-bucket', 300, 'The token bucket enforces a rate and a burst limit',
+        'Tokens accumulate in a bucket at rate r, up to a maximum depth b. A packet needs one token per byte '
+        'to be sent. If the bucket holds enough tokens the packet is sent immediately and the tokens are '
+        'removed; otherwise it must wait for tokens to accumulate, or be dropped or marked as non-conformant.')
+s.text(114, 148, 'Arrivals', 'bold', 'end')
+s.line(128, 135, 160, 135, G, 2, arrow='green')
+s.rect(160, 30, 240, 210, '#FFFFFF', INK, 1.5)
+s.text(280, 20, 'TOKEN BUCKET', 'label', 'middle')
+s.rect(185, 70, 90, 140, '#FFFFFF', INK, 1.5)
+token_cols = [192, 228]
+token_rows = [185, 163, 141, 119]
+for ri, ty in enumerate(token_rows):
+    fill = TINT if ri < 3 else '#FFFFFF'
+    stroke = G if ri < 3 else LINE
+    for tx in token_cols:
+        s.rect(tx, ty, 18, 18, fill, stroke, 1.5)
+s.line(230, 30, 230, 70, G, 2, arrow='green')
+s.text(238, 50, 'rate r', 'small')
+s.line(295, 70, 305, 70, MUT, 1.5)
+s.line(295, 210, 305, 210, MUT, 1.5)
+s.line(300, 70, 300, 210, MUT, 1.5)
+s.text(312, 135, 'depth b', 'bold')
+s.text(312, 153, 'capacity', 'small')
+s.line(400, 85, 470, 85, INK, 2, arrow='ink')
+s.line(400, 175, 470, 175, INK, 2, arrow='ink')
+s.rect(470, 50, 330, 70, TINT, G, 2)
+s.text(485, 80, 'Enough tokens', 'bold')
+s.text(485, 102, 'packet sent immediately, tokens removed', 'small')
+s.rect(470, 140, 330, 70, '#E8F9FC', C, 2)
+s.text(485, 170, 'Not enough tokens', 'bold')
+s.text(485, 192, 'wait (shaping) or drop/mark (policing)', 'small')
+s.text(440, 260, 'Traffic entering any interval of length T is bounded by b + rT: bursts up to b tokens pass', 'small', 'middle')
+s.text(440, 278, 'immediately, but the long-run rate never exceeds r.', 'small', 'middle')
+s.save()
+
+# --- RED drop-probability profile ----------------------------------------------
+s = SVG(DECK, 'red-drop-profile', 285, 'Random Early Detection drop-probability profile',
+        'Drop probability as a function of average queue depth. Below the minimum threshold no packets are '
+        'dropped. Between the minimum and maximum thresholds, drop probability rises linearly to a maximum '
+        'value. At or above the maximum threshold every arriving packet is dropped, a tail drop.')
+min_th, max_th, max_p = 30, 70, 0.1
+red_prob = lambda x: 0.0 if x <= min_th else (max_p * (x - min_th) / (max_th - min_th) if x < max_th else 1.0)  # noqa: E731
+ax = Axes(s, 90, 30, 560, 150, (0, 100), (0, 1.05), xlabel='Average queue depth [packets]', ylabel='Drop probability',
+          xticks=[(min_th, 'min_th'), (max_th, 'max_th'), (100, '100')], yticks=[(max_p, 'max_p'), (1, '1.0')])
+ax.curve(red_prob, G, 3, n=400)
+s.text(660, 75, 'Below min_th:', 'small')
+s.text(660, 95, 'no drops', 'small')
+s.text(660, 125, 'min_th–max_th:', 'small')
+s.text(660, 145, 'random early drops', 'small')
+s.text(660, 175, '≥ max_th: tail drop', 'small')
+s.text(440, 250, 'Early, random drops signal congestion before the buffer fills. A TCP sender backs off in', 'small', 'middle')
+s.text(440, 268, 'response; a UDP/RTP voice stream does not — it keeps sending at the same rate regardless.', 'small', 'middle')
+s.save()
+
+# --- Link fragmentation and interleaving --------------------------------------
+s = SVG(DECK, 'lfi-fragmentation', 300, 'Link fragmentation and interleaving reduces serialization wait',
+        'Without link fragmentation and interleaving, a small delay-sensitive packet must wait behind an '
+        'entire large packet already being sent. With fragmentation and interleaving, the large packet is '
+        'split into fragments and the small packet is inserted after just the first fragment, cutting its '
+        'wait roughly to a third.')
+
+
+def timeline_block(x, y, w, h, fill, stroke, line1, line2=''):
+    s.rect(x, y, w, h, fill, stroke, 2)
+    if line2:
+        s.text(x + w / 2, y + h / 2 - 2, line1, 'bold', 'middle')
+        s.text(x + w / 2, y + h / 2 + 18, line2, 'small', 'middle')
+    else:
+        s.text(x + w / 2, y + h / 2 + 6, line1, 'bold', 'middle')
+    return x + w
+
+
+def span_bracket(x1, x2, y, label):
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y - 6, x1, y + 6, MUT, 1.5)
+    s.line(x2, y - 6, x2, y + 6, MUT, 1.5)
+    s.text((x1 + x2) / 2, y + 22, label, 'small', 'middle')
+
+
+# +105 x-offset centres the assembly (both rows run narrower than the 880-wide canvas otherwise).
+ox = 105
+s.text(80 + ox, 25, 'WITHOUT LFI', 'label')
+cursor = timeline_block(80 + ox, 45, 320, 55, TINT, G, 'Large packet', '1500 B')
+cursor = timeline_block(cursor, 45, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+s.line(cursor + 10, 72, cursor + 50, 72, INK, 2, arrow='ink')
+s.text(cursor + 58, 77, 'link', 'small')
+span_bracket(80 + ox, 400 + ox, 120, 'the urgent packet waits for the whole 1500 B packet')
+
+s.text(80 + ox, 165, 'WITH LFI (FRAGMENTATION + INTERLEAVING)', 'label')
+cursor = timeline_block(80 + ox, 185, 100, 55, TINT, G, 'F1')
+cursor = timeline_block(cursor, 185, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F2')
+cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F3')
+s.line(cursor + 10, 212, cursor + 50, 212, INK, 2, arrow='ink')
+s.text(cursor + 58, 217, 'link', 'small')
+span_bracket(80 + ox, 280 + ox, 260, 'the urgent packet follows just one fragment')
+s.save()
+
+# --- IP Precedence and DSCP marking -------------------------------------------
+s = SVG(DECK, 'dscp-header', 320, 'From IP Precedence to the Differentiated Services field',
+        'Two 8-bit fields of the IP header. The pre-DiffServ Type of Service byte splits into 3 bits of IP '
+        'Precedence, 4 ToS bits, and 1 unused bit. The Differentiated Services field defined by RFC 2474 '
+        'reuses the same byte as 6 bits of Differentiated Services Code Point, DSCP, plus 2 bits for '
+        'Explicit Congestion Notification. Class-selector codepoints keep the same ordering as IP Precedence.')
+
+
+def cell_row(x0, y, groups):
+    x = x0
+    for w, fill in groups:
+        s.rect(x, y, w, 50, fill, LINE, 1.5)
+        x += w
+    return x
+
+
+def span_above(x1, x2, y, label):
+    s.line(x1, y, x2, y, MUT, 1.5)
+    s.line(x1, y, x1, y - 8, MUT, 1.5)
+    s.line(x2, y, x2, y - 8, MUT, 1.5)
+    s.text((x1 + x2) / 2, y - 14, label, 'bold', 'middle')
+
+
+x0, cw = 240, 50
+s.text(x0, 25, 'TOS BYTE — PRE-DIFFSERV (RFC 791/1349)', 'label')
+cell_row(x0, 60, [(3 * cw, TINT), (4 * cw, '#F3F6F5'), (cw, '#FFFFFF')])
+span_above(x0, x0 + 3 * cw, 60, 'IP Precedence (3 bits)')
+span_above(x0 + 3 * cw, x0 + 7 * cw, 60, 'ToS bits (4 bits)')
+span_above(x0 + 7 * cw, x0 + 8 * cw, 60, 'Unused')
+
+s.text(440, 145, 'Same 8 bits, reinterpreted:', 'small', 'middle')
+
+s.text(x0, 185, 'DS FIELD — DIFFSERV (RFC 2474)', 'label')
+cell_row(x0, 220, [(6 * cw, TINT), (2 * cw, '#F3F6F5')])
+span_above(x0, x0 + 6 * cw, 220, 'DSCP (6 bits)')
+span_above(x0 + 6 * cw, x0 + 8 * cw, 220, 'ECN (2 bits)')
+
+s.text(440, 290, 'Class-selector codepoints (000xxx) preserve IP Precedence’s ordering; DSCP adds finer-grained', 'small', 'middle')
+s.text(440, 308, 'per-hop behaviors: EF = 101110 (voice, RFC 3246) · AF41 = 100010 (video, RFC 2597) · default = 000000.', 'small', 'middle')
+s.save()
+
+# =============================================================================
+# 04 — Network traffic modelling: distributions and self-similarity
+# =============================================================================
+# The five Markov loss-model state diagrams for this deck (Bernoulli, Simple Gilbert, Gilbert,
+# Gilbert-Elliott, four-state) are NOT generated here — hand-rolled SVG bezier math could not match
+# matplotlib's FancyArrowPatch (auto node-edge clipping via patchA/patchB, properly weighted arc3
+# curves). They live in generate-markov-figures.py instead; run both scripts to regenerate the deck.
+DECK = '04'
+
+# --- Exponential distribution: density and cumulative distribution -----------
+s = SVG(DECK, 'exp-pdf-cdf', 270, 'Exponential distribution: density and cumulative distribution',
+        'Probability density and cumulative distribution of the exponential distribution with rate 1. The '
+        'density starts at 1 and decays monotonically; the cumulative distribution rises from 0 towards 1. '
+        'This distribution models Poisson-process inter-arrival times.')
+ax = Axes(s, 70, 30, 560, 200, (0, 5), (0, 1.05), xlabel='x', ylabel='f(x), F(x)',
+          xticks=[(v, str(v)) for v in (0, 1, 2, 3, 4, 5)], yticks=[(0, '0'), (0.5, '0.5'), (1, '1.0')])
+ax.curve(lambda x: math.exp(-x), G, 3, n=300)
+ax.curve(lambda x: 1 - math.exp(-x), EKF, 2.5, n=300)
+s.line(660, 60, 700, 60, G, 3); s.text(708, 65, 'pdf  f(x) = λe⁻λˣ')
+s.line(660, 95, 700, 95, EKF, 2.5); s.text(708, 100, 'cdf  F(x) = 1 − e⁻λˣ')
+s.text(660, 150, 'Models packet/call/session', 'small')
+s.text(660, 170, 'inter-arrivals of a Poisson', 'small')
+s.text(660, 190, 'process — Lecture 02.', 'small')
+s.text(660, 222, 'Memoryless: most inter-', 'small')
+s.text(660, 242, 'arrivals are short; the tail', 'small')
+s.text(660, 262, 'relates to packet drop.', 'small')
+s.save()
+
+# --- Weibull distribution: shape family ---------------------------------------
+s = SVG(DECK, 'weibull-pdf', 270, 'Weibull probability density for five shape parameters',
+        'Probability density of the Weibull distribution with scale 1 and shape k from 1 to 5. Larger k '
+        'concentrates the density more tightly around x = 1, moving away from the exponential shape at k = 1 '
+        'towards an increasingly peaked, near-symmetric one.')
+ax = Axes(s, 70, 30, 560, 200, (0, 3), (0, 2.0), xlabel='x', ylabel='f(x)',
+          xticks=[(v, str(v)) for v in (0, 1, 2, 3)], yticks=[(0, '0'), (1, '1'), (2, '2')])
+wpdf = lambda k: (lambda x: 0.0 if x < 0 else k * x ** (k - 1) * math.exp(-x ** k))  # noqa: E731
+for k, col in zip(range(1, 6), (G, D, EKF, FBI, C)):
+    ax.curve(wpdf(k), col, 2.5, n=300)
+    s.line(660, 46 + (k - 1) * 30, 700, 46 + (k - 1) * 30, col, 2.5)
+    s.text(708, 51 + (k - 1) * 30, f'k = {k}' + ('  (exponential)' if k == 1 else ''), 'small')
+s.text(660, 220, 'k = 1 is the exponential;', 'small')
+s.text(660, 240, 'better fit for access→core', 'small')
+s.text(660, 260, 'and packet→session scaling [1]', 'small')
+s.save()
+
+# --- Normal distribution: jitter -----------------------------------------------
+s = SVG(DECK, 'normal-jitter', 270, 'Normal distribution: density and cumulative distribution of jitter',
+        'Probability density and cumulative distribution of a zero-mean, unit-variance Normal distribution, '
+        'used to model packet delay variation, jitter, within one flow. The density is symmetric and '
+        'bell-shaped; the cumulative distribution is its S-shaped integral.')
+ax = Axes(s, 70, 30, 560, 200, (-5, 5), (0, 1.05), xlabel='x  (jitter)', ylabel='f(x), F(x)',
+          xticks=[(v, str(v)) for v in (-4, -2, 0, 2, 4)], yticks=[(0, '0'), (0.5, '0.5'), (1, '1.0')])
+npdf = lambda x: math.exp(-x * x / 2) / math.sqrt(2 * math.pi)  # noqa: E731
+ncdf = lambda x: 0.5 * (1 + math.erf(x / math.sqrt(2)))  # noqa: E731
+ax.curve(npdf, G, 3, n=300)
+ax.curve(ncdf, EKF, 2.5, n=300)
+s.line(660, 60, 700, 60, G, 3); s.text(708, 65, 'pdf f(x)')
+s.line(660, 95, 700, 95, EKF, 2.5); s.text(708, 100, 'cdf F(x)')
+s.text(660, 150, 'Models delay variation', 'small')
+s.text(660, 170, '(jitter) between', 'small')
+s.text(660, 190, 'consecutive packets of', 'small')
+s.text(660, 210, 'the same flow.', 'small')
+s.save()
+
+# --- Simple Gilbert model: convergence to steady state --------------------------
+s = SVG(DECK, 'gilbert-convergence', 330, 'Simple Gilbert model: convergence to steady state',
+        'Two panels show the empirical probability of the Transmit and Loss states over time, averaged over '
+        'many independent realizations of a simple Gilbert chain with p = 0.8 and q = 0.4, starting in '
+        'Transmit (left) and in Loss (right). Both converge to the same steady-state probabilities.')
+p, q = 0.8, 0.4
+piL, piT = p / (p + q), q / (p + q)
+N, M = 160, 600
+rng = random.Random(7)
+
+
+def simulate(start_loss):
+    counts = [0] * (N + 1)
+    for _ in range(M):
+        st = start_loss
+        counts[0] += st
+        for t in range(1, N + 1):
+            st = (rng.random() >= q) if st else (rng.random() < p)
+            counts[t] += st
+    return [c / M for c in counts]
+
+
+for x0, start_loss, title in [(70, False, 'STARTING IN T'), (500, True, 'STARTING IN L')]:
+    s.text(x0, 16, title, 'label')
+    PL = simulate(start_loss)
+    ax = Axes(s, x0, 46, 330, 170, (0, N), (0, 1.05), xlabel='step',
+              xticks=[(v, str(v)) for v in (0, 40, 80, 120, 160)], yticks=[(0, '0'), (piT, '0.333'), (piL, '0.667'), (1, '1.0')])
+    s.polyline([(ax.px(t), ax.py(1 - PL[t])) for t in range(N + 1)], G, 2)
+    s.polyline([(ax.px(t), ax.py(PL[t])) for t in range(N + 1)], FMT, 2)
+s.line(310, 288, 340, 288, G, 2.5); s.text(348, 293, 'P(T)', 'small')
+s.line(430, 288, 460, 288, FMT, 2.5); s.text(468, 293, 'P(L)', 'small')
+s.text(440, 318, 'p = 0.8, q = 0.4 — every realization converges to the same steady state, independent of the start.', 'small', 'middle')
+s.save()
+
+# --- Self-similar synthetic traffic at four aggregation levels ------------------
+s = SVG(DECK, 'self-similar-traffic', 320, 'Synthetic traffic at four levels of aggregation',
+        'A synthetic trace built from the superposition of many ON/OFF sources with heavy-tailed, Pareto '
+        'distributed period lengths, zoomed from 1 fine time bin per bar up to the whole trace aggregated into '
+        'about 328 bins per bar. Unlike a Poisson process, which flattens toward a smooth average as bins are '
+        'aggregated, this trace stays visibly bursty at every scale.')
+NFINE, NSRC, ALPHA, SCALE = 65536, 40, 1.4, 4
+rng = random.Random(11)
+
+
+def onoff_source():
+    trace = [0] * NFINE
+    t, on = 0, rng.random() < 0.5
+    while t < NFINE:
+        dur = max(1, int(SCALE * rng.paretovariate(ALPHA)))
+        if on:
+            for i in range(t, min(NFINE, t + dur)):
+                trace[i] = 1
+        t += dur
+        on = not on
+    return trace
+
+
+agg = [0] * NFINE
+for _ in range(NSRC):
+    src = onoff_source()
+    for i in range(NFINE):
+        agg[i] += src[i]
+
+
+def bar_panel(x0, y0, w, h, vals, color, title):
+    s.text(x0, y0 - 10, title, 'label')
+    n = len(vals)
+    bw = w / n
+    vmax = max(vals) or 1
+    for i, v in enumerate(vals):
+        bh = v / vmax * h
+        s.rect(x0 + i * bw, y0 + h - bh, max(bw - 0.3, 0.4), bh, color, 'none')
+    s.line(x0, y0 + h, x0 + w, y0 + h, INK, 1)
+
+
+BARS = 200  # cap per panel — the whole-trace panel would otherwise draw 65536 individual rects
+factors = [1, 8, 64, NFINE // BARS]
+titles = ['FINE — 1 bin/bar', '×8 aggregation', '×64 aggregation', f'×{factors[3]} aggregation (whole trace)']
+colors = [G, D, EKF, FBI]
+for i, (factor, title) in enumerate(zip(factors, titles)):
+    n_bars = min(BARS, NFINE // factor)  # panels 1-3 zoom into the trace's first n_bars*factor bins
+    vals = [sum(agg[b * factor:(b + 1) * factor]) / factor for b in range(n_bars)]
+    col, row = i % 2, i // 2
+    bar_panel(60 + col * 440, 48 + row * 130, 380, 90, vals, colors[i], title)
+s.text(440, 300, 'A Poisson-based model would flatten towards a smooth average as aggregation grows — this one does not.', 'small', 'middle')
 s.save()
 
 print(f'Figures written to {FIGURES}')

@@ -1,6 +1,6 @@
 # Exercise 01 – Signals, noise, and channel capacity
 
-This exercise establishes the vocabulary used throughout the course. It introduces the signal as the carrier of information, the conversion of an analog signal into a digital one by pulse-code modulation, Gaussian noise as the basic model of a disturbance, and the Shannon–Hartley formula that bounds the information rate of a noisy channel. In the practical part, students model a harmonic signal corrupted by noise, compute its signal-to-noise ratio and channel capacity, and apply noise to real audio and image data.
+This exercise establishes the vocabulary used throughout the course. It introduces the signal as the carrier of information, the conversion of an analog signal into a digital one by pulse-code modulation, Gaussian noise as the basic model of a disturbance, and the Shannon–Hartley formula that bounds the information rate of a noisy channel. In the practical part, students model a harmonic signal corrupted by noise, compute its signal-to-noise ratio and channel capacity, explore the Shannon–Hartley theorem for common access technologies, watch a telegraph signal degrade on a band-limited and noisy channel, and apply noise to real audio and image data.
 
 ## Learning objectives
 
@@ -9,6 +9,7 @@ This exercise establishes the vocabulary used throughout the course. It introduc
 - Characterize Gaussian noise by its probability density function and standard deviation.
 - Compute signal power, signal-to-noise ratio, and channel capacity from a sampled signal.
 - Relate the bandwidth and signal-to-noise ratio of common access technologies to their achievable data rates.
+- Explain why the symbol rate of a binary signal is limited by the channel bandwidth and how noise turns a reduced decision margin into bit errors.
 
 ## Knowledge prerequisites
 
@@ -18,7 +19,7 @@ Students should be able to:
 - Calculate an arithmetic mean and convert between seconds and milliseconds, and between bits and bytes.
 - Define a Python function and use NumPy arrays for element-wise arithmetic and simple plots.
 
-Signal classification, sampling, Gaussian noise, and channel capacity are introduced in this exercise.
+Signal classification, sampling, Gaussian noise, symbol rate, and channel capacity are introduced in this exercise.
 
 ## Theory
 
@@ -70,7 +71,7 @@ $$
 p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
-where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this exercise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is.
+where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this exercise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is; for zero-mean noise the mean power equals the variance, $N = \sigma^2$.
 
 ![Probability density function of the normal distribution](fig/normal.png)
 
@@ -101,6 +102,18 @@ $$
 $$
 
 where $\mathrm{SNR}_{\mathrm{dB}}$ is the signal-to-noise ratio [dB] and $S/N$ is the linear ratio [–]. For example, a linear ratio of 100 corresponds to 20 dB. Convert decibels to a linear ratio before using the channel-capacity formula.
+
+### Symbol rate and bandwidth
+
+A digital transmitter sends a sequence of *symbols*, each lasting the symbol interval $T_s$; the symbol rate $R_s = 1/T_s$ is measured in baud [Bd]. A binary telegraph uses two symbols (key up, key down) and therefore carries one bit per symbol. Nyquist showed that an ideal low-pass channel of bandwidth $B$ can carry at most
+
+$$
+R_s \le 2B
+$$
+
+where $R_s$ is the symbol rate [Bd] and $B$ the channel bandwidth [Hz]. The critical pattern is the alternating sequence 0101…, whose fundamental frequency is $R_s/2$: as soon as it exceeds $B$, the filter removes it and the receiver sees a constant level. Other patterns survive somewhat longer, but every pattern is smeared by the band limitation, and the received value inside one symbol interval then depends on its neighbors; this is *intersymbol interference* (ISI). With $L$ distinguishable amplitude levels per symbol the noiseless bit rate is at most $2B \log_2 L$, but noise limits $L$, which is where the Shannon–Hartley theorem takes over.
+
+A real telegraph line does not cut off sharply. A long cable behaves as a first-order RC low-pass whose step response rises exponentially, so the edges of the pulses are rounded rather than ringing. Its limit on the symbol rate is gradual: the pulses keep shrinking toward the decision threshold until noise tips the decisions over.
 
 ### Channel capacity
 
@@ -139,27 +152,35 @@ uv sync
 uv run jupyter lab --ip 0.0.0.0
 ```
 
-The notebook builds an interactive model from `lib/core.py`: a `HarmSignal` with adjustable amplitude, frequency, phase, and bandwidth, and a `NoiseSignal` with adjustable amplitude, displayed with Bokeh plots and Panel widgets.
+The notebook builds three interactive models from `lib/core.py`, displayed with Bokeh plots and Panel widgets: a `HarmSignal` with adjustable amplitude, frequency, phase, and channel bandwidth added to a `NoiseSignal` with adjustable standard deviation; a `CapacityExplorer` for the Shannon–Hartley theorem with technology presets; and a `Telegraph` that sends a bit sequence over a band-limited, noisy channel.
 
-### Step 1 – Model a signal with noise
+### Step 1 – Implement the channel metrics
 
-Run the notebook up to the interactive dashboard. Predict how each slider will affect SNR and capacity, then vary one parameter at a time. Record the parameter values, measured results, and whether they support the prediction.
+Implement `calc_signal_power` and `calc_channel_capacity` in the notebook using the formulas above, keeping the signatures of the template cell, which the *Calculate* button calls by name. Only after Step 2 compare the result with the reference implementation in `lib/core.py`.
 
-### Step 2 – Implement the channel metrics
+### Step 2 – Model a signal with noise
 
-Implement `calc_signal_power` and `calc_channel_capacity` in the notebook using the formulas above, keeping the signatures of the template cell, which the *Calculate* button calls by name. Verify the displayed values against a manual computation for one setting. Only afterwards compare the result with the reference implementation in `lib/core.py`.
+Run the notebook up to the first dashboard. Predict how each slider will affect SNR and capacity, then vary one parameter at a time and press *Calculate*. Verify the displayed values against a manual computation for one setting. Record the parameter values, measured results, and whether they support the prediction. The noise power is measured over the whole sampled band, so the bandwidth slider only supplies $B$ to the formula and the SNR stays fixed while $B$ changes.
 
-### Step 3 – Apply noise to audio
+### Step 3 – Explore the Shannon–Hartley theorem
+
+The second dashboard plots the capacity as a function of bandwidth at a chosen SNR and the spectral efficiency $C/B$ as a function of SNR, with a technology preset menu filled from the table above. Compare the presets, then compare the gain from doubling the bandwidth with the gain from doubling the SNR, and find the SNR below which the high-SNR approximation $C/B \approx \log_2(S/N)$ stops being useful.
+
+### Step 4 – Send a telegraph signal over a band-limited, noisy channel
+
+The third dashboard sends 32 bits as on–off pulses at a symbol rate $R_s$ through either an ideal low-pass filter or an RC line of bandwidth $B$, adds Gaussian noise, and decides each bit in the middle of its interval. Without noise, raise $R_s$ for each bit pattern until errors appear and compare the result with $2B$ for both channel models. Then fix an error-free setting and raise the noise until the first errors occur; relate the tolerated noise to the decision margin left by the filter.
+
+### Step 5 – Apply noise to audio
 
 Record or generate a short audio signal, preferably speech. Keep the clean signal fixed and add Gaussian white noise at three variances. Record the random seed and compute the SNR for each version. Listen at a consistent, comfortable playback level and describe which speech features become harder to hear.
 
-### Step 4 – Apply noise to an image
+### Step 6 – Apply noise to an image
 
 From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise at three variances and clip the displayed pixel values to $[0, 1]$. Record the variances and random seed, and save the degraded images for Exercise 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image.
 
 ### Results to retain
 
-Save the completed notebook, the audio and image examples, and a table of parameters and calculated metrics. Include one manual capacity calculation and a short explanation of differences between predicted, measured, and perceived quality.
+Save the completed notebook, the audio and image examples, and a table of parameters and calculated metrics. Include one manual capacity calculation, the symbol rates at which the telegraph link failed for each channel model, and a short explanation of differences between predicted, measured, and perceived quality.
 
 ## Questions
 
@@ -167,11 +188,14 @@ Save the completed notebook, the audio and image examples, and a table of parame
 2. **Extension:** How can independent spatial streams increase total capacity while sharing the same frequency band? Why is antenna count alone insufficient to predict the gain?
 3. Compute the capacity of the analog voiceband telephone channel in the table. The 64 kbit/s PCM stream represents the sampled speech and travels over a digital network connection. Why does comparing these two rates not show a violation of the channel-capacity bound?
 4. What happens to a 5 kHz tone sampled at $f_s = 8$ kHz?
+5. In the telegraph simulation, why is the alternating pattern 0101… the first to fail when the symbol rate exceeds $2B$, and what does this have in common with the sampling theorem?
+6. The telegraph link without noise and with $R_s < 2B$ transmits without errors, yet the Shannon–Hartley capacity for $N = 0$ is infinite. Which assumption of the simulation, rather than of the theorem, keeps the rate finite?
 
 ## References
 
 1. C. E. Shannon, "A Mathematical Theory of Communication," *Bell System Technical Journal*, vol. 27, pp. 379–423, 623–656, 1948.
 2. C. E. Shannon, "Communication in the Presence of Noise," *Proceedings of the IRE*, vol. 37, no. 1, pp. 10–21, 1949.
-3. J. G. Proakis and M. Salehi, *Digital Communications*, 5th ed. McGraw-Hill, 2008.
-4. ITU-T Recommendation G.711, *Pulse code modulation (PCM) of voice frequencies*, 1988.
-5. Wikipedia, "Signal," https://en.wikipedia.org/wiki/Signal.
+3. H. Nyquist, "Certain Topics in Telegraph Transmission Theory," *Transactions of the AIEE*, vol. 47, pp. 617–644, 1928.
+4. J. G. Proakis and M. Salehi, *Digital Communications*, 5th ed. McGraw-Hill, 2008.
+5. ITU-T Recommendation G.711, *Pulse code modulation (PCM) of voice frequencies*, 1988.
+6. Wikipedia, "Signal," https://en.wikipedia.org/wiki/Signal.

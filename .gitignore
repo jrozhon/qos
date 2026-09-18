@@ -6,5 +6,6 @@
 manual.pdf
 **/results/*
 support/quiz/out/*
+uv.lock
 
 slides/node_modules/
