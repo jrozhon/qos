@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="370" viewBox="0 0 900 370" font-family="Carlito, Calibri, 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif" font-size="16" fill="#292929">
+  <title>Single-server queueing system: packets wait in the buffer, are transmitted by the server, and arrive at the sink; the queue quantities Lq and Wq exclude the packet in service, the system quantities L and W include it</title>
+  <defs>
+    <style>
+      .host   { fill: #E6F6F5; stroke: #00A499; stroke-width: 2; }
+      .switch { fill: #E6F9FC; stroke: #05C3DE; stroke-width: 2; rx: 8; ry: 8; }
+      .system { fill: none; stroke: #818386; stroke-width: 2; stroke-dasharray: 8 6; rx: 8; ry: 8; }
+      .packet { fill: #E6F6F5; stroke: #00A499; stroke-width: 2; rx: 3; ry: 3; }
+      .slot   { fill: #FFFFFF; stroke: #818386; stroke-width: 2; stroke-dasharray: 5 4; rx: 3; ry: 3; }
+      .link   { stroke: #292929; stroke-width: 2.5; fill: none; }
+      .drop   { stroke: #E4002B; stroke-width: 2; stroke-dasharray: 6 5; fill: none; }
+      .brace  { stroke: #818386; stroke-width: 2; fill: none; }
+      .name   { font-size: 18px; font-weight: bold; text-anchor: middle; }
+      .sub    { font-size: 14px; text-anchor: middle; }
+      .param  { font-size: 14px; fill: #818386; text-anchor: middle; }
+      .loss   { font-size: 14px; fill: #E4002B; text-anchor: middle; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#292929" />
+    </marker>
+    <marker id="arrow-loss" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#E4002B" />
+    </marker>
+  </defs>
+
+  <!-- the system: waiting queue plus the packet in service -->
+  <rect class="system" x="210" y="58" width="470" height="164" />
+  <text class="param" x="445" y="82">System</text>
+
+  <!-- source -->
+  <rect class="host" x="20" y="102" width="130" height="76" />
+  <text class="name" x="85" y="136">Source</text>
+  <text class="sub"  x="85" y="158">rate λ</text>
+
+  <!-- arrival -->
+  <line class="link" x1="150" y1="140" x2="232" y2="140" marker-end="url(#arrow)" />
+  <text class="param" x="191" y="128">λ</text>
+
+  <!-- dropped packets when the buffer is full -->
+  <path class="drop" d="M 200 148 L 200 196 L 150 196" marker-end="url(#arrow-loss)" />
+  <text class="loss" x="150" y="218">dropped when full</text>
+
+  <!-- waiting queue: three packets and one free slot -->
+  <rect class="packet" x="240" y="112" width="40" height="56" />
+  <rect class="packet" x="288" y="112" width="40" height="56" />
+  <rect class="packet" x="336" y="112" width="40" height="56" />
+  <rect class="slot"   x="384" y="112" width="40" height="56" />
+  <text class="sub" x="332" y="196">Waiting queue</text>
+
+  <!-- server -->
+  <line class="link" x1="428" y1="140" x2="466" y2="140" marker-end="url(#arrow)" />
+  <rect class="switch" x="470" y="106" width="150" height="68" />
+  <text class="name" x="545" y="136">Server</text>
+  <text class="sub"  x="545" y="158">rate μ = R / 8b</text>
+  <text class="sub" x="545" y="196">In service</text>
+
+  <!-- departure -->
+  <line class="link" x1="620" y1="140" x2="698" y2="140" marker-end="url(#arrow)" />
+
+  <!-- sink -->
+  <rect class="host" x="700" y="102" width="130" height="76" />
+  <text class="name" x="765" y="136">Sink</text>
+  <text class="sub"  x="765" y="158">records delay</text>
+
+  <!-- queue quantities: exclude the packet in service -->
+  <path class="brace" d="M 236 248 L 236 258 L 428 258 L 428 248" />
+  <text class="sub" x="332" y="282">waiting time W<tspan baseline-shift="sub" font-size="11">q</tspan>, occupancy L<tspan baseline-shift="sub" font-size="11">q</tspan></text>
+
+  <!-- system quantities: include the packet in service -->
+  <path class="brace" d="M 236 300 L 236 310 L 624 310 L 624 300" />
+  <text class="sub" x="430" y="334">time in system W, occupancy L</text>
+</svg>
