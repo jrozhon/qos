@@ -3,9 +3,16 @@ name = "qos-02"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "ipywidgets>=8.1.5",
     "jupyterlab>=4.4.7",
     "loguru>=0.7.3",
     "matplotlib>=3.10.6",
     "networkx>=3.5",
+    "numpy>=2.3.3",
     "simpy>=4.1.1",
 ]
+
+[tool.ruff.lint.isort]
+# The notebook and lib/figures.py import "lib.*" with the kernel working
+# directory set to qos_02/; the package is not installed.
+known-first-party = ["lib"]

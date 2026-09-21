@@ -160,7 +160,7 @@ Implement `calc_signal_power` and `calc_channel_capacity` in the notebook using 
 
 ### Step 2 – Model a signal with noise
 
-Run the notebook up to the first dashboard. Predict how each slider will affect SNR and capacity, then vary one parameter at a time and press *Calculate*. Verify the displayed values against a manual computation for one setting. Record the parameter values, measured results, and whether they support the prediction. The noise power is measured over the whole sampled band, so the bandwidth slider only supplies $B$ to the formula and the SNR stays fixed while $B$ changes.
+Run the notebook up to the first dashboard. Predict how each slider will affect SNR and capacity, then vary one parameter at a time and press *Calculate*. Verify the displayed values against a manual computation for one setting. Record the parameter values, measured results, and whether they support the prediction. The noise power is measured over the whole sampled band, so the bandwidth slider only supplies $B$ to the formula and the SNR stays fixed while $B$ changes. The channel is a band-pass of width $B$ centred on the tone, so the tone must satisfy $f \geq B/2$; the bandwidth slider moves the lower limit of the frequency slider and raises the tone when needed.
 
 ### Step 3 – Explore the Shannon–Hartley theorem
 
@@ -168,7 +168,7 @@ The second dashboard plots the capacity as a function of bandwidth at a chosen S
 
 ### Step 4 – Send a telegraph signal over a band-limited, noisy channel
 
-The third dashboard sends 32 bits as on–off pulses at a symbol rate $R_s$ through either an ideal low-pass filter or an RC line of bandwidth $B$, adds Gaussian noise, and decides each bit in the middle of its interval. Without noise, raise $R_s$ for each bit pattern until errors appear and compare the result with $2B$ for both channel models. Then fix an error-free setting and raise the noise until the first errors occur; relate the tolerated noise to the decision margin left by the filter.
+The third dashboard sends 32 bits as on–off pulses at a symbol rate $R_s$ through either an ideal low-pass filter or an RC line of bandwidth $B$, adds Gaussian noise, and decides each bit in the middle of its interval. A spectrum plot shows the magnitude characteristic of the selected filter together with the line spectra (Fourier series over the 32-symbol block) of the transmitted and received waveforms: the ideal filter deletes every component above $B$, while the first-order RC line only attenuates them by 6 dB per octave, which is why its output pulses are exponential ramps (the RC step response) rather than sines. Without noise, raise $R_s$ for each bit pattern until errors appear and compare the result with $2B$ for both channel models. Then fix an error-free setting and raise the noise until the first errors occur; relate the tolerated noise to the decision margin left by the filter.
 
 ### Step 5 – Apply noise to audio
 
@@ -176,7 +176,7 @@ Record or generate a short audio signal, preferably speech. Keep the clean signa
 
 ### Step 6 – Apply noise to an image
 
-From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise at three variances and clip the displayed pixel values to $[0, 1]$. Record the variances and random seed, and save the degraded images for Exercise 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image.
+From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise with $\sigma = 15/255$, $25/255$, and $50/255$ (the noise levels of the image-denoising benchmarks) and clip the displayed pixel values to $[0, 1]$. Record the noise levels and random seed, and save the degraded images for Exercise 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image; because this image has many near-black pixels, clipping affects a sizeable share of them even at the lowest noise level, which is discussed in the notebook.
 
 ### Results to retain
 

@@ -200,7 +200,7 @@ Environment, commands, credentials pointer (never the credentials themselves).
 
 ### 5.1 matplotlib
 
-Every lesson's `lib/params.py` must be byte-identical. Target content (the current files differ only in the font stack and the three `lines.linewidth`/`savefig.*` keys):
+Every lesson's `lib/params.py` must be byte-identical. Target content:
 
 ```python
 textcolor = "#292929"
@@ -247,7 +247,8 @@ rc_params = {
     "legend.markerscale": 1.3,
     "lines.solid_capstyle": "round",
     "lines.linewidth": 3,
-    "savefig.dpi": 150,
+    "figure.dpi": 140,
+    "savefig.dpi": 200,
     "savefig.bbox": "tight",
 }
 
@@ -275,6 +276,45 @@ def add_logo(fig, path="logo.png", box=(0.83, 0.90, 0.10, 0.10)):
     ax = fig.add_axes(box)
     ax.set_axis_off()
     ax.imshow(image.imread(path), aspect="equal")
+
+
+def add_legend(ax, ncols=None, pad=0.16, **kwargs):
+    """
+    Place the legend in one row below the plot area, outside the axes.
+
+    A legend drawn inside the axes covers the data, and with
+    ``legend.frameon`` disabled its text sits directly on top of bars and
+    lines. Keeping it outside avoids that for every figure, whatever the data
+    happen to look like.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes whose legend is drawn.
+    ncols : int, optional
+        Number of legend columns, by default one per entry, giving a single
+        row. Pass a smaller number when the labels are long.
+    pad : float, optional
+        Gap between the bottom of the axes and the legend, as a fraction of
+        the height of the axes, by default 0.16. Raise it for a short panel in
+        a stacked figure, where the same fraction is less absolute space and
+        the legend can reach the axis label.
+    **kwargs
+        Further keyword arguments for ``matplotlib.axes.Axes.legend``.
+
+    Returns
+    -------
+    matplotlib.legend.Legend
+        The placed legend.
+    """
+    handles, _ = ax.get_legend_handles_labels()
+    return ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -pad),
+        ncols=max(1, len(handles)) if ncols is None else ncols,
+        borderaxespad=0.0,
+        **kwargs,
+    )
 ```
 
 Conventions:
@@ -283,6 +323,8 @@ Conventions:
 - Axis labels always carry a unit in square brackets: `"Time [ms]"`, `"Frequency of occurrence [–]"`. Sentence case.
 - Titles are short noun phrases in sentence case: `"Histogram of inter-arrival times"`.
 - Logo watermark: `add_logo(fig)` from `lib/params.py` places `logo.png` at `fig.add_axes([0.83, 0.90, 0.10, 0.10])`, axis off, `aspect="equal"`. Every committed figure carries it. Do not enlarge it or redefine the helper in a notebook.
+- Legends: `add_legend(ax)` from `lib/params.py`, which places them in one row below the plot area. Never place a legend inside the axes — with `legend.frameon` disabled its text sits directly on the data. `legend.loc` cannot express an outside position, so the helper is the only way to do this; pass `ncols` when the labels are long.
+- Resolution: `figure.dpi` 140 governs inline display in notebooks, `savefig.dpi` 200 the committed PNGs. Both are set in `rc_params`; do not override them per figure.
 - Histograms: `rwidth=0.8`, `colors[0]`, `alpha=0.5` when overlapping.
 - Theory overlays (analytic PDF, M/M/1 formula): `colors[4]` or grey `#818386`, dashed, `linewidth=2`.
 
@@ -331,6 +373,6 @@ Cards use the neutral tints, not ad-hoc greys:
 2. Fonts: Carlito stack in any rc/CSS you touched.
 3. README follows the §4.2 skeleton; H1 is `# Exercise NN – Title`.
 4. Every equation has a "where" list with units; renders on GitHub.
-5. Every figure has unit-bearing axis labels, a sentence-case title, and the logo.
+5. Every figure has unit-bearing axis labels, a sentence-case title, the logo, and any legend placed with `add_legend(ax)` rather than inside the axes.
 6. `lib/params.py` still identical across lessons (`md5sum qos-0*/qos_0*/lib/params.py`).
 7. No emoji, no shortcode icons, no exclamation marks in prose.

@@ -15,7 +15,7 @@ Lesson map:
 | Dir | Topic | Notable deps / tools |
 |---|---|---|
 | `qos-01` | Signals, PCM, Gaussian noise, Shannon capacity — interactive Bokeh/Panel sliders | bokeh, panel, jupyter-bokeh |
-| `qos-02` | Probability distributions, Poisson process, M/M/1 queues — discrete-event simulation | simpy, loguru, networkx |
+| `qos-02` | Probability distributions, Poisson process, M/M/1 queues — discrete-event simulation | simpy, loguru, networkx, ipywidgets (interactive queue view in Step 4) |
 | `qos-03` | Packet crafting, VoIP/RTP, `tc netem`, audio extraction from pcap, PESQ/ViSQOL scoring | scapy, scipy; needs Wireshark/tshark, tcpreplay, root/capabilities; PESQ and ViSQOL binaries are external (paths set in the notebook, `score_pair` returns NaN without them) |
 | `qos-04` | PSNR / SSIM image quality metrics | pillow, scipy |
 | `qos-05` | Mininet SDN emulation: topologies, OpenFlow flow tables, `tc` links, iperf | README-only (no notebook); `mytopo.py` is a Mininet topology file run on the lab servers, not locally |
@@ -41,6 +41,12 @@ cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/exercise_02
 ```
 
 (The qos-03 notebook requires network capabilities and will not execute cleanly unattended.)
+
+The figures embedded in the `qos-02` README are generated, not hand-made; regenerate them after editing the generator:
+
+```bash
+cd qos-02/qos_02 && uv run python -m lib.figures   # writes qos-02/fig/*.png
+```
 
 Lecture decks:
 

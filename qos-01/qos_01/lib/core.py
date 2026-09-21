@@ -5,6 +5,7 @@ from typing import ClassVar, Protocol, Self
 
 import numpy as np
 from bokeh.models import (
+    BoxAnnotation,
     ColumnDataSource,
     CustomJSTickFormatter,
     Div,
@@ -14,7 +15,7 @@ from bokeh.models import (
     Span,
 )
 from bokeh.plotting import figure
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, freqz, lfilter
 
 from lib.params import colors
 
@@ -251,24 +252,33 @@ class HarmSignal(Signal):
     FREQ_STEP : float
         Step size for changing the frequency. [Hz]
     MAX_BAND : float
-        Maximum channel bandwidth offered by the slider. [Hz]
+        Maximum channel bandwidth offered by the slider. [Hz] It must stay
+        below ``2 * MAX_FREQ`` so that the frequency slider keeps a
+        non-empty range at the widest channel.
+
+    Notes
+    -----
+    The tone is the centre frequency of a band-pass channel of width B, so
+    the channel occupies f - B/2 to f + B/2 and needs f >= B/2 to fit above
+    0 Hz. The *Bandwidth* slider therefore moves the lower limit of the
+    *Frequency* slider and raises the tone when it would fall below B/2.
     """
 
     MAX_AMPLITUDE = 8
     AMPLITUDE_STEP = 0.5
-    MAX_FREQ = 5
+    MAX_FREQ = 12
     FREQ_STEP = 0.1
-    MAX_BAND = 100
+    MAX_BAND = 20
 
     def __init__(
         self,
         amplitude: float = 1,
         freq: float = 1,
         phase: float = 0,
-        band: float = 10,
+        band: float = 2,
         f: Callable = np.sin,
         no_samples: int = 1000,
-        max_range: float = 2 * np.pi,
+        max_range: float = np.pi,
         title: str = "Harmonic signal",
         x_axis_label: str = "Time [s]",
         y_axis_label: str = "Amplitude [V]",
@@ -281,19 +291,20 @@ class HarmSignal(Signal):
         amplitude : float, optional
             Amplitude of the signal [V], by default 1.
         freq : float, optional
-            Frequency of the signal [Hz], by default 1.
+            Frequency of the signal [Hz], by default 1. Raised to ``band / 2``
+            when it is lower, because the channel is centred on the tone.
         phase : float, optional
             Phase of the signal [rad], by default 0.
         band : float, optional
             Initial channel bandwidth of the *Bandwidth* slider [Hz], by
-            default 10. It is only the factor B of the capacity formula; the
+            default 2. It is only the factor B of the capacity formula; the
             tone itself is not filtered.
         f : Callable, optional
             Function to generate the signal, by default np.sin.
         no_samples : int, optional
             Number of samples in the signal, by default 1000.
         max_range : float, optional
-            Duration of the time axis [s], by default 2π.
+            Duration of the time axis [s], by default π.
         title : str, optional
             Title of the plot, by default "Harmonic signal".
         x_axis_label : str, optional
@@ -301,6 +312,7 @@ class HarmSignal(Signal):
         y_axis_label : str, optional
             Label for the y-axis, by default "Amplitude [V]".
         """
+        freq = max(freq, band / 2)
         self.x = np.linspace(0, max_range, no_samples)
         self.y = self.generate(f, amplitude, freq, phase)
         self.f = f
@@ -317,7 +329,7 @@ class HarmSignal(Signal):
         self.freq = Slider(
             title="Frequency [Hz]",
             value=freq,
-            start=0,
+            start=band / 2,
             end=self.MAX_FREQ,
             step=self.FREQ_STEP,
         )
@@ -343,6 +355,29 @@ class HarmSignal(Signal):
         """
         for w in [self.amplitude, self.freq, self.phase]:
             w.on_change("value", self.update)
+        self.band.on_change("value", self._on_band)
+
+    def _on_band(self, attrname, old, new) -> None:
+        """
+        Keep the tone high enough for the chosen channel bandwidth.
+
+        A channel of bandwidth B centred on the tone needs f >= B/2 to fit
+        above 0 Hz, so the lower limit of the *Frequency* slider follows the
+        *Bandwidth* slider and the tone is raised when it would fall below.
+
+        Parameters
+        ----------
+        attrname : str
+            Name of the attribute that changed.
+        old : float
+            Previous bandwidth. [Hz]
+        new : float
+            New bandwidth. [Hz]
+        """
+        f_min = new / 2
+        self.freq.start = f_min
+        if self.freq.value < f_min:
+            self.freq.value = f_min
 
     def generate(
         self,
@@ -423,7 +458,7 @@ class NoiseSignal(Signal):
         sigma: float = 0.1,
         f: Callable = np.random.default_rng().normal,
         no_samples: int = 1000,
-        max_range: float = 2 * np.pi,
+        max_range: float = np.pi,
         title: str = "Noise signal",
         x_axis_label: str = "Time [s]",
         y_axis_label: str = "Amplitude [V]",
@@ -442,7 +477,7 @@ class NoiseSignal(Signal):
         no_samples : int, optional
             Number of samples in the signal, by default 1000.
         max_range : float, optional
-            Duration of the time axis [s], by default 2π.
+            Duration of the time axis [s], by default π.
         title : str, optional
             Title of the plot, by default "Noise signal".
         x_axis_label : str, optional
@@ -738,7 +773,9 @@ class Telegraph:
     limits the bandwidth to B with either an ideal (brick-wall) low-pass
     filter or a first-order RC low-pass, then adds Gaussian noise. The
     receiver samples the middle of every symbol interval and compares the
-    sample with a 0.5 V threshold.
+    sample with a 0.5 V threshold. A third plot shows the magnitude
+    characteristic of the selected filter with the spectra of the
+    transmitted and received waveforms.
 
     Attributes
     ----------
@@ -748,11 +785,14 @@ class Telegraph:
         Number of transmitted bits.
     GUARD : int
         Silent symbol intervals added before and after the message.
+    DB_FLOOR : float
+        Lower limit of the spectrum plot. [dB]
     """
 
     FS = 2000.0
     N_BITS = 32
     GUARD = 1
+    DB_FLOOR = -60.0
     FILTERS = ("Ideal low-pass", "RC line")
     PATTERNS = ("Random", "Alternating 0101…", "Isolated ones 0001…")
 
@@ -873,8 +913,86 @@ class Telegraph:
             color=RED,
             legend_label="error",
         )
+        # Grey bands mark where the causal filter has not settled, i.e. where
+        # the waveform differs from the steady-state response whose spectrum
+        # the third plot shows: 5τ after the block starts for the RC line,
+        # 1/B of ringing at both block edges for the ideal low-pass.
+        self.transient_boxes = [
+            BoxAnnotation(fill_color=GREY, fill_alpha=0.15, line_alpha=0)
+            for _ in range(2)
+        ]
+        for box in self.transient_boxes:
+            self.plot_rx.add_layout(box)
         self.plot_rx.legend.location = "top_left"
         style_plot(self.plot_rx)
+
+        # Spectrum plot: the filter characteristic |H(f)| together with the
+        # line spectra of the transmitted and received waveforms, all in dB
+        # relative to the strongest transmitted component. The spectra are
+        # taken over exactly the 32-symbol block, so the periodic patterns
+        # give their Fourier series without leakage and are drawn as stems.
+        self.filter_source = ColumnDataSource(data=dict(x=[], y=[]))
+        self.tx_spec_source = ColumnDataSource(data=dict(x=[], y=[], y0=[]))
+        self.rx_spec_source = ColumnDataSource(data=dict(x=[], y=[], y0=[]))
+        self.freq_range = Range1d(0, 1)
+        self.plot_spectrum = figure(
+            height=400,
+            width=600,
+            title="Filter characteristic and signal spectra",
+            x_axis_label="Frequency [Hz]",
+            y_axis_label="Magnitude [dB]",
+            tools=TOOLS,
+            x_range=self.freq_range,
+            y_range=[self.DB_FLOOR, 5],
+        )
+        self.plot_spectrum.segment(
+            "x",
+            "y0",
+            "x",
+            "y",
+            source=self.tx_spec_source,
+            line_width=5,
+            line_alpha=0.4,
+            color=colors[0],
+            legend_label="transmitted",
+        )
+        self.plot_spectrum.segment(
+            "x",
+            "y0",
+            "x",
+            "y",
+            source=self.rx_spec_source,
+            line_width=2,
+            color=colors[4],
+            legend_label="received",
+        )
+        self.plot_spectrum.scatter(
+            "x",
+            "y",
+            source=self.rx_spec_source,
+            size=5,
+            color=colors[4],
+            legend_label="received",
+        )
+        self.plot_spectrum.line(
+            "x",
+            "y",
+            source=self.filter_source,
+            line_width=3,
+            color=GREY,
+            line_dash="dashed",
+            legend_label="filter |H(f)|",
+        )
+        self.band_span = Span(
+            location=band,
+            dimension="height",
+            line_color=GREY,
+            line_dash="dotted",
+            line_width=2,
+        )
+        self.plot_spectrum.add_layout(self.band_span)
+        self.plot_spectrum.legend.location = "top_right"
+        style_plot(self.plot_spectrum)
 
         self.card = Div(text="", width=600)
 
@@ -932,8 +1050,41 @@ class Telegraph:
         else:
             b, a = butter(1, B, fs=self.FS)
             rx = lfilter(b, a, tx)
-        noise = np.random.default_rng(self.seed).normal(0, self.sigma.value, len(tx))
-        return rx + noise
+        self.noise = np.random.default_rng(self.seed).normal(
+            0, self.sigma.value, len(tx)
+        )
+        return rx + self.noise
+
+    def transfer(self, freqs: np.ndarray) -> np.ndarray:
+        """
+        Complex frequency response H(f) of the selected channel model.
+
+        Parameters
+        ----------
+        freqs : np.ndarray
+            Frequencies at which to evaluate the response. [Hz]
+
+        Returns
+        -------
+        np.ndarray
+            Complex H(f); 1 or 0 for the ideal low-pass, the response of the
+            digital first-order filter applied by ``channel`` for the RC line.
+        """
+        B = self.band.value
+        if self.filter.value == "Ideal low-pass":
+            return np.where(freqs > B, 0.0, 1.0).astype(complex)
+        b, a = butter(1, B, fs=self.FS)
+        _, h = freqz(b, a, worN=freqs, fs=self.FS)
+        return h
+
+    def filter_response(self, freqs: np.ndarray) -> np.ndarray:
+        """Magnitude |H(f)| in dB, limited from below by ``DB_FLOOR``."""
+        return self._to_db(np.abs(self.transfer(freqs)), 1.0)
+
+    def _to_db(self, mag: np.ndarray, ref: float) -> np.ndarray:
+        """Magnitude relative to ``ref`` in dB, clipped at ``DB_FLOOR``."""
+        with np.errstate(divide="ignore"):
+            return np.maximum(20 * np.log10(mag / ref), self.DB_FLOOR)
 
     def receive(self, rx: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -970,6 +1121,41 @@ class Telegraph:
         self.time_range.end = float(t[-1])
 
         rs, B = self.symbol_rate.value, self.band.value
+
+        # Line spectra over the 32-symbol block (guards excluded): the DFT of
+        # an integer number of pattern periods is the Fourier series, with
+        # lines every R_s / N_BITS and no leakage. The received spectrum is
+        # the steady-state response X(f) H(f) plus the noise, so the start-up
+        # transient of the RC filter does not smear the lines. Levels are
+        # relative to the strongest transmitted component; only lines above
+        # the floor are drawn. The axis spans the first few harmonics.
+        sps = round(self.FS / rs)
+        block = slice(self.GUARD * sps, (self.GUARD + self.N_BITS) * sps)
+        freqs = np.fft.rfftfreq(self.N_BITS * sps, 1 / self.FS)
+        tx_spec = np.fft.rfft(tx[block])
+        rx_spec = tx_spec * self.transfer(freqs) + np.fft.rfft(self.noise[block])
+        ref = np.abs(tx_spec).max()
+        for source, spec in ((self.tx_spec_source, tx_spec), (self.rx_spec_source, rx_spec)):
+            level = self._to_db(np.abs(spec), ref)
+            keep = level > self.DB_FLOOR
+            source.data = dict(
+                x=freqs[keep], y=level[keep], y0=np.full(keep.sum(), self.DB_FLOOR)
+            )
+        self.filter_source.data = dict(x=freqs, y=self.filter_response(freqs))
+        self.band_span.location = B
+        self.freq_range.end = float(min(max(4 * rs, 4 * B), self.FS / 2))
+
+        # Transient regions of the received waveform (see __init__).
+        t0, t1 = t[block.start], t[block.stop - 1]
+        start_box, end_box = self.transient_boxes
+        if self.filter.value == "Ideal low-pass":
+            width = 1 / B
+            start_box.update(left=t0, right=min(t0 + width, t1), visible=True)
+            end_box.update(left=max(t1 - width, t0), right=t1, visible=True)
+        else:
+            tau = 1 / (2 * np.pi * B)
+            start_box.update(left=t0, right=min(t0 + 5 * tau, t1), visible=True)
+            end_box.visible = False
         n_err = int(errors.sum())
         mono = "font-family:DejaVu Sans Mono,monospace"
         tx_bits = f"<span style='{mono}'>{''.join(map(str, self.bits))}</span>"
@@ -999,5 +1185,7 @@ class Telegraph:
                 ),
             ],
             note="Decisions are taken in the middle of each symbol interval against "
-            "a 0.5 V threshold (dashed line).",
+            "a 0.5 V threshold (dashed line). The grey band marks the filter "
+            "transient, where the waveform differs from the steady-state "
+            "response shown in the spectrum plot.",
         )

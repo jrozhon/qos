@@ -42,7 +42,8 @@ rc_params = {
     "legend.markerscale": 1.3,
     "lines.solid_capstyle": "round",
     "lines.linewidth": 3,
-    "savefig.dpi": 150,
+    "figure.dpi": 140,
+    "savefig.dpi": 200,
     "savefig.bbox": "tight",
 }
 
@@ -70,3 +71,42 @@ def add_logo(fig, path="logo.png", box=(0.83, 0.90, 0.10, 0.10)):
     ax = fig.add_axes(box)
     ax.set_axis_off()
     ax.imshow(image.imread(path), aspect="equal")
+
+
+def add_legend(ax, ncols=None, pad=0.16, **kwargs):
+    """
+    Place the legend in one row below the plot area, outside the axes.
+
+    A legend drawn inside the axes covers the data, and with
+    ``legend.frameon`` disabled its text sits directly on top of bars and
+    lines. Keeping it outside avoids that for every figure, whatever the data
+    happen to look like.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes whose legend is drawn.
+    ncols : int, optional
+        Number of legend columns, by default one per entry, giving a single
+        row. Pass a smaller number when the labels are long.
+    pad : float, optional
+        Gap between the bottom of the axes and the legend, as a fraction of
+        the height of the axes, by default 0.16. Raise it for a short panel in
+        a stacked figure, where the same fraction is less absolute space and
+        the legend can reach the axis label.
+    **kwargs
+        Further keyword arguments for ``matplotlib.axes.Axes.legend``.
+
+    Returns
+    -------
+    matplotlib.legend.Legend
+        The placed legend.
+    """
+    handles, _ = ax.get_legend_handles_labels()
+    return ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -pad),
+        ncols=max(1, len(handles)) if ncols is None else ncols,
+        borderaxespad=0.0,
+        **kwargs,
+    )
