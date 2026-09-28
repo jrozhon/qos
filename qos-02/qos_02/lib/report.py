@@ -1,5 +1,5 @@
 """
-Presentation helpers for the Exercise 02 notebook.
+Presentation helpers for the Lab 02 notebook.
 
 The point of this module is the pairing between a theoretical quantity and the
 measurement that should confirm it. :data:`MM1_QUANTITIES` states that pairing

@@ -136,9 +136,9 @@ Applies to every `README.md` and every Markdown cell in notebooks.
 Every `qos-NN/README.md` follows this skeleton. Headings are sentence case. Do not skip levels.
 
 ```markdown
-# Exercise NN – Topic Title
+# Lab NN – Topic Title
 
-One-paragraph abstract: what the exercise covers and what the student will be able to do afterwards.
+One-paragraph abstract: what the lab covers and what the student will be able to do afterwards.
 
 ## Learning objectives
 - …
@@ -147,7 +147,7 @@ One-paragraph abstract: what the exercise covers and what the student will be ab
 ### Subtopic
 Prose, equations, figures.
 
-## Exercise
+## Tasks
 ### Preparation
 Environment, commands, credentials pointer (never the credentials themselves).
 ### Step 1 – …
@@ -160,8 +160,8 @@ Environment, commands, credentials pointer (never the credentials themselves).
 1. Author, *Title*, Publisher, Year. / URL
 ```
 
-- The H1 uses a spaced en dash: `# Exercise 03 – Network traffic and QoE`.
-- Two-digit exercise numbers everywhere: `Exercise 01`, directory `qos-01`, notebook `exercise_01.ipynb`.
+- The H1 uses a spaced en dash: `# Lab 03 – Network traffic and QoE`.
+- Two-digit lab numbers everywhere: `Lab 01`, directory `qos-01`, notebook `lab_01.ipynb`.
 - Wikipedia may be cited as a reference but must not be pasted as an excerpt; paraphrase and cite.
 - Shell commands go in fenced `bash` blocks with a one-line explanation before, not after. Placeholders in capitals: `DEVICE`, `X.X`. Do not embed terminal prompts (`$`) inside the block.
 - Callouts use GitHub alerts, one per idea:
@@ -348,8 +348,8 @@ Cards use the neutral tints, not ad-hoc greys:
 
 ## 6. Notebooks
 
-- One notebook per lesson at `qos-NN/qos_NN/exercise_NN.ipynb`, kernel `python3`.
-- Cell 1 is a Markdown H1 identical to the README H1. Section headings mirror the README (`## Theory`, `## Exercise`, …) so the two documents can be read side by side.
+- One notebook per lesson at `qos-NN/qos_NN/lab_NN.ipynb`, kernel `python3`.
+- Cell 1 is a Markdown H1 identical to the README H1. Section headings mirror the README (`## Theory`, `## Tasks`, …) so the two documents can be read side by side.
 - Cell order: title → imports (single cell) → constants → theory demonstrations → tasks → questions.
 - Task cells are Markdown with an H3 `### Task N – short name`, a numbered list of what to do, and an empty code cell beneath.
 - Reference implementations that students are meant to write themselves are kept in `lib/core.py` under a `# Reference implementations — students implement these first` banner, and imported only after the task cell.
@@ -371,7 +371,7 @@ Cards use the neutral tints, not ad-hoc greys:
 
 1. Colours come from §2 only; series order unchanged.
 2. Fonts: Carlito stack in any rc/CSS you touched.
-3. README follows the §4.2 skeleton; H1 is `# Exercise NN – Title`.
+3. README follows the §4.2 skeleton; H1 is `# Lab NN – Title`.
 4. Every equation has a "where" list with units; renders on GitHub.
 5. Every figure has unit-bearing axis labels, a sentence-case title, the logo, and any legend placed with `add_legend(ax)` rather than inside the axes.
 6. `lib/params.py` still identical across lessons (`md5sum qos-0*/qos_0*/lib/params.py`).

@@ -1,5 +1,5 @@
 """
-Discrete-event building blocks for the Exercise 02 queueing simulations.
+Discrete-event building blocks for the Lab 02 queueing simulations.
 
 The components form a pipeline that is wired by assigning ``destination``
 attributes::
@@ -17,7 +17,7 @@ exclude the packet in service, whereas
 include it. The M/M/1 quantities $L_q$ and $W_q$ refer to the queue, $L$ and $W$
 to the system.
 
-One simulation time unit (STU) represents one second in this exercise.
+One simulation time unit (STU) represents one second in this lab.
 """
 
 import sys

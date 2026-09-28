@@ -1,6 +1,6 @@
-# Exercise 02 – Random variables, the Poisson process, and queueing systems
+# Lab 02 – Random variables, the Poisson process, and queueing systems
 
-This exercise introduces the probabilistic tools used to describe network traffic. It reviews random variables and the uniform, exponential, and normal distributions, introduces the Poisson process as a baseline model of independent arrivals, and presents the M/M/1 queue together with Little's law. In the practical part, students generate random samples, build a discrete-event simulation of packet sources, a switch, and sinks in SimPy, and compare the measured delay and occupancy of a simulated M/M/1 system with the analytical formulas.
+This lab introduces the probabilistic tools used to describe network traffic. It reviews random variables and the uniform, exponential, and normal distributions, introduces the Poisson process as a baseline model of independent arrivals, and presents the M/M/1 queue together with Little's law. In the practical part, students generate random samples, build a discrete-event simulation of packet sources, a switch, and sinks in SimPy, and compare the measured delay and occupancy of a simulated M/M/1 system with the analytical formulas.
 
 ## Learning objectives
 
@@ -16,11 +16,11 @@ This exercise introduces the probabilistic tools used to describe network traffi
 
 Students should be able to:
 
-- Calculate an arithmetic mean, interpret a graph, and recall Gaussian noise and standard deviation from [Exercise 01](../qos-01/README.md).
+- Calculate an arithmetic mean, interpret a graph, and recall Gaussian noise and standard deviation from [Lab 01](../qos-01/README.md).
 - Convert packet sizes from bytes to bits and calculate a transmission time from a packet size and a bit rate.
 - Write Python functions, pass arguments to them, and access an object's attributes and methods.
 
-Random variables and probability distributions are reviewed below. The Poisson process, queueing models, and simulation with SimPy are introduced in this exercise.
+Random variables and probability distributions are reviewed below. The Poisson process, queueing models, and simulation with SimPy are introduced in this lab.
 
 ## Theory
 
@@ -59,7 +59,7 @@ where $\lambda$ is the event rate [s⁻¹] and $1/\lambda$ the mean waiting time
 
 ### Normal distribution
 
-The normal distribution, introduced in [Exercise 01](../qos-01/README.md#gaussian-noise), can approximate quantities arising from many small independent effects, such as measurement errors and channel noise. It is described by its mean $\mu$ and standard deviation $\sigma$. It is useful for comparing distribution shapes, but permits negative values and therefore cannot directly model inter-arrival times. The simulation below uses positive uniform intervals as a contrasting model that is not memoryless.
+The normal distribution, introduced in [Lab 01](../qos-01/README.md#gaussian-noise), can approximate quantities arising from many small independent effects, such as measurement errors and channel noise. It is described by its mean $\mu$ and standard deviation $\sigma$. It is useful for comparing distribution shapes, but permits negative values and therefore cannot directly model inter-arrival times. The simulation below uses positive uniform intervals as a contrasting model that is not memoryless.
 
 ![Histogram of 10 000 standard normal samples with the theoretical density overlaid and the interval mu plus or minus sigma shaded](fig/normal_pdf.png)
 
@@ -148,11 +148,11 @@ $$
 
 where $L$ is the mean number of requests in the system [–], $\lambda$ the rate of requests admitted to that system [s⁻¹], and $W$ their mean time in the system [s]; the second form applies to the queue alone. If requests are rejected, use the admitted rate rather than the offered rate. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
 
-## Exercise
+## Tasks
 
 ### Preparation
 
-Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_02/exercise_02.ipynb`.
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_02/lab_02.ipynb`.
 
 ```bash
 cd qos-02
@@ -160,7 +160,7 @@ uv sync
 uv run jupyter lab --ip 0.0.0.0
 ```
 
-The simulation uses [SimPy](https://simpy.readthedocs.io/) to advance from one event to the next. One simulation time unit (STU) represents one second in this exercise. The components in `lib/core.py` have the following roles:
+The simulation uses [SimPy](https://simpy.readthedocs.io/) to advance from one event to the next. One simulation time unit (STU) represents one second in this lab. The components in `lib/core.py` have the following roles:
 
 | Component | Role |
 |---|---|
@@ -273,5 +273,5 @@ Save the completed notebook, the distribution comparison plots, the Task 3 compa
 2. D. Gross, J. F. Shortle, J. M. Thompson, and C. M. Harris, *Fundamentals of Queueing Theory*, 4th ed. Wiley, 2008.
 3. J. D. C. Little, "A Proof for the Queuing Formula: L = λW," *Operations Research*, vol. 9, no. 3, pp. 383–387, 1961.
 4. P. J. Burke, "The Output of a Queuing System," *Operations Research*, vol. 4, no. 6, pp. 699–704, 1956. — why the departures of a stable M/M/1 queue again form a Poisson process.
-5. G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking, https://www.grotto-networking.com/DiscreteEventPython.html — origin of the simulation components used in this exercise.
+5. G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking, https://www.grotto-networking.com/DiscreteEventPython.html — origin of the simulation components used in this lab.
 6. SimPy documentation, https://simpy.readthedocs.io/.

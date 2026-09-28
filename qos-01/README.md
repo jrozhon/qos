@@ -1,6 +1,6 @@
-# Exercise 01 – Signals, noise, and channel capacity
+# Lab 01 – Signals, noise, and channel capacity
 
-This exercise establishes the vocabulary used throughout the course. It introduces the signal as the carrier of information, the conversion of an analog signal into a digital one by pulse-code modulation, Gaussian noise as the basic model of a disturbance, and the Shannon–Hartley formula that bounds the information rate of a noisy channel. In the practical part, students model a harmonic signal corrupted by noise, compute its signal-to-noise ratio and channel capacity, explore the Shannon–Hartley theorem for common access technologies, watch a telegraph signal degrade on a band-limited and noisy channel, and apply noise to real audio and image data.
+This lab establishes the vocabulary used throughout the course. It introduces the signal as the carrier of information, the conversion of an analog signal into a digital one by pulse-code modulation, Gaussian noise as the basic model of a disturbance, and the Shannon–Hartley formula that bounds the information rate of a noisy channel. In the practical part, students model a harmonic signal corrupted by noise, compute its signal-to-noise ratio and channel capacity, explore the Shannon–Hartley theorem for common access technologies, watch a telegraph signal degrade on a band-limited and noisy channel, and apply noise to real audio and image data.
 
 ## Learning objectives
 
@@ -19,7 +19,7 @@ Students should be able to:
 - Calculate an arithmetic mean and convert between seconds and milliseconds, and between bits and bytes.
 - Define a Python function and use NumPy arrays for element-wise arithmetic and simple plots.
 
-Signal classification, sampling, Gaussian noise, symbol rate, and channel capacity are introduced in this exercise.
+Signal classification, sampling, Gaussian noise, symbol rate, and channel capacity are introduced in this lab.
 
 ## Theory
 
@@ -61,7 +61,7 @@ $$
 where $f_s$ is the sampling frequency [Hz] and $f_{\max}$ the highest frequency present in the signal [Hz]. If the condition is violated, components above $f_s/2$ are folded back into the lower band; this distortion is called *aliasing*.
 
 > [!NOTE]
-> Telephone speech is band-limited to 300–3400 Hz and sampled at $f_s = 8$ kHz with 8-bit quantization, giving the 64 kbit/s PCM stream of the G.711 codec. This stream is the payload of the RTP packets examined in Exercise 03.
+> Telephone speech is band-limited to 300–3400 Hz and sampled at $f_s = 8$ kHz with 8-bit quantization, giving the 64 kbit/s PCM stream of the G.711 codec. This stream is the payload of the RTP packets examined in Lab 03.
 
 ### Gaussian noise
 
@@ -71,7 +71,7 @@ $$
 p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
-where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this exercise), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is; for zero-mean noise the mean power equals the variance, $N = \sigma^2$.
+where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this lab), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is; for zero-mean noise the mean power equals the variance, $N = \sigma^2$.
 
 ![Probability density function of the normal distribution](fig/normal.png)
 
@@ -140,11 +140,11 @@ The table provides illustrative inputs for capacity calculations, rather than sp
 
 As an extension, consider multiple-input multiple-output (MIMO) systems, which use several antennas at both ends. Multiple spatial streams can share the same frequency band when the propagation conditions allow the receiver to distinguish them. The antenna count alone does not guarantee that many independent streams.
 
-## Exercise
+## Tasks
 
 ### Preparation
 
-Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_01/exercise_01.ipynb`.
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_01/lab_01.ipynb`.
 
 ```bash
 cd qos-01
@@ -176,7 +176,7 @@ Record or generate a short audio signal, preferably speech. Keep the clean signa
 
 ### Step 6 – Apply noise to an image
 
-From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise with $\sigma = 15/255$, $25/255$, and $50/255$ (the noise levels of the image-denoising benchmarks) and clip the displayed pixel values to $[0, 1]$. Record the noise levels and random seed, and save the degraded images for Exercise 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image; because this image has many near-black pixels, clipping affects a sizeable share of them even at the lowest noise level, which is discussed in the notebook.
+From the notebook directory, load `../fig/android_gray.jpeg` as a floating-point grayscale array scaled to $[0, 1]$. Add Gaussian noise with $\sigma = 15/255$, $25/255$, and $50/255$ (the noise levels of the image-denoising benchmarks) and clip the displayed pixel values to $[0, 1]$. Record the noise levels and random seed, and save the degraded images for Lab 04. Clipping changes the resulting error, so distinguish the generated noise from the error remaining in the saved image; because this image has many near-black pixels, clipping affects a sizeable share of them even at the lowest noise level, which is discussed in the notebook.
 
 ### Results to retain
 

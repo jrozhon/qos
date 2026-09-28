@@ -37,7 +37,7 @@ uv add <package>                   # add a dependency to that lesson's pyproject
 Notebooks are the only "runnable" thing. To execute one headlessly for a sanity check:
 
 ```bash
-cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/exercise_02.ipynb --output /tmp/out.ipynb
+cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/lab_02.ipynb --output /tmp/out.ipynb
 ```
 
 (The qos-03 notebook requires network capabilities and will not execute cleanly unattended.)
@@ -55,11 +55,12 @@ cd slides && npm install                       # once
 npm run dev -- 01-information-theory.md        # live preview
 npm run export -- 01-information-theory.md     # PDF (needs: npx playwright install chromium)
 python3 scripts/generate-figures.py            # regenerate SVG figures after editing the script
+python3 scripts/generate-codec-samples.py      # deck 05 codec audio samples (ffmpeg + bcg729)
 ```
 
 ## Structure conventions
 
-- Package layout inside a lesson: `qos-NN/qos_NN/exercise_NN.ipynb` next to `qos_NN/lib/core.py` (and optionally `lib/params.py`). Notebooks import with `from lib.core import ...` — a bare relative import that only works because Jupyter sets the kernel cwd to the notebook's directory. The `qos_NN` package is *not* installed; don't change imports to `qos_NN.lib.core` without also changing how the notebook is launched.
+- Package layout inside a lesson: `qos-NN/qos_NN/lab_NN.ipynb` next to `qos_NN/lib/core.py` (and optionally `lib/params.py`). Notebooks import with `from lib.core import ...` — a bare relative import that only works because Jupyter sets the kernel cwd to the notebook's directory. The `qos_NN` package is *not* installed; don't change imports to `qos_NN.lib.core` without also changing how the notebook is launched.
 - `lib/params.py` (identical in 01–04) holds the shared matplotlib `rc_params` dict and `colors` palette; the target content is in `STYLE.md` §5.1. If you touch one, mirror it in the other.
 - `lib/core.py` in each lesson uses `typing.Protocol` classes as the public interface (`Signal`, `PacketSourceProto`, `SwitchProto`, …) with concrete implementations below them. Code is heavily docstringed in NumPy style because students read it; keep that style.
 - `qos-02/lib/core.py` is a simpy pipeline: `PacketSource → Switch(SwitchPort…) → PacketSink`, with `NetworkTap` attaching to a `SwitchPort` for statistics and `PacketFork` splitting traffic probabilistically. Components are wired by passing a `destination` and each exposes `start()` returning a `simpy.Process`. Inter-arrival/size arguments accept either a number or a zero-arg callable (use `functools.partial` with a numpy RNG).

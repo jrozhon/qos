@@ -2,11 +2,11 @@
 
 Course material for *Quality of Service and Quality of Experience* (QoS & QoE), taught at the Faculty of Electrical Engineering and Computer Science, VSB – Technical University of Ostrava. The course introduces the properties of signals and network traffic that determine the perceived quality of multimedia services, and the mechanisms networks use to control them.
 
-Each exercise is a self-contained directory with a `README.md` covering the theory and tasks. Exercises 01–04 include a Jupyter notebook; Exercise 05 uses the Mininet command line. Exercises are intended to be worked through in order.
+Each lab is a self-contained directory with a `README.md` covering the theory and tasks. Labs 01–04 include a Jupyter notebook; Lab 05 uses the Mininet command line. Labs are intended to be worked through in order.
 
-## Exercises
+## Labs
 
-| Exercise | Topic | Tools |
+| Lab | Topic | Tools |
 |---|---|---|
 | [01](qos-01/README.md) | Signals, pulse-code modulation, Gaussian noise, and channel capacity | Jupyter |
 | [02](qos-02/README.md) | Probability distributions, the Poisson process, and M/M/1 queueing systems | Jupyter |
@@ -14,7 +14,7 @@ Each exercise is a self-contained directory with a `README.md` covering the theo
 | [04](qos-04/README.md) | Objective image quality metrics: PSNR and SSIM | Jupyter |
 | [05](qos-05/README.md) | Software-defined network emulation in Mininet: topologies, flow tables, link parameters, and performance testing | Mininet |
 
-Simulations and network experiments run on the laboratory servers, accessed over SSH. Exercise 03 also uses a telephone client and Wireshark on the student's computer to capture a call.
+Simulations and network experiments run on the laboratory servers, accessed over SSH. Lab 03 also uses a telephone client and Wireshark on the student's computer to capture a call.
 
 ## Prerequisites
 
@@ -28,17 +28,17 @@ Students should be able to:
 - Explain the purpose of an Internet Protocol (IP) address, a network packet, and a transport-layer port, and distinguish a client from a server.
 - Navigate directories and run commands in a terminal.
 
-The course introduces signal sampling, probability distributions, queueing models, and multimedia quality assessment. Each exercise states the additional knowledge needed from earlier lessons. The laboratory tools are introduced through the practical tasks.
+The course introduces signal sampling, probability distributions, queueing models, and multimedia quality assessment. Each lab states the additional knowledge needed from earlier lessons. The laboratory tools are introduced through the practical tasks.
 
 ### Software and access
 
 - Python 3.12 or newer.
-- [`uv`](https://docs.astral.sh/uv/), which manages virtual environments and dependencies for each exercise. Installation instructions are in the `uv` documentation.
+- [`uv`](https://docs.astral.sh/uv/), which manages virtual environments and dependencies for each lab. Installation instructions are in the `uv` documentation.
 - Git.
-- SSH access to the laboratory servers, on which all exercises are run. Addresses and credentials are distributed through the LMS.
-- For Exercise 03, Wireshark and the ability to run commands as root or to set Linux capabilities; details are given in the exercise README.
+- SSH access to the laboratory servers, on which all labs are run. Addresses and credentials are distributed through the LMS.
+- For Lab 03, Wireshark and the ability to run commands as root or to set Linux capabilities; details are given in the lab README.
 
-## Setting up an exercise
+## Setting up a lab
 
 Log in to a laboratory server over SSH and clone the repository once.
 
@@ -46,7 +46,7 @@ Log in to a laboratory server over SSH and clone the repository once.
 git clone https://github.com/jrozhon/qos.git
 ```
 
-Exercises 01–04 each contain a `pyproject.toml`, so the environment is created per exercise. Change into the exercise directory and synchronize it; this creates a virtual environment in `.venv` and installs the declared dependencies. Exercise 05 has separate setup instructions in its README.
+Labs 01–04 each contain a `pyproject.toml`, so the environment is created per lab. Change into the lab directory and synchronize it; this creates a virtual environment in `.venv` and installs the declared dependencies. Lab 05 has separate setup instructions in its README.
 
 ```bash
 cd qos/qos-01
@@ -59,14 +59,14 @@ Start JupyterLab from within the same directory. The server is bound to all inte
 uv run jupyter lab --ip 0.0.0.0
 ```
 
-JupyterLab prints a URL containing an access token; replace its host part with the address of the laboratory server and open it in a local browser. Notebooks are located in the `qos_NN/` package directory of each exercise and expect to be opened from there, because they import helper code from the adjacent `lib/` directory.
+JupyterLab prints a URL containing an access token; replace its host part with the address of the laboratory server and open it in a local browser. Notebooks are located in the `qos_NN/` package directory of each lab and expect to be opened from there, because they import helper code from the adjacent `lib/` directory.
 
 > [!NOTE]
 > The `pyproject.toml` files are provided. For independent projects, `uv init` creates a new one; that step is not needed in this course.
 
 ### Adding a package
 
-Additional libraries are added to the current exercise only.
+Additional libraries are added to the current lab only.
 
 ```bash
 uv add numpy pandas
@@ -78,18 +78,18 @@ uv add numpy pandas
 
 ```
 qos-NN/
-├── README.md          theory and task description for the exercise
+├── README.md          theory and task description for the lab
 ├── pyproject.toml     dependencies, managed by uv
 ├── fig/               figures referenced from the README
 └── qos_NN/
-    ├── exercise_NN.ipynb
+    ├── lab_NN.ipynb
     ├── logo.png       university symbol used as a figure watermark
     └── lib/
         ├── core.py    reference implementations and simulation components
         └── params.py  shared matplotlib style
 ```
 
-Exercise 05 has no notebook because its tasks are executed in the Mininet command line; its README carries the complete procedure, and the Python topology file is placed next to it.
+Lab 05 has no notebook because its tasks are executed in the Mininet command line; its README carries the complete procedure, and the Python topology file is placed next to it.
 
 ## Contributing
 

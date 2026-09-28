@@ -2,7 +2,7 @@
 theme: seriph
 title: 04 · Network traffic modelling
 info: |
-  440-2216/01 Kvalita služeb — lecture 4.
+  440-2216/01 Quality of Service — lecture 4.
   Time-domain traffic distributions (exponential, Weibull, jitter), Markov-chain packet-loss models from
   Bernoulli through the four-state model, and self-similarity / long-range dependence in measured network
   traffic.
@@ -19,7 +19,7 @@ fonts:
 
 # Network Traffic Modelling
 
-### 440-2216/01 Kvalita služeb · Lecture 04
+### 440-2216/01 Quality of Service · Lecture 04
 
 <div class="pt-6 text-sm vsb-muted">
 Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
@@ -678,7 +678,7 @@ produces sustained above-mean periods that a same-mean Poisson process essential
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
-This lecture is a modelling toolbox, not a hands-on exercise on its own — but every piece of it plugs directly into Exercise 02's `simpy`-based pipeline:
+This lecture is a modelling toolbox, not a hands-on lab on its own — but every piece of it plugs directly into Lab 02's `simpy`-based pipeline:
 
 - `PacketSource`'s inter-arrival argument accepts **any zero-argument callable**, so an exponential, Weibull, or self-similar generator drops in unchanged.
 - A Gilbert/Gilbert-Elliott loss process is a natural model for a lossy `SwitchPort`.
@@ -688,7 +688,7 @@ This lecture is a modelling toolbox, not a hands-on exercise on its own — but 
 
 <div class="text-sm">
 
-Nothing here requires new tooling — `functools.partial` around a NumPy RNG, exactly as Exercise 02 already uses for inter-arrival and size callables, is enough to try any distribution from Part 1 or 2.
+Nothing here requires new tooling — `functools.partial` around a NumPy RNG, exactly as Lab 02 already uses for inter-arrival and size callables, is enough to try any distribution from Part 1 or 2.
 
 </div>
 
@@ -705,8 +705,8 @@ uv run jupyter lab --ip 0.0.0.0
 </div>
 
 <!--
-Deliberately honest that this lecture has no dedicated exercise directory of its own, unlike Lectures 01–03 —
-its content is meant to extend what Exercise 02's simulation pipeline already supports, not to introduce a new
+Deliberately honest that this lecture has no dedicated lab directory of its own, unlike Lectures 01–03 —
+its content is meant to extend what Lab 02's simulation pipeline already supports, not to introduce a new
 notebook.
 -->
 

@@ -1,6 +1,6 @@
-# Exercise 03 – Network traffic and its effect on QoE
+# Lab 03 – Network traffic and its effect on QoE
 
-This exercise connects the network layer to the perceived quality of a real-time service. Students capture and analyze a VoIP call, build a packet generator in Scapy to see how audio becomes a stream of RTP packets, use the Linux traffic-control subsystem to impose delay and packet loss on a link, and finally evaluate the resulting speech quality with subjective and objective methods.
+This lab connects the network layer to the perceived quality of a real-time service. Students capture and analyze a VoIP call, build a packet generator in Scapy to see how audio becomes a stream of RTP packets, use the Linux traffic-control subsystem to impose delay and packet loss on a link, and finally evaluate the resulting speech quality with subjective and objective methods.
 
 > [!IMPORTANT]
 > This is a multi-week activity carried out in pairs or groups of three. Save captures, recordings, and results after every session.
@@ -17,12 +17,12 @@ This exercise connects the network layer to the perceived quality of a real-time
 
 Students should be able to:
 
-- Explain sampling and pulse-code modulation from [Exercise 01](../qos-01/README.md), and calculate a bit rate from the sample rate and bits per sample.
+- Explain sampling and pulse-code modulation from [Lab 01](../qos-01/README.md), and calculate a bit rate from the sample rate and bits per sample.
 - Distinguish Ethernet frames, IP packets, and transport-layer ports, and describe the basic roles of TCP and UDP.
-- Explain how queues introduce waiting time and interpret a probability as a fraction of events, using [Exercise 02](../qos-02/README.md).
+- Explain how queues introduce waiting time and interpret a probability as a fraction of events, using [Lab 02](../qos-02/README.md).
 - Write Python functions and loops, and run terminal commands with file paths and arguments.
 
-Voice-call signaling, audio packetization, traffic-control commands, and speech quality assessment are introduced in this exercise. Packet capture and generation are practiced using Wireshark and Scapy.
+Voice-call signaling, audio packetization, traffic-control commands, and speech quality assessment are introduced in this lab. Packet capture and generation are practiced using Wireshark and Scapy.
 
 ## Theory
 
@@ -30,7 +30,7 @@ Voice-call signaling, audio packetization, traffic-control commands, and speech 
 
 Voice over IP (VoIP) separates signaling from media transport. *Signaling* establishes, modifies, and terminates the session; in this course it is the Session Initiation Protocol (SIP), carried over UDP or TCP, whose messages (`INVITE`, `200 OK`, `ACK`, `BYE`) also negotiate the codec and transport addresses of the media. *Media* is carried by the Real-time Transport Protocol (RTP) over UDP. The basic RTP header is 12 bytes long; optional fields can extend it. It contains a payload type, a sequence number, a timestamp, and a synchronization source identifier (SSRC), followed by a block of coded audio.
 
-With the G.711 codec of [Exercise 01](../qos-01/README.md#pulse-code-modulation), speech is sampled at 8 kHz with 8 bits per sample and packetized every 20 ms. One packet therefore carries 160 samples, that is 160 B of payload; with the 12 B RTP, 8 B UDP, and 20 B IPv4 headers without options it is 200 B long. The call produces 50 packets per second in each direction, a 64 kbit/s payload stream and an 80 kbit/s IP stream:
+With the G.711 codec of [Lab 01](../qos-01/README.md#pulse-code-modulation), speech is sampled at 8 kHz with 8 bits per sample and packetized every 20 ms. One packet therefore carries 160 samples, that is 160 B of payload; with the 12 B RTP, 8 B UDP, and 20 B IPv4 headers without options it is 200 B long. The call produces 50 packets per second in each direction, a 64 kbit/s payload stream and an 80 kbit/s IP stream:
 
 $$
 R_{\mathrm{IP}} = \frac{(160 + 12 + 8 + 20) \cdot 8}{0.02} = 80\,000 \ \mathrm{bit/s}
@@ -94,7 +94,7 @@ PESQ and ViSQOL are *full-reference* or *intrusive* models: both need the clean 
 
 These two models estimate listening quality. This experiment does not measure the effect of conversational delay on turn-taking. Similar numerical ranges also do not make ACR MOS, DCR DMOS, and objective estimates interchangeable; compare their trends and explain their different meanings.
 
-## Exercise
+## Tasks
 
 ### Preparation
 
@@ -105,7 +105,7 @@ sudo setcap cap_net_raw=eip /usr/bin/pythonX.X
 sudo setcap cap_net_raw=eip /usr/bin/tcpdump
 ```
 
-Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_03/exercise_03.ipynb`.
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_03/lab_03.ipynb`.
 
 ```bash
 cd qos-03

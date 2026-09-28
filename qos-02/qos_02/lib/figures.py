@@ -1,5 +1,5 @@
 """
-Regenerate the figures embedded in the Exercise 02 README.
+Regenerate the figures embedded in the Lab 02 README.
 
 Run from the notebook directory so that the university symbol is found::
 

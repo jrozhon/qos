@@ -911,4 +911,272 @@ for i, (factor, title) in enumerate(zip(factors, titles)):
 s.text(440, 300, 'A Poisson-based model would flatten towards a smooth average as aggregation grows — this one does not.', 'small', 'middle')
 s.save()
 
+# =============================================================================
+# 05 — Speech quality measurement: MOS, intrusive models and the E-model
+# =============================================================================
+DECK = '05'
+
+# --- P.800 rating scales -----------------------------------------------------
+s = SVG(DECK, 'rating-scales', 330, 'The three ITU-T P.800 listening-test rating scales',
+        'Absolute Category Rating asks for the quality of one sample on a five-point scale from Excellent (5) to '
+        'Bad (1). Degradation Category Rating plays the reference first and asks how annoying the degradation is, '
+        'from inaudible (5) to very annoying (1). Comparison Category Rating compares two samples on a seven-point '
+        'scale from much better (+3) to much worse (−3).')
+scales = [
+    ('ACR → MOS', 'one sample, no reference',
+     [('5', 'Excellent'), ('4', 'Good'), ('3', 'Fair'), ('2', 'Poor'), ('1', 'Bad')]),
+    ('DCR → DMOS', 'reference first, then degraded',
+     [('5', 'Inaudible'), ('4', 'Audible, not annoying'), ('3', 'Slightly annoying'), ('2', 'Annoying'),
+      ('1', 'Very annoying')]),
+    ('CCR → CMOS', 'pair in random order',
+     [('+3', 'Much better'), ('+2', 'Better'), ('+1', 'Slightly better'), ('0', 'About the same'),
+      ('−1', 'Slightly worse'), ('−2', 'Worse'), ('−3', 'Much worse')]),
+]
+for i, (title, sub, rows) in enumerate(scales):
+    x0 = 20 + i * 290
+    s.text(x0, 20, title, 'label')
+    s.text(x0, 42, sub, 'small')
+    for k, (score, lab) in enumerate(rows):
+        y = 56 + k * 36
+        s.rect(x0, y, 260, 32, TINT if k % 2 == 0 else '#FFFFFF', LINE)
+        s.rect(x0, y, 44, 32, '#FFFFFF', G, 1.5)
+        s.text(x0 + 22, y + 22, score, 'bold green', 'middle')
+        s.text(x0 + 56, y + 22, lab)
+s.text(440, 322, 'MOS = arithmetic mean of all listeners’ scores for one condition · always report it with its confidence interval',
+       'small', 'middle')
+s.save()
+
+# --- Three families of objective models --------------------------------------
+s = SVG(DECK, 'model-families', 300, 'Intrusive, non-intrusive and parametric speech quality models',
+        'A reference speech signal passes through the system under test, a codec and a network, and comes out as '
+        'degraded speech. An intrusive model compares the reference with the degraded signal. A non-intrusive '
+        'signal-based model listens to the degraded signal only. A parametric model uses no audio at all, only '
+        'network and terminal parameters such as delay, loss and codec type.')
+s.box(20, 30, 200, 60, 'Reference speech', 'clean, known in advance', '#F6F8F8')
+s.line(220, 60, 330, 60, INK, 2, arrow='ink')
+s.box(330, 30, 220, 60, 'System under test', 'codec · network · terminal')
+s.line(550, 60, 660, 60, INK, 2, arrow='ink')
+s.box(660, 30, 200, 60, 'Degraded speech', 'what the listener hears', '#F6F8F8')
+# Reference drops straight into the intrusive model; the degraded signal runs along one bus at
+# y = 130 to both signal-based models, so no two connectors cross.
+s.line(90, 90, 90, 190, G, 2, arrow='green')
+s.path('M760,90 L760,130 L230,130', G, 2)
+s.line(230, 130, 230, 190, G, 2, arrow='green')
+s.line(440, 130, 440, 190, G, 2, arrow='green')
+s.box(20, 190, 270, 64, 'Intrusive · full reference', 'PESQ P.862 · POLQA P.863 · ViSQOL')
+s.box(305, 190, 270, 64, 'Non-intrusive · signal', 'P.563 · DNSMOS (degraded only)')
+s.box(590, 190, 270, 64, 'Parametric · no audio', 'E-model G.107 · RTCP probes', '#FFFFFF')
+s.text(725, 152, 'delay, loss, codec, echo …', 'small', 'middle')
+s.line(725, 158, 725, 190, MUT, 2, dash=True, arrow='muted')
+s.text(440, 290, 'More information in → more accurate, but harder to deploy: a reference signal exists only in a test call.',
+       'small', 'middle')
+s.save()
+
+# --- PESQ processing chain ---------------------------------------------------
+s = SVG(DECK, 'pesq-pipeline', 265, 'Processing chain of the PESQ model',
+        'Both reference and degraded signals are level-aligned and filtered like a telephone handset, then '
+        'time-aligned utterance by utterance. An auditory transform maps each to a loudness representation over '
+        'time and Bark frequency bands. The difference between the two gives the disturbance, which a cognitive '
+        'model weights asymmetrically and aggregates over time into a raw score, finally mapped to MOS-LQO.')
+steps = [('1 · Level & filter', 'IRS handset response'), ('2 · Time alignment', 'delay per utterance'),
+         ('3 · Auditory transform', 'Bark bands, loudness'), ('4 · Disturbance', 'loudness difference'),
+         ('5 · Cognitive model', 'asymmetry, Lp aggregation'), ('6 · Mapping', 'raw → MOS-LQO (P.862.1)')]
+s.text(20, 22, 'INPUT: REFERENCE + DEGRADED SIGNAL', 'label')
+for k, (t, sub) in enumerate(steps):
+    col, row = k % 3, k // 3
+    x, y = 20 + col * 295, 40 + row * 110
+    s.box(x, y, 250, 60, t, sub, TINT if k < 5 else '#FFFFFF')
+    if col < 2:
+        s.line(x + 250, y + 30, x + 295, y + 30, INK, 2, arrow='ink')
+s.path('M735,100 L735,125 L145,125', INK, 2)
+s.line(145, 125, 145, 150, INK, 2, arrow='ink')
+s.text(440, 240, 'Raw PESQ score −0.5 … 4.5 · the mapping fits it to subjective ACR results from many listening tests',
+       'small', 'middle')
+s.save()
+
+# --- Audio bandwidth classes and the standards for each -------------------------
+s = SVG(DECK, 'bandwidths', 285, 'Audio bandwidth classes and the matching quality standards',
+        'On a logarithmic frequency axis from 20 hertz to 20 kilohertz: narrowband telephony covers 300 to 3400 '
+        'hertz, wideband 50 to 7000, super-wideband 50 to 14000 and fullband 20 to 20000. PESQ, now withdrawn, '
+        'covered narrowband and, with P.862.2, wideband. POLQA covers narrowband to fullband. The E-model has '
+        'narrowband, wideband and super-wideband/fullband versions.')
+LX = lambda f: 290 + (math.log10(f) - 1) / (math.log10(20000) - 1) * 560  # noqa: E731  log axis, 10 Hz … 20 kHz
+bands = [('Narrowband', 300, 3400, 'G.711, G.729 · P.862 (withdrawn) · P.863 · G.107'),
+         ('Wideband', 50, 7000, 'G.722, AMR-WB · P.862.2 (withdrawn) · G.107.1'),
+         ('Super-wideband', 50, 14000, 'EVS, Opus · P.863 · G.107.2'),
+         ('Fullband', 20, 20000, 'EVS, Opus · POLQA P.863 · G.107.2')]
+fmt = lambda f: f'{f / 1000:g} kHz' if f >= 1000 else f'{f} Hz'  # noqa: E731
+for k, (name, lo, hi, std) in enumerate(bands):
+    y = 20 + k * 50
+    s.text(20, y + 20, name, 'bold')
+    s.text(20, y + 38, std, 'small')
+    s.rect(LX(lo), y + 4, LX(hi) - LX(lo), 30, [TINT, '#D6F0EE', '#BFE7E3', '#A6DDD8'][k], G, 1.5)
+    s.text(LX(lo) + 6, y + 24, fmt(lo), 'small green', 'start')
+    s.text(LX(hi) - 6, y + 24, fmt(hi), 'small green', 'end')
+s.line(290, 218, 850, 218, INK, 1.5)
+for dec in (10, 100, 1000, 10000):
+    for m in range(1, 10):
+        f = dec * m
+        if f <= 20000:
+            s.line(LX(f), 218, LX(f), 226 if m == 1 else 222, INK, 1.5 if m == 1 else 1)
+s.line(LX(20000), 218, LX(20000), 226, INK, 1.5)
+for f, lab in [(10, '10 Hz'), (100, '100 Hz'), (1000, '1 kHz'), (10000, '10 kHz')]:
+    s.text(LX(f), 244, lab, 'small', 'middle')
+s.text(440, 277, 'A model is valid only for the bandwidth it was trained on — never score wideband audio with narrowband PESQ.',
+       'small', 'middle')
+s.save()
+
+# --- E-model reference connection --------------------------------------------
+s = SVG(DECK, 'emodel-connection', 330, 'Reference connection of the E-model',
+        'The E-model describes a call as a send side, a network, and a receive side. The send side carries the '
+        'send loudness rating, room noise and sidetone. The network carries codec impairment, packet loss and '
+        'robustness, delays, echo and circuit noise. The receive side carries the receive loudness rating, room '
+        'noise and listener sidetone. All of them feed the single rating R.')
+panels = [(20, 230, 'SEND SIDE · talker', 78, [('SLR', 'send loudness'), ('Ps', 'room noise'),
+                                                 ('STMR', 'sidetone masking'), ('Ds', 'handset D-factor')]),
+          (300, 280, 'NETWORK · IP path', 128, [('Ie, Bpl', 'codec & PLC'), ('Ppl, BurstR', 'packet loss'),
+                                                ('T, Ta, Tr', 'delays'), ('TELR, WEPL', 'echo'),
+                                                ('Nc, qdu', 'noise, quantizing')]),
+          (630, 230, 'RECEIVE SIDE · listener', 78, [('RLR', 'receive loudness'), ('Pr', 'room noise'),
+                                                     ('LSTR', 'listener sidetone'), ('Dr', 'handset D-factor')])]
+for x, w, title, indent, rows in panels:
+    s.rect(x, 60, w, 180, '#FFFFFF', LINE)
+    s.rect(x, 60, w, 4, G, 'none')
+    s.text(x + 14, 90, title, 'label')
+    for k, (sym, desc) in enumerate(rows):
+        s.text(x + 14, 122 + k * 25, sym, 'bold green')
+        s.text(x + 14 + indent, 122 + k * 25, desc, 'small')
+s.line(250, 150, 300, 150, INK, 2, arrow='ink')
+s.line(580, 150, 630, 150, INK, 2, arrow='ink')
+s.line(20, 32, 860, 32, MUT, 1.5)
+s.line(20, 24, 20, 40, MUT, 1.5); s.line(860, 24, 860, 40, MUT, 1.5)
+s.text(440, 22, 'OLR = SLR + RLR   (overall loudness, mouth to ear)', 'small', 'middle')
+s.text(440, 272, 'A — advantage (expectation) factor: set by the user’s situation, not by the equipment', 'small', 'middle')
+s.text(440, 310, 'R = Ro − Is − Id − Ie-eff + A', 'big', 'middle')
+s.save()
+
+# --- E-model: the formulas shared by the next three figures ---------------------
+RO, IS = 94.77, 1.41  # G.107 default basic signal-to-noise ratio and simultaneous impairment
+
+
+def mos_from_r(r):
+    """ITU-T G.107 Annex B: rating R → estimated conversational MOS (MOS-CQE)."""
+    if r <= 0:
+        return 1.0
+    if r >= 100:
+        return 4.5
+    return 1 + 0.035 * r + r * (r - 60) * (100 - r) * 7e-6
+
+
+def id_delay(t, telr=65.0, wepl=110.0):
+    """ITU-T G.107 delay impairment Id = Idte + Idle + Idd for one-way delay t [ms], Ta = T, Tr = 2T."""
+    roe = RO  # −1.5 (No − 2) with the default noise floor No = −61.18 dBm0p
+    terv = telr - 40 * math.log10((1 + t / 10) / (1 + t / 150)) + 6 * math.exp(-0.3 * t * t)
+    re = 80 + 2.5 * (terv - 14)
+    idte = ((roe - re) / 2 + math.sqrt((roe - re) ** 2 / 4 + 100) - 1) * (1 - math.exp(-t))
+    rle = 10.5 * (wepl + 7) * (2 * t + 1) ** -0.25
+    idle = (RO - rle) / 2 + math.sqrt((RO - rle) ** 2 / 4 + 169)
+    x = math.log10(t / 100) / math.log10(2) if t > 100 else 0
+    idd = 25 * ((1 + x ** 6) ** (1 / 6) - 3 * (1 + (x / 3) ** 6) ** (1 / 6) + 2) if t > 100 else 0
+    return idte + idle + idd
+
+
+def ie_eff(ie, bpl, ppl, burst=1.0):
+    """ITU-T G.107 effective equipment impairment for packet-loss percentage ppl."""
+    return ie + (95 - ie) * ppl / (ppl / burst + bpl)
+
+
+# --- R-factor → MOS with the G.109 user-satisfaction bands ---------------------
+s = SVG(DECK, 'r-to-mos', 310, 'Mapping the E-model rating R to MOS, with user-satisfaction categories',
+        'MOS as a function of R from 0 to 100, following ITU-T G.107: an S-shaped curve from 1 at R = 0 to 4.5 at '
+        'R = 100. Background bands mark the G.109 categories: 90 to 100 very satisfied, 80 to 90 satisfied, 70 to '
+        '80 some users dissatisfied, 60 to 70 many users dissatisfied, 50 to 60 nearly all users dissatisfied, '
+        'below 50 not recommended. The default narrowband connection has R = 93.2, MOS 4.41, the best a '
+        'narrowband connection can reach; the curve beyond it is dashed. Below R = 6.5 the formula dips '
+        'slightly under MOS 1, drawn as a red dashed segment.')
+axes_at = len(s.parts)  # the bands are inserted here so the axes and arrowheads stay on top
+ax = Axes(s, 70, 20, 520, 220, (0, 104), (1, 4.7), xlabel='R', ylabel='MOS-CQE',
+          xticks=[(v, str(v)) for v in (0, 20, 40, 50, 60, 70, 80, 90, 100)],
+          yticks=[(v, str(v)) for v in (1, 2, 3, 4, 4.5)], grid=False)
+cats = [(90, 100, '#BFE7E3', 'Very satisfied'), (80, 90, TINT, 'Satisfied'), (70, 80, '#FFF4D6', 'Some users dissatisfied'),
+        (60, 70, '#FFE6D0', 'Many users dissatisfied'), (50, 60, '#FBD9DF', 'Nearly all dissatisfied'),
+        (0, 50, '#F3F3F3', 'Not recommended')]
+for k, (lo, hi, fill, lab) in enumerate(cats):
+    s.parts.insert(axes_at, f'<rect x="{ax.px(lo):.1f}" y="{ax.py(4.7):.1f}" width="{ax.px(hi) - ax.px(lo):.1f}" '
+                            f'height="{ax.py(1) - ax.py(4.7):.1f}" fill="{fill}" stroke="none"/>')
+    ly = 36 + k * 34
+    s.rect(620, ly - 14, 18, 18, fill, LINE)
+    s.text(646, ly, lab, 'small')
+    s.text(870, ly, f'R ≥ {lo}' if lo else 'R < 50', 'small', 'end')
+# Solid up to the narrowband maximum R = 93.2 (all G.107 defaults); dashed beyond it, where the mapping is
+# defined but no narrowband connection can reach. The axis runs past 100 only for its arrowhead.
+# Below R ≈ 6.5 the G.107 polynomial dips under MOS 1 (min ≈ 0.99), which is why G.107 Appendix I
+# inverts it only for 6.5 ≤ R ≤ 100. Mark that stretch as a red dashed line instead of hiding it.
+R_LOW = 6.5
+ax.curve(mos_from_r, FMT, 2, n=40, xr=(0, R_LOW), dash=True)
+ax.curve(mos_from_r, G, 3, n=280, xr=(R_LOW, 93.2))
+ax.curve(mos_from_r, G, 2, n=20, xr=(93.2, 100), dash=True)
+for r in (50, 60, 70, 80, 90):
+    s.text(ax.px(r) - 4, ax.py(mos_from_r(r)) - 10, f'{mos_from_r(r):.2f}', 'small', 'end')
+s.dot(ax.px(93.2), ax.py(mos_from_r(93.2)), 6, D)
+s.line(ax.px(93.2), ax.py(mos_from_r(93.2)), ax.px(93.2), ax.py(2.2), D, 1.5)
+s.text(ax.px(93.2) - 6, ax.py(2.1), 'G.107 default', 'small bold', 'end')
+s.text(ax.px(93.2) - 6, ax.py(2.1) + 18, 'R = 93.2 → 4.41', 'small bold', 'end')
+s.text(440, 302, 'MOS = 1 + 0.035 R + R (R − 60)(100 − R) · 7 · 10⁻⁶   for 0 < R < 100', 'small', 'middle')
+s.save()
+
+# --- R versus one-way delay for five echo loudness ratings -----------------------
+# Same axes as the course's original figure (R 50–100). The original was
+# drawn with the 1998 E-model (default R = 94.2); these curves use G.107 (06/2015), whose default is 93.2,
+# so they sit one R point lower at every delay — the only difference.
+s = SVG(DECK, 'r-vs-delay', 322, 'E-model rating R against one-way delay for five talker echo loudness ratings',
+        'R computed with the ITU-T G.107 delay impairment for one-way delays from 0 to 500 milliseconds and TELR '
+        'of 65, 60, 55, 50 and 45 dB, all other parameters at default. With good echo control, TELR 65 dB, R stays '
+        'near 90 until about 150 ms. Weaker echo '
+        'loss makes R fall much earlier: at TELR 45 dB it drops to 70 already around 100 ms.')
+ax = Axes(s, 70, 20, 560, 230, (0, 500), (50, 100), xlabel='one-way delay T [ms]', ylabel='R',
+          xticks=[(v, str(v)) for v in range(0, 501, 100)], yticks=[(v, str(v)) for v in (50, 60, 70, 80, 90, 100)])
+s.line(ax.px(150), ax.py(50), ax.px(150), ax.py(100), MUT, 1.5, dash=True)
+s.text(ax.px(150) + 6, ax.py(97), 'G.114: 150 ms', 'small')
+for k, (telr, col) in enumerate([(65, G), (60, D), (55, EKF), (50, FBI), (45, FMT)]):
+    pts = [(t, RO - IS - id_delay(t, telr)) for t in (i * 2 for i in range(251))]
+    s.polyline([(ax.px(t), ax.py(r)) for t, r in pts if r >= 50], col, 2.5)
+    s.line(670, 44 + k * 30, 710, 44 + k * 30, col, 2.5)
+    s.text(718, 49 + k * 30, f'TELR = {telr} dB', 'small')
+s.text(670, 215, 'Ie = 0, A = 0, no loss,', 'small')
+s.text(670, 235, 'other inputs at default', 'small')
+s.text(440, 316, 'Delay alone is tolerable; delay combined with audible echo is what destroys a conversation.', 'small', 'middle')
+s.save()
+
+# --- Ie against packet loss: the tabulated values of G.113 Appendix I -------------
+# Exactly the data behind the course's original figure: Tables I.2 and I.3 of G.113 Appendix I (09/1999).
+# The G.711-without-PLC column was withdrawn in the 10/2001 edition as too pessimistic; the other columns
+# are identical in both editions. From 05/2002 the tables were replaced by the Ie-eff/Bpl formula of G.107.
+s = SVG(DECK, 'ie-vs-loss', 322, 'Equipment impairment against packet loss, tabulated values of ITU-T G.113',
+        'Provisional planning values of Ie against packet loss from ITU-T G.113 Appendix I (1999). G.711 without '
+        'packet-loss concealment rises steeply to 55 at 5 percent loss. G.711 with concealment rises slowly to 45 at '
+        '20 percent under random loss, but jumps to 30 at 5 percent under bursty loss. G.729A and G.723.1 with VAD '
+        'start at 11 and 15 and reach 49 and 55 at 16 percent; GSM EFR starts at 5 and reaches 33 at 5 percent.')
+G113_IE = [  # (label, colour, dashed, [(loss %, Ie), ...])
+    ('G.711 without PLC', FMT, False, [(0, 0), (1, 25), (2, 35), (3, 45), (5, 55)]),
+    ('G.711 + PLC, random loss', G, False, [(0, 0), (1, 5), (2, 7), (3, 10), (5, 15), (7, 20), (10, 25), (15, 35), (20, 45)]),
+    ('G.711 + PLC, bursty loss', G, True, [(0, 0), (1, 5), (2, 7), (3, 10), (5, 30), (7, 35), (10, 40), (15, 45), (20, 50)]),
+    ('G.729A + VAD', EKF, False, [(0, 11), (0.5, 13), (1, 15), (1.5, 17), (2, 19), (3, 23), (4, 26), (8, 36), (16, 49)]),
+    ('G.723.1 + VAD (6.3 kbit/s)', FBI, False, [(0, 15), (0.5, 17), (1, 19), (1.5, 22), (2, 24), (3, 27), (4, 32), (8, 41), (16, 55)]),
+    ('GSM 06.60 EFR', D, False, [(0, 5), (1, 16), (2, 21), (3, 26), (5, 33)]),
+]
+ax = Axes(s, 70, 20, 500, 230, (0, 21), (0, 60), xlabel='packet loss [%]', ylabel='Ie',
+          xticks=[(v, str(v)) for v in (0, 5, 10, 15, 20)], yticks=[(v, str(v)) for v in range(10, 61, 10)])
+for k, (name, col, dash, pts) in enumerate(G113_IE):
+    s.polyline([(ax.px(x), ax.py(y)) for x, y in pts], col, 2.5, dash=dash)
+    for x, y in pts:
+        s.dot(ax.px(x), ax.py(y), 3.5, col)
+    s.line(600, 44 + k * 30, 640, 44 + k * 30, col, 2.5, dash=dash)
+    s.dot(620, 44 + k * 30, 3.5, col)
+    s.text(648, 49 + k * 30, name, 'small')
+s.text(600, 240, 'Dots: tabulated values', 'small')
+s.text(440, 316, 'Provisional planning values of ITU-T G.113 Appendix I (1999) — the data the Bpl formula was later fitted to.',
+       'small', 'middle')
+s.save()
+
 print(f'Figures written to {FIGURES}')
