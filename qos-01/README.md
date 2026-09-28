@@ -8,6 +8,7 @@ This lab establishes the vocabulary used throughout the course. It introduces th
 - Describe the three steps of pulse-code modulation and state the sampling theorem.
 - Characterize Gaussian noise by its probability density function and standard deviation.
 - Compute signal power, signal-to-noise ratio, and channel capacity from a sampled signal.
+- Convert between linear power quantities and decibel levels (dB, dBm, dBm/Hz).
 - Relate the bandwidth and signal-to-noise ratio of common access technologies to their achievable data rates.
 - Explain why the symbol rate of a binary signal is limited by the channel bandwidth and how noise turns a reduced decision margin into bit errors.
 
@@ -50,6 +51,22 @@ Pulse-code modulation (PCM) converts an analog signal into a digital one in thre
 2. **Quantization.** Each sample is rounded to the nearest of a finite set of levels. The result is a sequence of samples with a finite number of values, each representable by a binary code. The rounding error is called *quantization noise*.
 3. **Encoding.** Each quantization level is assigned a binary code word. With $b$ bits per sample, up to $2^b$ levels can be represented.
 
+Every sample produces one code word, so the bit rate of the PCM stream is
+
+$$
+R = b \, f_s
+$$
+
+where $R$ is the bit rate [bit/s], $b$ the number of bits per sample [bit], and $f_s$ the sampling frequency [Hz]. Counting the levels $M$ of a quantized waveform therefore gives the bits per sample as $b = \log_2 M$.
+
+A uniform quantizer divides its input range into $2^b$ equal steps. For a sine wave that spans the full range, the ratio of signal power to quantization-noise power is approximately
+
+$$
+\mathrm{SNR}_q \approx 6.02 \, b + 1.76
+$$
+
+where $\mathrm{SNR}_q$ is the quantization signal-to-noise ratio [dB] and $b$ the number of bits per sample [–]. Each additional bit halves the quantization step and improves $\mathrm{SNR}_q$ by about 6 dB.
+
 These steps are illustrated in the [MIT lecture on PCM](https://ocw.mit.edu/courses/16-36-communication-systems-engineering-spring-2009/d91cdcc10683c573cc668c5b1ab3aab6_MIT16_36s09_lec04.pdf). G.711 uses A-law or μ-law *companding*: nonuniform quantization gives finer amplitude resolution to weaker signals. This is distinct from additional audio compression.
 
 For an ideally band-limited signal, exact reconstruction from its samples is possible when the sampling frequency is greater than twice the highest signal frequency:
@@ -58,7 +75,13 @@ $$
 f_s > 2 f_{\max}
 $$
 
-where $f_s$ is the sampling frequency [Hz] and $f_{\max}$ the highest frequency present in the signal [Hz]. If the condition is violated, components above $f_s/2$ are folded back into the lower band; this distortion is called *aliasing*.
+where $f_s$ is the sampling frequency [Hz] and $f_{\max}$ the highest frequency present in the signal [Hz]. If the condition is violated, components above $f_s/2$ are folded back into the lower band; this distortion is called *aliasing*. A tone of frequency $f$ produces the same samples as a tone at
+
+$$
+f_a = \left| f - k f_s \right|
+$$
+
+where $f_a$ is the apparent (alias) frequency [Hz], $f$ the original frequency [Hz], $f_s$ the sampling frequency [Hz], and $k$ the integer nearest to $f / f_s$ [–], so that $0 \le f_a \le f_s/2$. For example, a 13 kHz tone sampled at 8 kHz ($k = 2$) appears at 3 kHz. For $f < f_s/2$, $k = 0$ and the tone is unchanged.
 
 > [!NOTE]
 > Telephone speech is band-limited to 300–3400 Hz and sampled at $f_s = 8$ kHz with 8-bit quantization, giving the 64 kbit/s PCM stream of the G.711 codec. This stream is the payload of the RTP packets examined in Lab 03.
@@ -72,6 +95,8 @@ p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
 where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this lab), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is; for zero-mean noise the mean power equals the variance, $N = \sigma^2$.
+
+A Gaussian variable lies within $\mu \pm 2\sigma$ with a probability of about 95 % and within $\mu \pm 3\sigma$ with about 99.7 %. When noisy values are stored in a format with a limited range, such as 8-bit pixels in $[0, 255]$, values outside the range are *clipped* to its limits. Clipping is negligible when both limits are more than about $3\sigma$ from the mean. Otherwise the clipped values pile up at the limit, and the histogram shows a spike there in place of the Gaussian tail.
 
 ![Probability density function of the normal distribution](fig/normal.png)
 
@@ -87,7 +112,15 @@ $$
 P = \frac{1}{n} \sum_{i=1}^{n} x_i^2
 $$
 
-where $P$ is the power [W] when $x_i$ are voltages across a 1 Ω load; the same expression serves as a relative measure otherwise. The signal-to-noise ratio (SNR) is the ratio of signal power to noise power,
+where $P$ is the power [W] when $x_i$ are voltages across a 1 Ω load; the same expression serves as a relative measure otherwise. Averaged over whole periods, the definition gives for two common waveforms of amplitude $A$
+
+$$
+P_{\mathrm{sine}} = \frac{A^2}{2}, \qquad P_{\mathrm{square}} = A^2
+$$
+
+where $A$ is the amplitude (peak value) [V] and $P$ the mean power [W] across a 1 Ω load. A square wave stays at $\pm A$ all the time, whereas a sine is below its peak most of the time; the root-mean-square value $\sqrt{P}$ is $A/\sqrt{2}$ for the sine and $A$ for the square wave.
+
+The signal-to-noise ratio (SNR) is the ratio of signal power to noise power,
 
 $$
 \mathrm{SNR} = \frac{S}{N}
@@ -102,6 +135,22 @@ $$
 $$
 
 where $\mathrm{SNR}_{\mathrm{dB}}$ is the signal-to-noise ratio [dB] and $S/N$ is the linear ratio [–]. For example, a linear ratio of 100 corresponds to 20 dB. Convert decibels to a linear ratio before using the channel-capacity formula.
+
+Absolute power levels are expressed in decibels relative to 1 mW:
+
+$$
+P_{\mathrm{dBm}} = 10 \log_{10} \frac{P}{1 \, \mathrm{mW}}
+$$
+
+where $P_{\mathrm{dBm}}$ is the power level [dBm] and $P$ the power [mW]; 0 dBm is 1 mW and 30 dBm is 1 W. The logarithm turns ratios into differences, so the SNR in decibels is the difference of two levels, $\mathrm{SNR}_{\mathrm{dB}} = S_{\mathrm{dBm}} - N_{\mathrm{dBm}}$. Powers of independent signals add in linear units, never in decibels.
+
+Power spread over a frequency band is described by its *power spectral density* (PSD), the power per hertz, in [W/Hz] or [dBm/Hz]. White noise has a constant PSD $N_0$, and its power in a band of width $B$ is
+
+$$
+N = N_0 B, \qquad N_{\mathrm{dBm}} = n_0 + 10 \log_{10} B
+$$
+
+where $N$ is the noise power [W], $N_0$ the noise PSD [W/Hz], $n_0$ the same PSD as a level [dBm/Hz], and $B$ the bandwidth [Hz]. When the signal PSD is flat over the same band, the bandwidth cancels in the ratio, and the SNR in decibels is the difference between the signal and noise PSD levels. A spectrum analyzer measures everything present at its input: inside the signal band it shows the sum of signal and noise, so the level above the noise floor corresponds to $(S + N)/N = 1 + S/N$. The difference from $S/N$ matters only at low SNR.
 
 ### Symbol rate and bandwidth
 

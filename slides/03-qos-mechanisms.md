@@ -165,7 +165,7 @@ slide.
 
 # Quality of Experience — a formal definition
 
-<img class="lecture-diagram" src="/figures/03/qoe-qos-scope.svg" alt="Three stacked layers: the network layer provides Quality of Service (throughput, delay, jitter, packet loss), which is encoded into application and content, which the user perceives as Quality of Experience." />
+<Figure src="/figures/03/qoe-qos-scope.svg" alt="Three stacked layers: the network layer provides Quality of Service (throughput, delay, jitter, packet loss), which is encoded into application and content, which the user perceives as Quality of Experience." />
 
 <div class="pt-2 text-sm">
 
@@ -276,7 +276,7 @@ layout: section
 
 # Fixed delay: set once the link and codec are chosen
 
-<img class="lecture-diagram" src="/figures/03/delay-budget.svg" alt="A one-way delay timeline of six components: fixed codec, serialization, and propagation delay, followed by variable queuing, forwarding, and shaping delay." />
+<Figure src="/figures/03/delay-budget.svg" alt="A one-way delay timeline of six components: fixed codec, serialization, and propagation delay, followed by variable queuing, forwarding, and shaping delay." />
 
 <div class="grid grid-cols-3 gap-6 pt-2 text-sm">
 <div>
@@ -433,7 +433,7 @@ arriving call. A call CAC rejects is blocked, exactly like a call Erlang B predi
 
 # Traffic enforcement — the token bucket
 
-<img class="lecture-diagram" src="/figures/03/token-bucket.svg" alt="Tokens accumulate in a bucket at rate r up to depth b. A packet needs enough tokens to be sent immediately; otherwise it waits (shaping) or is dropped or marked (policing)." />
+<Figure src="/figures/03/token-bucket.svg" alt="Tokens accumulate in a bucket at rate r up to depth b. A packet needs enough tokens to be sent immediately; otherwise it waits (shaping) or is dropped or marked (policing)." />
 
 <div class="pt-2 text-sm">
 
@@ -458,7 +458,7 @@ policers are both stated as (r, b) token-bucket parameters.
 
 # Queuing and scheduling — Weighted Fair Queuing
 
-<img class="lecture-diagram" src="/figures/03/weighted-queues.svg" alt="Router R1 splits incoming packets between two output queues before one output link: queue 1 is scheduled 25 percent of link capacity, queue 2 the remaining 75 percent." />
+<Figure src="/figures/03/weighted-queues.svg" alt="Router R1 splits incoming packets between two output queues before one output link: queue 1 is scheduled 25 percent of link capacity, queue 2 the remaining 75 percent." />
 
 <div class="pt-2">
 
@@ -525,7 +525,7 @@ the same moment.
 
 # Congestion avoidance — Random Early Detection (RED)
 
-<img class="lecture-diagram" src="/figures/03/red-drop-profile.svg" alt="RED drop probability as a function of average queue depth: zero below a minimum threshold, rising linearly to a maximum probability between the minimum and maximum thresholds, then tail drop above the maximum threshold." />
+<Figure src="/figures/03/red-drop-profile.svg" alt="RED drop probability as a function of average queue depth: zero below a minimum threshold, rising linearly to a maximum probability between the minimum and maximum thresholds, then tail drop above the maximum threshold." />
 
 <div class="pt-2 text-sm">
 
@@ -691,7 +691,7 @@ concrete number instead of leaving it open. cRTP mechanics and its failure modes
 
 # Link Fragmentation and Interleaving (LFI)
 
-<img class="lecture-diagram" src="/figures/03/lfi-fragmentation.svg" alt="Without link fragmentation and interleaving, a small delay-sensitive packet waits behind an entire large packet already being sent. With fragmentation and interleaving, the large packet is split into fragments and the small packet is sent after just the first fragment." />
+<Figure src="/figures/03/lfi-fragmentation.svg" alt="Without link fragmentation and interleaving, a small delay-sensitive packet waits behind an entire large packet already being sent. With fragmentation and interleaving, the large packet is split into fragments and the small packet is sent after just the first fragment." />
 
 <div class="pt-2 text-sm">
 
@@ -735,7 +735,7 @@ end-to-end and is what the rest of the network (and this course) generally cares
 
 # Classification and marking — IP Precedence and DSCP
 
-<img class="lecture-diagram" src="/figures/03/dscp-header.svg" alt="The pre-DiffServ Type of Service byte splits into 3 bits of IP Precedence, 4 ToS bits, and 1 unused bit. The Differentiated Services field reuses the same byte as 6 bits of DSCP plus 2 bits of Explicit Congestion Notification." />
+<Figure src="/figures/03/dscp-header.svg" alt="The pre-DiffServ Type of Service byte splits into 3 bits of IP Precedence, 4 ToS bits, and 1 unused bit. The Differentiated Services field reuses the same byte as 6 bits of DSCP plus 2 bits of Explicit Congestion Notification." />
 
 <div class="pt-2 text-sm">
 

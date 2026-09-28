@@ -310,3 +310,27 @@ html.print .slidev-code .line { opacity: 1 !important; filter: none !important; 
 .checkpoint-question { margin: 2rem 0 1.5rem; font-size: 24px; line-height: 1.4; }
 .checkpoint-answer { margin-top: 1.5rem; padding: 0.5rem 1rem; border-left: 4px solid var(--vsb-green); background: #EBF8F7; color: #1A1A1A; }
 html.dark .checkpoint-answer { background: #143633; color: var(--vsb-ink); }
+
+/* Browser-only slides (live animations): `class: export-skip` in the slide frontmatter drops the
+   slide from the PDF. html.print marks the route the CLI export renders; the /export preview still
+   shows the slide. Each print container ends in a page break, so hiding one removes exactly one
+   page. Slidev's own `--range` cannot do this in 52.x: the print view ignores it. */
+html.print .print-slide-container:has(.export-skip) { display: none; }
+
+/* Caption under a component-drawn diagram (deck 04's loss models), matching the muted figure captions. */
+.slidev-layout .diagram-caption { text-align: center; color: var(--vsb-muted); font-size: 15px; margin: 0.3rem 0 0.6rem; }
+
+/* Controls row under deck 04's self-similarity animations (OnOffSim, AggregationZoom, SelfSimilarQueue);
+   same look as GilbertSim's controls. */
+.sim-controls { display: flex; align-items: center; gap: 1em; margin-top: 0.3rem; font-size: 0.8rem; color: var(--vsb-ink); }
+.sim-controls label { display: inline-flex; align-items: center; gap: 0.35em; }
+.sim-controls input[type='range'] { width: 90px; accent-color: var(--vsb-green); }
+.sim-controls button {
+  padding: 0.05em 0.7em; border: 1.5px solid var(--vsb-green); border-radius: 0; /* R24 */
+  background: transparent; color: var(--vsb-green-text); font: inherit; cursor: pointer;
+}
+.sim-controls button:hover, .sim-controls button.on { background: #005F58; border-color: #005F58; color: #FFFFFF; }
+.sim-controls button:disabled { opacity: 0.4; cursor: default; }
+.sim-controls .readout { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* One-line definition under a live simulation (e.g. what a "slot" is). */
+.slidev-layout .sim-note { margin: 0.35rem 0 0; font-size: 13px; line-height: 1.3; color: var(--vsb-muted); }

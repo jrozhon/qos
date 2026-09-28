@@ -172,7 +172,7 @@ port, a call centre, a supermarket till) before moving on — the mapping is the
 
 # Anatomy of a queueing system
 
-<img class="lecture-diagram" src="/figures/02/queue-model.svg" alt="Arrivals enter a buffer of waiting positions, are served by one or more servers, then depart." />
+<Figure src="/figures/02/queue-model.svg" alt="Arrivals enter a buffer of waiting positions, are served by one or more servers, then depart." />
 
 Same shape as the coffee shop — now with the vocabulary we will use for the rest of the lecture. A queueing system is described by five things:
 
@@ -354,7 +354,7 @@ layout: section
 
 # The Poisson process — arrivals at a constant, memoryless rate
 
-<img class="lecture-diagram" src="/figures/02/poisson-process.svg" alt="Arrival instants on a time axis; the gaps between consecutive arrivals are independent exponential inter-arrival times." />
+<Figure src="/figures/02/poisson-process.svg" alt="Arrival instants on a time axis; the gaps between consecutive arrivals are independent exponential inter-arrival times." />
 
 A **homogeneous Poisson process** models arrivals happening independently, at a constant average rate $\lambda$, completely at random.
 
@@ -414,7 +414,7 @@ if time allows.
 
 # The exponential distribution is memoryless
 
-<img class="lecture-diagram" src="/figures/02/exponential-pdf.svg" alt="Exponential probability density for two rates, both decaying monotonically from their peak at zero." />
+<Figure src="/figures/02/exponential-pdf.svg" alt="Exponential probability density for two rates, both decaying monotonically from their peak at zero." />
 
 $$
 P(T > s+t \mid T > s) = P(T > t)
@@ -471,7 +471,7 @@ layout: section
 
 # Little's law
 
-<img class="lecture-diagram" src="/figures/02/littles-law.svg" alt="A request waits Wq in the queue, then receives service of mean length 1/mu; total time in the system is W." />
+<Figure src="/figures/02/littles-law.svg" alt="A request waits Wq in the queue, then receives service of mean length 1/mu; total time in the system is W." />
 
 <div class="pt-1 text-xl">
 
@@ -561,7 +561,7 @@ classes to be independent, only that "number of class i in the system" adds up t
 
 # The M/M/1 queue
 
-<img class="lecture-diagram" src="/figures/02/mm1-birth-death.svg" alt="Birth-death diagram of the M/M/1 queue: arrivals push the state up, services pull it down." />
+<Figure src="/figures/02/mm1-birth-death.svg" alt="Birth-death diagram of the M/M/1 queue: arrivals push the state up, services pull it down." />
 
 **M/M/1:** Poisson arrivals ($\lambda$), exponential service times ($\mu$), one server, unbounded queue, FIFO.
 

@@ -158,7 +158,7 @@ Individual ratings are noisy — the averaging is what makes the number useful.
 
 # Three rating scales of ITU-T P.800
 
-<img class="lecture-diagram" src="/figures/05/rating-scales.svg" alt="Three rating scales. ACR: 5 Excellent, 4 Good, 3 Fair, 2 Poor, 1 Bad. DCR: 5 degradation inaudible, 4 audible but not annoying, 3 slightly annoying, 2 annoying, 1 very annoying. CCR: a seven-point scale from +3 much better to −3 much worse." />
+<Figure src="/figures/05/rating-scales.svg" alt="Three rating scales. ACR: 5 Excellent, 4 Good, 3 Fair, 2 Poor, 1 Bad. DCR: 5 degradation inaudible, 4 audible but not annoying, 3 slightly annoying, 2 annoying, 1 very annoying. CCR: a seven-point scale from +3 much better to −3 much worse." />
 
 <div class="pt-2 text-sm">
 
@@ -340,7 +340,7 @@ layout: section
 
 # Three families of objective models
 
-<img class="lecture-diagram" src="/figures/05/model-families.svg" alt="A reference speech signal passes through the system under test and comes out degraded. The intrusive model uses both reference and degraded signal; the non-intrusive model uses the degraded signal only; the parametric model uses network parameters and no audio." />
+<Figure src="/figures/05/model-families.svg" alt="A reference speech signal passes through the system under test and comes out degraded. The intrusive model uses both reference and degraded signal; the non-intrusive model uses the degraded signal only; the parametric model uses network parameters and no audio." />
 
 <div class="pt-2 text-sm">
 
@@ -358,7 +358,7 @@ models are conformance-tested.
 
 # PESQ — ITU-T P.862 (2001, withdrawn 2024)
 
-<img class="lecture-diagram" src="/figures/05/pesq-pipeline.svg" alt="Six processing steps of PESQ: level alignment and handset filtering, time alignment, auditory transform into Bark bands and loudness, disturbance as loudness difference, a cognitive model with asymmetry and aggregation, and a mapping from the raw score to MOS-LQO." />
+<Figure src="/figures/05/pesq-pipeline.svg" alt="Six processing steps of PESQ: level alignment and handset filtering, time alignment, auditory transform into Bark bands and loudness, disturbance as loudness difference, a cognitive model with asymmetry and aggregation, and a mapping from the raw score to MOS-LQO." />
 
 <div class="pt-2 text-sm">
 
@@ -423,7 +423,7 @@ score where the binary provides it; students should label it MOS-LQO and keep th
 
 # Beyond PESQ — POLQA, ViSQOL and the bandwidth question
 
-<img class="lecture-diagram" src="/figures/05/bandwidths.svg" alt="Audio bandwidth classes on a logarithmic frequency axis: narrowband 300 to 3400 hertz, wideband 50 to 7000, super-wideband 50 to 14000, fullband 20 to 20000, each with typical codecs and the matching quality standards." />
+<Figure src="/figures/05/bandwidths.svg" alt="Audio bandwidth classes on a logarithmic frequency axis: narrowband 300 to 3400 hertz, wideband 50 to 7000, super-wideband 50 to 14000, fullband 20 to 20000, each with typical codecs and the matching quality standards." />
 
 <div class="grid grid-cols-2 gap-6 pt-1 text-sm">
 <div>
@@ -545,7 +545,7 @@ satisfactory extent" (see also Möller 2000; Raake 2006).
 
 # The reference connection
 
-<img class="lecture-diagram" src="/figures/05/emodel-connection.svg" alt="E-model reference connection: send side with send loudness, room noise, sidetone and handset factor; network with codec impairment, packet loss and robustness, delays, echo and noise; receive side with receive loudness, room noise, listener sidetone and handset factor. All feed R equals Ro minus Is minus Id minus Ie-eff plus A." />
+<Figure src="/figures/05/emodel-connection.svg" alt="E-model reference connection: send side with send loudness, room noise, sidetone and handset factor; network with codec impairment, packet loss and robustness, delays, echo and noise; receive side with receive loudness, room noise, listener sidetone and handset factor. All feed R equals Ro minus Is minus Id minus Ie-eff plus A." />
 
 <div class="pt-2 text-sm">
 
@@ -593,7 +593,7 @@ defaults, so R ≈ 93.2 − Id − Ie-eff + A. That simplified form is what the 
 
 # From R to MOS and to user satisfaction
 
-<img class="lecture-diagram" src="/figures/05/r-to-mos.svg" alt="MOS as an S-shaped function of R from 1 at R equals 0 to 4.5 at R equals 100, with G.109 bands: 90 to 100 very satisfied, 80 to 90 satisfied, 70 to 80 some users dissatisfied, 60 to 70 many dissatisfied, 50 to 60 nearly all dissatisfied, below 50 not recommended. The default R of 93.2 maps to MOS 4.41." />
+<Figure src="/figures/05/r-to-mos.svg" alt="MOS as an S-shaped function of R from 1 at R equals 0 to 4.5 at R equals 100, with G.109 bands: 90 to 100 very satisfied, 80 to 90 satisfied, 70 to 80 some users dissatisfied, 60 to 70 many dissatisfied, 50 to 60 nearly all dissatisfied, below 50 not recommended. The default R of 93.2 maps to MOS 4.41." />
 
 <div class="pt-1 text-sm">
 
@@ -619,7 +619,7 @@ middle.
 
 # Delay impairment $I_d$ — delay and echo together
 
-<img class="lecture-diagram" src="/figures/05/r-vs-delay.svg" alt="R from 50 to 100 against one-way delay from 0 to 500 milliseconds for talker echo loudness ratings of 65, 60, 55, 50 and 45 decibels. With 65 dB echo loss R stays near 90 up to 150 ms; with 45 dB it falls below 70 at about 100 ms." />
+<Figure src="/figures/05/r-vs-delay.svg" alt="R from 50 to 100 against one-way delay from 0 to 500 milliseconds for talker echo loudness ratings of 65, 60, 55, 50 and 45 decibels. With 65 dB echo loss R stays near 90 up to 150 ms; with 45 dB it falls below 70 at about 100 ms." />
 
 <div class="pt-1 text-sm">
 
@@ -731,7 +731,7 @@ Longer bursts (small q) increase BurstR and push Ie-eff up for the same average 
 
 # $I_e$ against packet loss — tabulated values
 
-<img class="lecture-diagram" src="/figures/05/ie-vs-loss.svg" alt="Tabulated Ie against packet loss from ITU-T G.113 Appendix I, 1999. G.711 without PLC rises steeply to 55 at 5 percent. G.711 with PLC rises slowly to 45 at 20 percent under random loss, but jumps to 30 at 5 percent under bursty loss. G.729A and G.723.1 with VAD start at 11 and 15 and reach 49 and 55 at 16 percent. GSM EFR starts at 5 and reaches 33 at 5 percent." />
+<Figure src="/figures/05/ie-vs-loss.svg" alt="Tabulated Ie against packet loss from ITU-T G.113 Appendix I, 1999. G.711 without PLC rises steeply to 55 at 5 percent. G.711 with PLC rises slowly to 45 at 20 percent under random loss, but jumps to 30 at 5 percent under bursty loss. G.729A and G.723.1 with VAD start at 11 and 15 and reach 49 and 55 at 16 percent. GSM EFR starts at 5 and reaches 33 at 5 percent." />
 
 <div class="pt-1 text-sm">
 

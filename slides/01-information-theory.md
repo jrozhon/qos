@@ -127,7 +127,7 @@ layout: section
 
 # A signal is a physical quantity that carries information
 
-<img class="lecture-diagram" src="/figures/01/comm-system.svg" alt="Source, transmitter, channel with noise added, receiver, destination." />
+<Figure src="/figures/01/comm-system.svg" alt="Source, transmitter, channel with noise added, receiver, destination." />
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
@@ -151,7 +151,7 @@ transmitter, Part 2 is the noise arrow, Part 4 is the channel box, Part 5 is the
 
 # Continuous time, discrete time
 
-<img class="lecture-diagram" src="/figures/01/continuous-discrete.svg" alt="A continuous sine wave on the left; the same wave read at evenly spaced sampling instants on the right." />
+<Figure src="/figures/01/continuous-discrete.svg" alt="A continuous sine wave on the left; the same wave read at evenly spaced sampling instants on the right." />
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
@@ -177,7 +177,7 @@ it. Students mix them up in the notebook constantly; name both explicitly here.
 
 # PCM in three steps
 
-<img class="lecture-diagram" src="/figures/01/pcm.svg" alt="Sampling reads the waveform at regular instants, quantization rounds each sample to one of four levels, encoding writes each level as a 2-bit code." />
+<Figure src="/figures/01/pcm.svg" alt="Sampling reads the waveform at regular instants, quantization rounds each sample to one of four levels, encoding writes each level as a 2-bit code." />
 
 1. **Sampling** — read the signal every $T_s$. Discrete in time, still any amplitude.
 2. **Quantization** — round each sample to the nearest of a finite set of levels. The rounding error is *quantization noise*.
@@ -249,7 +249,7 @@ README question 4. The next slide shows the samples so nobody has to take the fo
 
 # Aliasing, seen
 
-<img class="lecture-diagram" src="/figures/01/aliasing.svg" alt="A 5 kHz sine sampled every 125 microseconds; the samples lie exactly on a 3 kHz sine." />
+<Figure src="/figures/01/aliasing.svg" alt="A 5 kHz sine sampled every 125 microseconds; the samples lie exactly on a 3 kHz sine." />
 
 <div class="pt-2">
 
@@ -370,7 +370,7 @@ layout: section
 
 # Model noise as a random signal added to the useful one
 
-<img class="lecture-diagram" src="/figures/01/gaussian.svg" alt="Two zero-mean Gaussian densities: standard deviation 1 is wide and low, standard deviation 0.5 is narrow and tall." />
+<Figure src="/figures/01/gaussian.svg" alt="Two zero-mean Gaussian densities: standard deviation 1 is wide and low, standard deviation 0.5 is narrow and tall." />
 
 $$
 p(x) = \frac{1}{\sigma\sqrt{2\pi}}\; e^{-\frac{(x-\mu)^2}{2\sigma^2}}
@@ -387,7 +387,7 @@ theorem makes it Gaussian. The notebook's sigma slider is this sigma.
 
 # AWGN — the standard channel model
 
-<img class="lecture-diagram" src="/figures/01/signal-noise.svg" alt="A clean sine on the left; the same sine with Gaussian noise of variance 0.1 added on the right." />
+<Figure src="/figures/01/signal-noise.svg" alt="A clean sine on the left; the same sine with Gaussian noise of variance 0.1 added on the right." />
 
 <div class="grid grid-cols-3 gap-6 pt-2">
 <div>
@@ -531,7 +531,7 @@ layout: section
 
 # A symbol can carry more than one bit
 
-<img class="lecture-diagram" src="/figures/01/symbols.svg" alt="A two-level waveform sends one bit per symbol; a four-level waveform at half the symbol rate sends the same ten bits." />
+<Figure src="/figures/01/symbols.svg" alt="A two-level waveform sends one bit per symbol; a four-level waveform at half the symbol rate sends the same ten bits." />
 
 <div class="pt-1">
 
@@ -735,7 +735,7 @@ zero error or a finite-delay code exactly at C. Finite modulation alphabets can 
 
 # Knob 1 — bandwidth is linear
 
-<img class="lecture-diagram" src="/figures/01/capacity-bandwidth.svg" alt="Capacity versus bandwidth for SNR of 15, 100 and 1000: three straight lines through the origin." />
+<Figure src="/figures/01/capacity-bandwidth.svg" alt="Capacity versus bandwidth for SNR of 15, 100 and 1000: three straight lines through the origin." />
 
 At fixed $S/N$, **doubling $B$ doubles $C$**. Wider channels are one way to increase rate; the condition **fixed SNR** matters.
 
@@ -754,7 +754,7 @@ S, C → 1.44 S/N_0 — finite. Mention it only if the room is ahead of schedule
 
 # Knob 2 — SNR is logarithmic
 
-<img class="lecture-diagram" src="/figures/01/capacity-snr.svg" alt="Spectral efficiency versus SNR in dB: nearly flat below 0 dB, then one extra bit per hertz for every 3 dB." />
+<Figure src="/figures/01/capacity-snr.svg" alt="Spectral efficiency versus SNR in dB: nearly flat below 0 dB, then one extra bit per hertz for every 3 dB." />
 
 At high SNR, doubling $S/N$ adds approximately **1 bit/s/Hz**; multiplying it by ten adds approximately **3.3 bit/s/Hz**. With unchanged propagation and noise, more transmit power has diminishing returns.
 
@@ -943,7 +943,7 @@ Rates are per direction. Successful reception is assumed when comparing these of
 
 # Sharing one channel — FDM and TDM
 
-<img class="lecture-diagram" src="/figures/01/multiplexing.svg" alt="FDM stacks three channels in separate, permanent frequency bands, all transmitting at the same time, separated by guard bands. TDM gives each channel the full bandwidth in turn, in repeating time slots grouped into a frame." />
+<Figure src="/figures/01/multiplexing.svg" alt="FDM stacks three channels in separate, permanent frequency bands, all transmitting at the same time, separated by guard bands. TDM gives each channel the full bandwidth in turn, in repeating time slots grouped into a frame." />
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
@@ -1021,7 +1021,7 @@ layout: section
 
 # How much information is in one letter?
 
-<img class="lecture-diagram" src="/figures/01/guessing-tree.svg" alt="Yes-or-no questions halve 26 candidates to 13, 7, 4, 2, 1; four or five questions suffice." />
+<Figure src="/figures/01/guessing-tree.svg" alt="Yes-or-no questions halve 26 candidates to 13, 7, 4, 2, 1; four or five questions suffice." />
 
 Someone picks one of **26 equally likely letters**. You may ask yes/no questions. How many do you need in the worst case?
 
@@ -1238,7 +1238,7 @@ a shared codebook. This example illustrates source coding without requiring the 
 
 # The binary source
 
-<img class="lecture-diagram" src="/figures/01/binary-entropy.svg" alt="Entropy of a binary source versus the probability of a one: zero at both ends, one bit at one half." />
+<Figure src="/figures/01/binary-entropy.svg" alt="Entropy of a binary source versus the probability of a one: zero at both ends, one bit at one half." />
 
 $$
 H(p) = -p \log_2 p - (1-p)\log_2(1-p)
