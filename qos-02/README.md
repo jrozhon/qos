@@ -77,6 +77,18 @@ The second description is the one used in simulation: a source that draws each i
 
 ![Arrival instants with an exponential gap marked, above a histogram of arrivals per second matching the Poisson probability mass function](fig/poisson_process.png)
 
+### Splitting and merging Poisson streams
+
+If each arrival of a Poisson process with rate $\lambda$ is sent independently to branch A with probability $p$ and otherwise to branch B, as a `PacketFork` does, both branches are again Poisson processes, with rates
+
+$$
+\lambda_A = p \lambda, \qquad \lambda_B = (1 - p) \lambda
+$$
+
+where $\lambda_A$ and $\lambda_B$ are the branch arrival rates [s⁻¹], $\lambda$ the rate of the original process [s⁻¹], and $p$ the routing probability [–]. Conversely, after a long run the counts $N_A$ and $N_B$ received by the two branches estimate the probability as $p \approx N_A / (N_A + N_B)$.
+
+Merging works the other way: independent Poisson streams that feed the same port form one Poisson stream whose rate is the sum of their rates, $\lambda = \lambda_1 + \lambda_2 + \dots$. Together, the two rules give the arrival rate of every port in a network of sources and forks.
+
 ### Queueing systems
 
 A *queueing system* serves incoming *requests* (customers, calls, packets) using one or more *service channels* (servers, lines). The number of servers determines how many requests can be served simultaneously. The buffer capacity limits waiting requests, whereas total system capacity includes requests in service. In the simulation, buffer capacity is specified in bytes. A request that finds a free channel is served immediately; otherwise it either waits in a *queue* (a router buffer) or is rejected (a PBX without call waiting). A system is characterized by
@@ -90,6 +102,14 @@ A *queueing system* serves incoming *requests* (customers, calls, packets) using
 ### The M/M/1 system
 
 M/M/1 is the simplest queueing model: Poisson arrivals with rate $\lambda$, exponentially distributed service times with rate $\mu$ (mean service time $S = 1/\mu$), one channel, an unbounded queue, and first-in-first-out service. A constant-rate switch port with Poisson arrivals and exponentially distributed packet sizes approximates this model when its buffer is large enough that loss is negligible. A finite buffer and the rounding of packet sizes in the simulation make the correspondence approximate.
+
+For a switch port, the service time is the transmission time of a packet, so the service rate follows from the link rate and the mean packet size:
+
+$$
+\mu = \frac{1}{S} = \frac{R}{8 \bar{b}}
+$$
+
+where $\mu$ is the service rate [packets/s], $S$ the mean service time [s], $R$ the link rate [bit/s], and $\bar{b}$ the mean packet size [B]; the factor 8 converts bytes to bits. Link rates use decimal prefixes, 1 Mbit/s = 10⁶ bit/s.
 
 The *offered traffic* (traffic intensity) is
 
@@ -120,7 +140,7 @@ $$
 W = \frac{1}{\mu - \lambda}, \qquad W_q = W - \frac{1}{\mu} = \frac{\rho}{\mu - \lambda}
 $$
 
-where $L$ and $L_q$ are dimensionless [–] and $W$ and $W_q$ are times [s]. All four quantities grow without bound as $\rho \to 1$, which is why links are operated well below full utilization. Dividing the delays by the mean service time $S$ removes the dependence on the link rate, so the curves below hold for every M/M/1 system: at $\rho = 0.8$ a packet already spends five service times in the system, four of them waiting.
+where $L$ and $L_q$ are dimensionless [–] and $W$ and $W_q$ are times [s]. All four quantities grow without bound as $\rho \to 1$, which is why links are operated well below full utilization. Plotted against the arrival rate at a fixed $\mu$, the mean time in the system starts at the mean service time $W = 1/\mu$ for $\lambda \to 0$, where nobody waits, and has a vertical asymptote at $\lambda = \mu$. A measured delay curve therefore reveals the service rate of a port in two ways: from its low-load value and from the rate at which it shoots up. Dividing the delays by the mean service time $S$ removes the dependence on the link rate, so the curves below hold for every M/M/1 system: at $\rho = 0.8$ a packet already spends five service times in the system, four of them waiting.
 
 ![Normalized mean time in system and mean waiting time rising steeply as utilization approaches one](fig/mm1_delay_vs_utilization.png)
 
@@ -146,7 +166,7 @@ $$
 L = \lambda W, \qquad L_q = \lambda W_q
 $$
 
-where $L$ is the mean number of requests in the system [–], $\lambda$ the rate of requests admitted to that system [s⁻¹], and $W$ their mean time in the system [s]; the second form applies to the queue alone. If requests are rejected, use the admitted rate rather than the offered rate. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
+where $L$ is the mean number of requests in the system [–], $\lambda$ the rate of requests admitted to that system [s⁻¹], and $W$ their mean time in the system [s]; the second form applies to the queue alone. If requests are rejected, use the admitted rate rather than the offered rate. A measured rate is the number of requests counted during an observation divided by its duration, $\lambda = n / T$. Keep the units consistent: with $\lambda$ in packets per second, $W$ must be in seconds, not milliseconds. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
 
 ## Tasks
 
