@@ -33,7 +33,7 @@ Voice over IP (VoIP) separates signaling from media transport. *Signaling* estab
 With the G.711 codec of [Lab 01](../qos-01/README.md#pulse-code-modulation), speech is sampled at 8 kHz with 8 bits per sample and packetized every 20 ms. One packet therefore carries 160 samples, that is 160 B of payload; with the 12 B RTP, 8 B UDP, and 20 B IPv4 headers without options it is 200 B long. The call produces 50 packets per second in each direction, a 64 kbit/s payload stream and an 80 kbit/s IP stream:
 
 $$
-R_{\mathrm{IP}} = \frac{(160 + 12 + 8 + 20) \cdot 8}{0.02} = 80\,000 \ \mathrm{bit/s}
+R_{\mathrm{IP}} = \frac{(160 + 12 + 8 + 20) \cdot 8}{0.02} = 80\ 000\ \mathrm{bit/s}
 $$
 
 where the numerator is the packet length in bits and the denominator the packetization interval [s]. The payload type field distinguishes A-law (PCMA, type 8, used in Europe) from μ-law (PCMU, type 0).

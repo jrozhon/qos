@@ -54,7 +54,7 @@ Pulse-code modulation (PCM) converts an analog signal into a digital one in thre
 Every sample produces one code word, so the bit rate of the PCM stream is
 
 $$
-R = b \, f_s
+R = b \cdot f_s
 $$
 
 where $R$ is the bit rate [bit/s], $b$ the number of bits per sample [bit], and $f_s$ the sampling frequency [Hz]. Counting the levels $M$ of a quantized waveform therefore gives the bits per sample as $b = \log_2 M$.
@@ -62,7 +62,7 @@ where $R$ is the bit rate [bit/s], $b$ the number of bits per sample [bit], and 
 A uniform quantizer divides its input range into $2^b$ equal steps. For a sine wave that spans the full range, the ratio of signal power to quantization-noise power is approximately
 
 $$
-\mathrm{SNR}_q \approx 6.02 \, b + 1.76
+\mathrm{SNR}_q \approx 6.02 \cdot b + 1.76
 $$
 
 where $\mathrm{SNR}_q$ is the quantization signal-to-noise ratio [dB] and $b$ the number of bits per sample [–]. Each additional bit halves the quantization step and improves $\mathrm{SNR}_q$ by about 6 dB.
@@ -91,7 +91,7 @@ where $f_a$ is the apparent (alias) frequency [Hz], $f$ the original frequency [
 Noise is an unwanted random signal added to the useful one. The most common model is *Gaussian noise*, whose amplitude at any instant is a random variable with the normal distribution
 
 $$
-p(x) = \frac{1}{\sigma \sqrt{2\pi}} \, e^{-\frac{(x - \mu)^2}{2\sigma^2}}
+p(x) = \frac{1}{\sigma \sqrt{2\pi}} e^{-\frac{(x - \mu)^2}{2\sigma^2}}
 $$
 
 where $x$ is the noise amplitude, $\mu$ its mean (assumed to be zero in this lab), and $\sigma$ its standard deviation, the square root of the variance $\sigma^2$. The standard deviation measures how far the noise typically departs from its mean and therefore how strong it is; for zero-mean noise the mean power equals the variance, $N = \sigma^2$.
@@ -139,7 +139,7 @@ where $\mathrm{SNR}_{\mathrm{dB}}$ is the signal-to-noise ratio [dB] and $S/N$ i
 Absolute power levels are expressed in decibels relative to 1 mW:
 
 $$
-P_{\mathrm{dBm}} = 10 \log_{10} \frac{P}{1 \, \mathrm{mW}}
+P_{\mathrm{dBm}} = 10 \log_{10} \frac{P}{1\ \mathrm{mW}}
 $$
 
 where $P_{\mathrm{dBm}}$ is the power level [dBm] and $P$ the power [mW]; 0 dBm is 1 mW and 30 dBm is 1 W. The logarithm turns ratios into differences, so the SNR in decibels is the difference of two levels, $\mathrm{SNR}_{\mathrm{dB}} = S_{\mathrm{dBm}} - N_{\mathrm{dBm}}$. Powers of independent signals add in linear units, never in decibels.
@@ -174,7 +174,7 @@ $$
 
 where $C$ is the channel capacity [bit/s], $B$ the channel bandwidth [Hz], and $S/N$ the linear signal-to-noise ratio [–]. At fixed SNR, doubling the bandwidth doubles the capacity. Increasing SNR produces diminishing gains because it appears inside a logarithm; doubling SNR adds approximately 1 bit/s/Hz only at high SNR. If bandwidth changes, the noise power may also change, so the fixed-SNR assumption must be checked.
 
-For example, a channel with $B = 3000$ Hz and $S/N = 15$ has $C = 3000 \log_2(16) = 12\,000$ bit/s. Here, bandwidth describes a frequency interval [Hz], while capacity describes an information rate [bit/s]. Application throughput can be lower because practical coding and protocol overhead consume resources.
+For example, a channel with $B = 3000$ Hz and $S/N = 15$ has $C = 3000 \log_2(16) = 12\ 000$ bit/s. Here, bandwidth describes a frequency interval [Hz], while capacity describes an information rate [bit/s]. Application throughput can be lower because practical coding and protocol overhead consume resources.
 
 The table provides illustrative inputs for capacity calculations, rather than specifications or guaranteed performance of the named technologies. Actual bandwidths and SNR depend on the system configuration and operating conditions. Calculate each listed channel separately.
 
