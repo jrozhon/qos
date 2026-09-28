@@ -31,7 +31,7 @@ A *random variable* assigns a number to the outcome of a random experiment. It i
 The behavior of a random variable $X$ is described by its *probability distribution*: a probability mass function (PMF) $P(X = k)$ for discrete variables, or a probability density function (PDF) $f(x)$ for continuous ones, where the probability of $X$ falling into an interval is the area under $f$ over that interval. Two numbers summarize a distribution:
 
 - the *expectation* (mean) $E[X]$, the value around which outcomes are centered, and
-- the *variance* $\operatorname{Var}[X] = E\big[(X - E[X])^2\big]$, the spread of outcomes around the mean; its square root is the standard deviation $\sigma$.
+- the *variance* $\mathrm{Var}[X] = E\big[(X - E[X])^2\big]$, the spread of outcomes around the mean; its square root is the standard deviation $\sigma$.
 
 ### Uniform distribution
 
@@ -68,7 +68,7 @@ The normal distribution, introduced in [Lab 01](../qos-01/README.md#gaussian-noi
 A homogeneous Poisson process is a baseline model of arrivals at a constant average rate $\lambda$. Counts in disjoint time intervals are independent, and the distribution of a count depends only on the interval length. These assumptions can approximate some aggregated traffic, but do not describe every packet stream: periodic transmissions and correlated bursts violate them. The process has two equivalent descriptions. First, the number of arrivals $N$ in an interval of length $t$ has the Poisson distribution
 
 $$
-P(N = k) = \frac{(\lambda t)^k}{k!} \, e^{-\lambda t}, \qquad k = 0, 1, 2, \dots
+P(N = k) = \frac{(\lambda t)^k}{k!} e^{-\lambda t}, \qquad k = 0, 1, 2, \dots
 $$
 
 where $\lambda$ is the arrival rate [s⁻¹] and $t$ the interval length [s]; the mean number of arrivals is $\lambda t$. Second, the intervals between consecutive arrivals are independent and exponentially distributed with rate $\lambda$.
@@ -149,7 +149,7 @@ where $L$ and $L_q$ are dimensionless [–] and $W$ and $W_q$ are times [s]. All
 Consider Poisson arrivals at $\lambda = 5$ packets/s, exponential packet sizes with mean $\bar{b} = 100$ B, and a link rate $R = 8000$ bit/s. The mean service time is
 
 $$
-S = \frac{8\bar{b}}{R} = \frac{8 \cdot 100}{8000} = 0.1 \; \mathrm{s}
+S = \frac{8\bar{b}}{R} = \frac{8 \cdot 100}{8000} = 0.1\ \mathrm{s}
 $$
 
 where $S$ is mean service time [s], $\bar{b}$ is mean packet size [B], and $R$ is link rate [bit/s]. Thus $\mu = 10$ packets/s and $\rho = 0.5$. For the ideal M/M/1 model, $L = 1$, $W = 0.2$ s, and $W_q = 0.1$ s. The packet spends 0.1 s waiting and 0.1 s being transmitted, on average.

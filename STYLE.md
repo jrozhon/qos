@@ -175,6 +175,7 @@ Environment, commands, credentials pointer (never the credentials themselves).
 ### 4.3 Mathematics
 
 - Display equations as a block with each `$$` delimiter on its own line and a blank line before and after — Typora ignores single-line `$$ … $$`; GitHub accepts both. Inline math in `$ … $` (Typora needs *Inline Math* enabled in its preferences). GitHub's renderer is fragile: no `\begin{align}` without `$$` around it, no `\text{}` with special characters, escape underscores outside math.
+- GitHub runs Markdown before the math renderer, so a backslash before punctuation is eaten as a Markdown escape: `\,` and `\;` render as a literal comma or semicolon. Write multiplication as `\cdot` (`R = b \cdot f_s`), and spaces before units or in thousands as a backslash-space (`1\ \mathrm{mW}`, `12\ 000`). GitHub's renderer also rejects `\operatorname`; use `\mathrm{Var}`.
 - Every display equation is followed by a "where" list defining each symbol with its unit in square brackets:
 
   ```markdown
