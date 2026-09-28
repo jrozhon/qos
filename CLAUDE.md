@@ -15,7 +15,7 @@ Lesson map:
 | Dir | Topic | Notable deps / tools |
 |---|---|---|
 | `qos-01` | Signals, PCM, Gaussian noise, Shannon capacity — interactive Bokeh/Panel sliders | bokeh, panel, jupyter-bokeh |
-| `qos-02` | Probability distributions, Poisson process, M/M/1 queues — discrete-event simulation | simpy, loguru, networkx, ipywidgets (interactive queue view in Step 4) |
+| `qos-02` | Probability distributions, Poisson process, M/M/1 queues — discrete-event simulation | simpy, loguru, networkx, bokeh, panel (charts, result cards, playable queue view in Step 4) |
 | `qos-03` | Packet crafting, VoIP/RTP, `tc netem`, audio extraction from pcap, PESQ/ViSQOL scoring | scapy, scipy; needs Wireshark/tshark, tcpreplay, root/capabilities; PESQ and ViSQOL binaries are external (paths set in the notebook, `score_pair` returns NaN without them) |
 | `qos-04` | PSNR / SSIM image quality metrics | pillow, scipy |
 | `qos-05` | Mininet SDN emulation: topologies, OpenFlow flow tables, `tc` links, iperf | README-only (no notebook); `mytopo.py` is a Mininet topology file run on the lab servers, not locally |
@@ -37,7 +37,7 @@ uv add <package>                   # add a dependency to that lesson's pyproject
 Notebooks are the only "runnable" thing. To execute one headlessly for a sanity check:
 
 ```bash
-cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/exercise_02.ipynb --output /tmp/out.ipynb
+cd qos-02 && uv run jupyter nbconvert --to notebook --execute qos_02/lab_02.ipynb --output /tmp/out.ipynb
 ```
 
 (The qos-03 notebook requires network capabilities and will not execute cleanly unattended.)
@@ -55,13 +55,15 @@ cd slides && npm install                       # once
 npm run dev -- 01-information-theory.md        # live preview
 npm run export -- 01-information-theory.md     # PDF (needs: npx playwright install chromium)
 python3 scripts/generate-figures.py            # regenerate SVG figures after editing the script
+python3 scripts/generate-codec-samples.py      # deck 05 codec audio samples (ffmpeg + bcg729)
 ```
 
 ## Structure conventions
 
-- Package layout inside a lesson: `qos-NN/qos_NN/exercise_NN.ipynb` next to `qos_NN/lib/core.py` (and optionally `lib/params.py`). Notebooks import with `from lib.core import ...` — a bare relative import that only works because Jupyter sets the kernel cwd to the notebook's directory. The `qos_NN` package is *not* installed; don't change imports to `qos_NN.lib.core` without also changing how the notebook is launched.
+- Package layout inside a lesson: `qos-NN/qos_NN/lab_NN.ipynb` next to `qos_NN/lib/core.py` (and optionally `lib/params.py`). Notebooks import with `from lib.core import ...` — a bare relative import that only works because Jupyter sets the kernel cwd to the notebook's directory. The `qos_NN` package is *not* installed; don't change imports to `qos_NN.lib.core` without also changing how the notebook is launched.
 - `lib/params.py` (identical in 01–04) holds the shared matplotlib `rc_params` dict and `colors` palette; the target content is in `STYLE.md` §5.1. If you touch one, mirror it in the other.
 - `lib/core.py` in each lesson uses `typing.Protocol` classes as the public interface (`Signal`, `PacketSourceProto`, `SwitchProto`, …) with concrete implementations below them. Code is heavily docstringed in NumPy style because students read it; keep that style.
+- Notebook charts in `qos-01` and `qos-02` are Bokeh inside Panel layouts, with result cards built by `card_html` (identical in both): in qos-01 it lives in `lib/core.py`, in qos-02 in `lib/plots.py` together with `new_plot`, `histogram`, and `legend_below`. qos-02's `lib/packets.py` replaces per-packet logging with `packet_table` (Panel Tabulator, hence `pn.extension("tabulator")`) and `packet_timeline`; ports keep their dropped packets in `port.dropped_packets` (each stamped with `drop_time` and `drop_queue_bytes`). `lib/tapview.py` draws and summarises what a `NetworkTap` sampled (Step 3 and Task 3). matplotlib remains only for the static README figures (`qos-02/lib/figures.py`) and the image cell of qos-01.
 - `qos-02/lib/core.py` is a simpy pipeline: `PacketSource → Switch(SwitchPort…) → PacketSink`, with `NetworkTap` attaching to a `SwitchPort` for statistics and `PacketFork` splitting traffic probabilistically. Components are wired by passing a `destination` and each exposes `start()` returning a `simpy.Process`. Inter-arrival/size arguments accept either a number or a zero-arg callable (use `functools.partial` with a numpy RNG).
 - Some `core.py` functions are marked "meant for the teacher" (e.g. `calc_channel_capacity`, `calc_signal_power` in qos-01): the notebook asks students to reimplement them before importing the reference version. Don't remove the reference implementations or the "implement first" prompts.
 - Lesson READMEs contain LaTeX equations rendered by GitHub; several past commits are "equation rendering fix", so verify `$$…$$` blocks render on GitHub after editing.

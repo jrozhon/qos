@@ -376,8 +376,7 @@ class HarmSignal(Signal):
         """
         f_min = new / 2
         self.freq.start = f_min
-        if self.freq.value < f_min:
-            self.freq.value = f_min
+        self.freq.value = max(self.freq.value, f_min)
 
     def generate(
         self,
@@ -1135,7 +1134,10 @@ class Telegraph:
         tx_spec = np.fft.rfft(tx[block])
         rx_spec = tx_spec * self.transfer(freqs) + np.fft.rfft(self.noise[block])
         ref = np.abs(tx_spec).max()
-        for source, spec in ((self.tx_spec_source, tx_spec), (self.rx_spec_source, rx_spec)):
+        for source, spec in (
+            (self.tx_spec_source, tx_spec),
+            (self.rx_spec_source, rx_spec),
+        ):
             level = self._to_db(np.abs(spec), ref)
             keep = level > self.DB_FLOOR
             source.data = dict(

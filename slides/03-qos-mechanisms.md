@@ -2,10 +2,10 @@
 theme: seriph
 title: 03 · QoS mechanisms and the road to QoE
 info: |
-  440-2216/01 Kvalita služeb — lecture 3.
+  440-2216/01 Quality of Service — lecture 3.
   Quality of Service vs Quality of Experience, the end-to-end delay budget, congestion management (CAC, queuing,
   RED), and link efficiency and marking (compression, LFI, DSCP).
-  Companion lecture to Exercise 03.
+  Companion lecture to Lab 03.
 exportFilename: 03-qos-mechanisms
 layout: cover
 transition: slide-left
@@ -19,7 +19,7 @@ fonts:
 
 # Quality of Service mechanisms and the road to Quality of Experience
 
-### 440-2216/01 Kvalita služeb · Lecture 03
+### 440-2216/01 Quality of Service · Lecture 03
 
 <div class="pt-6 text-sm vsb-muted">
 Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
@@ -28,10 +28,10 @@ Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
 <!--
 Ninety minutes including checkpoints: 8 min QoS/QoE definitions, 17 delay budget with worked example, 32
 congestion management (CAC, token bucket, WFQ, RED), 23 link efficiency and marking, 10 summary/exit
-questions/exercise setup. Lecture 01 asked how many bits a channel can carry; Lecture 02 asked how long a
+questions/lab setup. Lecture 01 asked how many bits a channel can carry; Lecture 02 asked how long a
 request waits in a
 queue. This lecture asks what a network operator actually does about that delay, jitter, and loss — and where
-the line falls between "the network's numbers" (QoS) and "what the user makes of them" (QoE). Exercise 03
+the line falls between "the network's numbers" (QoS) and "what the user makes of them" (QoE). Lab 03
 injects exactly these impairments with tc netem and scores their effect with PESQ/ViSQOL.
 -->
 
@@ -112,7 +112,7 @@ Keep asking: **which QoS parameter does this mechanism change — throughput, de
 
 <!--
 Four outcomes for the lecture. Students need the queueing vocabulary from Lecture 02 (arrival/service rate,
-utilization, Little's law) and the RTP/packet-size arithmetic from the Exercise 03 theory section. No new
+utilization, Little's law) and the RTP/packet-size arithmetic from the Lab 03 theory section. No new
 mathematics is introduced beyond arithmetic and the RED linear interpolation.
 -->
 
@@ -127,7 +127,7 @@ layout: statement
 <!--
 This is the thesis the whole lecture supports. Every mechanism from here on (CAC, queuing, RED, LFI,
 compression, marking) manages a QoS parameter — throughput, delay, jitter, or loss. None of them can reach
-into the user's head; Exercise 03 measures how far that gap actually is with PESQ and ViSQOL.
+into the user's head; Lab 03 measures how far that gap actually is with PESQ and ViSQOL.
 -->
 
 ---
@@ -200,7 +200,7 @@ QoE is the outcome a person actually reports.
 
 <div class="pt-6 vsb-muted text-sm">
 
-Both readings matter for Exercise 03: the network side is what `tc netem` controls; the human side is what the ACR/DCR listening tests capture.
+Both readings matter for Lab 03: the network side is what `tc netem` controls; the human side is what the ACR/DCR listening tests capture.
 
 </div>
 
@@ -233,12 +233,12 @@ QoS features affect a network by manipulating four characteristics:
 
 <div class="pt-6">
 
-These four are exactly what Exercise 03's `tc netem` injects (`delay`, a jitter argument, and `loss`) and exactly what PESQ and ViSQOL then score the perceptual effect of.
+These four are exactly what Lab 03's `tc netem` injects (`delay`, a jitter argument, and `loss`) and exactly what PESQ and ViSQOL then score the perceptual effect of.
 
 </div>
 
 <!--
-↔ Exercise 03 Question 1 (which layer carries what) and the netem theory section. Keep this list on the board
+↔ Lab 03 Question 1 (which layer carries what) and the netem theory section. Keep this list on the board
 for the rest of the lecture — every mechanism in Parts 2–4 manages one or more of these four.
 -->
 
@@ -261,7 +261,7 @@ A user complains a video call "feels bad", but monitoring shows 0% packet loss, 
 </div>
 
 <!--
-Allow 30 seconds for individual thought, then 30 seconds of pair discussion. This previews why Exercise 03 pairs
+Allow 30 seconds for individual thought, then 30 seconds of pair discussion. This previews why Lab 03 pairs
 objective network measurements with subjective ACR/DCR ratings rather than relying on netem parameters alone.
 -->
 
@@ -342,7 +342,7 @@ whatever the carrier's own internal topology adds, outside the customer's visibi
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
-G.711 call from Exercise 03: 160 B payload, 40 B of RTP/UDP/IP headers, 20 ms packetization, over a 64 kbit/s branch-office link, 1500 km path.
+G.711 call from Lab 03: 160 B payload, 40 B of RTP/UDP/IP headers, 20 ms packetization, over a 64 kbit/s branch-office link, 1500 km path.
 
 | Component | Delay |
 |---|---|
@@ -372,7 +372,7 @@ Now let the link get busy: queuing delay alone climbs to 100 ms (Lecture 02: $W=
 </div>
 
 <!--
-Numbers reuse Exercise 03's G.711 arithmetic (200 B packet, 20 ms interval) so the two decks stay consistent.
+Numbers reuse Lab 03's G.711 arithmetic (200 B packet, 20 ms interval) so the two decks stay consistent.
 The second reveal is the point of the slide: nothing about the codec, the link, or the path changed — only
 queuing delay, under load, was enough to blow the whole budget.
 -->
@@ -583,7 +583,7 @@ This is why real-time media additionally needs a **priority** discipline (a low-
 
 <!--
 This point is not in the original source material and is worth dwelling on — it is the single most important
-practical nuance connecting congestion avoidance to the VoIP focus of Exercise 03. RTP's non-responsiveness is
+practical nuance connecting congestion avoidance to the VoIP focus of Lab 03. RTP's non-responsiveness is
 exactly why VoIP deployments pair marking (Part 4) with strict priority queuing rather than trusting RED or
 plain weighted queuing to protect call quality.
 -->
@@ -658,7 +658,7 @@ layout: section
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
-Exercise 03's G.711 packet: 160 B payload plus 40 B of RTP + UDP + IP headers = 200 B, so headers alone are **20% overhead** — significant on a slow access link.
+Lab 03's G.711 packet: 160 B payload plus 40 B of RTP + UDP + IP headers = 200 B, so headers alone are **20% overhead** — significant on a slow access link.
 
 RTP header compression (cRTP, RFC 2508) exploits how little those header fields change packet to packet on a point-to-point link, compressing 40 B down to as little as 2–4 B.
 
@@ -898,12 +898,12 @@ a RED-dropped packet never arrives at all (lost) — three distinct QoS outcomes
 
 ---
 
-# Exercise 03 — where these mechanisms meet measured QoE
+# Lab 03 — where these mechanisms meet measured QoE
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
-This lecture explained **where** delay, jitter, and loss come from on a real network. Exercise 03 injects them **synthetically** and measures what a listener actually hears:
+This lecture explained **where** delay, jitter, and loss come from on a real network. Lab 03 injects them **synthetically** and measures what a listener actually hears:
 
 - Delay, jitter, loss ↔ `tc netem` parameters (Step 3)
 - Header overhead and bit rate ↔ RTP/UDP/IP arithmetic (Question 2)
@@ -931,7 +931,7 @@ uv run jupyter lab --ip 0.0.0.0
 </div>
 
 <!--
-Exercise 03 does not hands-on practice CAC, queuing, or marking — those stay conceptual background from this
+Lab 03 does not hands-on practice CAC, queuing, or marking — those stay conceptual background from this
 lecture. What it does practice is everything in Part 1's four QoS parameters and Part 2's delay budget,
 injected directly with netem and scored with PESQ/ViSQOL.
 -->
@@ -949,7 +949,7 @@ injected directly with netem and scored with PESQ/ViSQOL.
 
 <!--
 Primary sources for the QoS/QoE definitions, the G.114 delay guidance, and RED. Further reading, not
-prerequisites for Exercise 03.
+prerequisites for Lab 03.
 -->
 
 ---

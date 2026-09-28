@@ -1,4 +1,4 @@
-"""Custom Mininet topology for Exercise 05.
+"""Custom Mininet topology for Lab 05.
 
 Three switches in a tree, one host on each, and traffic-control parameters on
 the inter-switch links. Run on a laboratory server with

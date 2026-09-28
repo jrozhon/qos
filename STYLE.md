@@ -136,9 +136,9 @@ Applies to every `README.md` and every Markdown cell in notebooks.
 Every `qos-NN/README.md` follows this skeleton. Headings are sentence case. Do not skip levels.
 
 ```markdown
-# Exercise NN – Topic Title
+# Lab NN – Topic Title
 
-One-paragraph abstract: what the exercise covers and what the student will be able to do afterwards.
+One-paragraph abstract: what the lab covers and what the student will be able to do afterwards.
 
 ## Learning objectives
 - …
@@ -147,7 +147,7 @@ One-paragraph abstract: what the exercise covers and what the student will be ab
 ### Subtopic
 Prose, equations, figures.
 
-## Exercise
+## Tasks
 ### Preparation
 Environment, commands, credentials pointer (never the credentials themselves).
 ### Step 1 – …
@@ -160,8 +160,8 @@ Environment, commands, credentials pointer (never the credentials themselves).
 1. Author, *Title*, Publisher, Year. / URL
 ```
 
-- The H1 uses a spaced en dash: `# Exercise 03 – Network traffic and QoE`.
-- Two-digit exercise numbers everywhere: `Exercise 01`, directory `qos-01`, notebook `exercise_01.ipynb`.
+- The H1 uses a spaced en dash: `# Lab 03 – Network traffic and QoE`.
+- Two-digit lab numbers everywhere: `Lab 01`, directory `qos-01`, notebook `lab_01.ipynb`.
 - Wikipedia may be cited as a reference but must not be pasted as an excerpt; paraphrase and cite.
 - Shell commands go in fenced `bash` blocks with a one-line explanation before, not after. Placeholders in capitals: `DEVICE`, `X.X`. Do not embed terminal prompts (`$`) inside the block.
 - Callouts use GitHub alerts, one per idea:
@@ -207,7 +207,14 @@ textcolor = "#292929"
 
 rc_params = {
     "font.family": "sans-serif",
-    "font.sans-serif": ["Carlito", "Calibri", "Liberation Sans", "DejaVu Sans", "Arial", "sans-serif"],
+    "font.sans-serif": [
+        "Carlito",
+        "Calibri",
+        "Liberation Sans",
+        "DejaVu Sans",
+        "Arial",
+        "sans-serif",
+    ],
     "text.color": textcolor,
     "axes.labelcolor": textcolor,
     "xtick.color": textcolor,
@@ -253,8 +260,14 @@ rc_params = {
 }
 
 colors = [
-    "#00A499", "#43B02A", "#E4002B", "#FFB81C",
-    "#0047BB", "#05C3DE", "#8246AF", "#FF8200",
+    "#00A499",
+    "#43B02A",
+    "#E4002B",
+    "#FFB81C",
+    "#0047BB",
+    "#05C3DE",
+    "#8246AF",
+    "#FF8200",
 ]
 
 
@@ -271,7 +284,7 @@ def add_logo(fig, path="logo.png", box=(0.83, 0.90, 0.10, 0.10)):
     box : tuple[float, float, float, float], optional
         (x, y, width, height) of the logo axes in figure coordinates.
     """
-    import matplotlib.image as image
+    from matplotlib import image
 
     ax = fig.add_axes(box)
     ax.set_axis_off()
@@ -328,11 +341,13 @@ Conventions:
 - Histograms: `rwidth=0.8`, `colors[0]`, `alpha=0.5` when overlapping.
 - Theory overlays (analytic PDF, M/M/1 formula): `colors[4]` or grey `#818386`, dashed, `linewidth=2`.
 
-### 5.2 Bokeh / Panel (qos-01)
+### 5.2 Bokeh / Panel (qos-01, qos-02)
 
 - `line_width=3`, `line_alpha=0.6`, line colour `colors[0]`; second signal `colors[4]`; combined/result `colors[5]`.
 - Tools `"crosshair,pan,reset,save,wheel_zoom"`; plot 600 × 400.
-- Titles and axis labels follow §5.1 wording rules. Set `p.title.text_font = "Carlito"`, `p.axis.axis_label_text_font = "Carlito"`, `p.axis.axis_label_text_font_style = "bold"`.
+- Titles and axis labels follow §5.1 wording rules. Set `p.title.text_font = "Carlito"`, `p.axis.axis_label_text_font = "Carlito"`, `p.axis.axis_label_text_font_style = "bold"` — `style_plot` does all of this.
+- Legends of static charts go below the plot area, as in §5.1 (`legend_below` in `qos-02/lib/plots.py`); histograms use bars 80 % of the bin width (`histogram`). Text glyphs need `text_font=value(FONT)`: a bare string is read as a column name and falls back to a serif font.
+- Results are shown in cards (§5.3) built by `card_html`, placed beside or below the plots with `pn.Row` / `pn.Column`.
 
 ### 5.3 HTML dashboards in notebooks
 
@@ -348,8 +363,8 @@ Cards use the neutral tints, not ad-hoc greys:
 
 ## 6. Notebooks
 
-- One notebook per lesson at `qos-NN/qos_NN/exercise_NN.ipynb`, kernel `python3`.
-- Cell 1 is a Markdown H1 identical to the README H1. Section headings mirror the README (`## Theory`, `## Exercise`, …) so the two documents can be read side by side.
+- One notebook per lesson at `qos-NN/qos_NN/lab_NN.ipynb`, kernel `python3`.
+- Cell 1 is a Markdown H1 identical to the README H1. Section headings mirror the README (`## Theory`, `## Tasks`, …) so the two documents can be read side by side.
 - Cell order: title → imports (single cell) → constants → theory demonstrations → tasks → questions.
 - Task cells are Markdown with an H3 `### Task N – short name`, a numbered list of what to do, and an empty code cell beneath.
 - Reference implementations that students are meant to write themselves are kept in `lib/core.py` under a `# Reference implementations — students implement these first` banner, and imported only after the task cell.
@@ -371,7 +386,7 @@ Cards use the neutral tints, not ad-hoc greys:
 
 1. Colours come from §2 only; series order unchanged.
 2. Fonts: Carlito stack in any rc/CSS you touched.
-3. README follows the §4.2 skeleton; H1 is `# Exercise NN – Title`.
+3. README follows the §4.2 skeleton; H1 is `# Lab NN – Title`.
 4. Every equation has a "where" list with units; renders on GitHub.
 5. Every figure has unit-bearing axis labels, a sentence-case title, the logo, and any legend placed with `add_legend(ax)` rather than inside the axes.
 6. `lib/params.py` still identical across lessons (`md5sum qos-0*/qos_0*/lib/params.py`).

@@ -1,6 +1,6 @@
-# Exercise 02 – Random variables, the Poisson process, and queueing systems
+# Lab 02 – Random variables, the Poisson process, and queueing systems
 
-This exercise introduces the probabilistic tools used to describe network traffic. It reviews random variables and the uniform, exponential, and normal distributions, introduces the Poisson process as a baseline model of independent arrivals, and presents the M/M/1 queue together with Little's law. In the practical part, students generate random samples, build a discrete-event simulation of packet sources, a switch, and sinks in SimPy, and compare the measured delay and occupancy of a simulated M/M/1 system with the analytical formulas.
+This lab introduces the probabilistic tools used to describe network traffic. It reviews random variables and the uniform, exponential, and normal distributions, introduces the Poisson process as a baseline model of independent arrivals, and presents the M/M/1 queue together with Little's law. In the practical part, students generate random samples, build a discrete-event simulation of packet sources, a switch, and sinks in SimPy, and compare the measured delay and occupancy of a simulated M/M/1 system with the analytical formulas.
 
 ## Learning objectives
 
@@ -16,11 +16,11 @@ This exercise introduces the probabilistic tools used to describe network traffi
 
 Students should be able to:
 
-- Calculate an arithmetic mean, interpret a graph, and recall Gaussian noise and standard deviation from [Exercise 01](../qos-01/README.md).
+- Calculate an arithmetic mean, interpret a graph, and recall Gaussian noise and standard deviation from [Lab 01](../qos-01/README.md).
 - Convert packet sizes from bytes to bits and calculate a transmission time from a packet size and a bit rate.
 - Write Python functions, pass arguments to them, and access an object's attributes and methods.
 
-Random variables and probability distributions are reviewed below. The Poisson process, queueing models, and simulation with SimPy are introduced in this exercise.
+Random variables and probability distributions are reviewed below. The Poisson process, queueing models, and simulation with SimPy are introduced in this lab.
 
 ## Theory
 
@@ -59,7 +59,7 @@ where $\lambda$ is the event rate [s⁻¹] and $1/\lambda$ the mean waiting time
 
 ### Normal distribution
 
-The normal distribution, introduced in [Exercise 01](../qos-01/README.md#gaussian-noise), can approximate quantities arising from many small independent effects, such as measurement errors and channel noise. It is described by its mean $\mu$ and standard deviation $\sigma$. It is useful for comparing distribution shapes, but permits negative values and therefore cannot directly model inter-arrival times. The simulation below uses positive uniform intervals as a contrasting model that is not memoryless.
+The normal distribution, introduced in [Lab 01](../qos-01/README.md#gaussian-noise), can approximate quantities arising from many small independent effects, such as measurement errors and channel noise. It is described by its mean $\mu$ and standard deviation $\sigma$. It is useful for comparing distribution shapes, but permits negative values and therefore cannot directly model inter-arrival times. The simulation below uses positive uniform intervals as a contrasting model that is not memoryless.
 
 ![Histogram of 10 000 standard normal samples with the theoretical density overlaid and the interval mu plus or minus sigma shaded](fig/normal_pdf.png)
 
@@ -148,11 +148,11 @@ $$
 
 where $L$ is the mean number of requests in the system [–], $\lambda$ the rate of requests admitted to that system [s⁻¹], and $W$ their mean time in the system [s]; the second form applies to the queue alone. If requests are rejected, use the admitted rate rather than the offered rate. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
 
-## Exercise
+## Tasks
 
 ### Preparation
 
-Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_02/exercise_02.ipynb`.
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_02/lab_02.ipynb`.
 
 ```bash
 cd qos-02
@@ -160,7 +160,7 @@ uv sync
 uv run jupyter lab --ip 0.0.0.0
 ```
 
-The simulation uses [SimPy](https://simpy.readthedocs.io/) to advance from one event to the next. One simulation time unit (STU) represents one second in this exercise. The components in `lib/core.py` have the following roles:
+The simulation uses [SimPy](https://simpy.readthedocs.io/) to advance from one event to the next. One simulation time unit (STU) represents one second in this lab. The components in `lib/core.py` have the following roles:
 
 | Component | Role |
 |---|---|
@@ -171,7 +171,7 @@ The simulation uses [SimPy](https://simpy.readthedocs.io/) to advance from one e
 | `NetworkTap` | Samples the occupancy of one port at a regular interval |
 | `PacketFork` | Sends each packet to one of several destinations with given probabilities |
 
-The tables and cards that display the results live in `lib/report.py`. Every card states three things: the quantity with its unit, the value, and a note saying what the number counts and which attribute it was read from, so a figure on screen can be traced back to the simulation that produced it. `mm1_measurements` there extracts the seven M/M/1 quantities from a finished run, keyed exactly like the `theory` dictionary of Task 3, so that a theoretical value and the measurement meant to confirm it are always matched by name.
+The charts and result cards are built with Bokeh and Panel in `lib/plots.py`, the tables in `lib/report.py`. `lib/tapview.py` draws and summarises what a network tap sampled, and `lib/packets.py` shows a finished run packet by packet: `packet_table` lists every packet in a sortable, filterable table with its time in the system, and `packet_timeline` draws each one from creation to arrival. Given the ports as well, both include the packets a port dropped, which `port.dropped_packets` keeps alongside the `port.cum_drop_count` counter. A card lists related quantities with their units and values, and a note under them says what the numbers count and which attribute they were read from, so a figure on screen can be traced back to the simulation that produced it. `mm1_measurements` in `lib/report.py` extracts the seven M/M/1 quantities from a finished run, keyed exactly like the `theory` dictionary of Task 4, so that a theoretical value and the measurement meant to confirm it are always matched by name.
 
 Components are connected by assigning `destination`, either in the constructor or afterwards. Sizes and intervals may be numbers or zero-argument functions; `partial(rng.exponential, 2)` returns a function that draws an exponential interval with mean 2 s on each call.
 
@@ -193,13 +193,13 @@ Throughout the simulation the *queue* is what waits in the buffer, and the *syst
 
 ### Step 0 – Generate random samples
 
-Run the notebook's theory cells to draw 10 000 samples from each distribution and plot normalized histograms against the theoretical density. Record the seed, the parameters, and the sample mean and standard deviation printed by each cell. A finite-sample minimum or maximum is not a distribution boundary for an unbounded distribution. The last theory cell counts arrivals generated from exponential gaps and compares the counts with the Poisson probability mass function, demonstrating the equivalence stated above.
+Run the notebook's theory cells to draw 10 000 samples from each distribution and plot normalized histograms against the theoretical density. Record the seed, the parameters, and the sample mean and standard deviation shown in the card beside each histogram. A finite-sample minimum or maximum is not a distribution boundary for an unbounded distribution. The last theory cell counts arrivals generated from exponential gaps and compares the counts with the Poisson probability mass function, demonstrating the equivalence stated above.
 
 The following step numbers match the notebook.
 
 ### Step 1 – Source and sink
 
-Run one `PacketSource` connected directly to a `PacketSink`. In **Task 1**, extend this to two sources with different sizes and intervals, then replace the constants by distributions using `partial`. Compare the timing in the sink log with the source settings.
+Run one `PacketSource` connected directly to a `PacketSink`. In **Task 1**, extend this to two sources with different sizes and intervals, then replace the constants by distributions using `partial`. Compare the timing in the packet table and the packet timeline with the source settings.
 
 ### Step 2 – Source, switch, and sink
 
@@ -209,18 +209,30 @@ In **Task 2**, record the drop counter and explain why the measured mean time in
 
 ### Step 3 – Network tap
 
-Attach a `NetworkTap` to the port of Step 2. Because the cell reseeds the generator, this is the same realization as Step 2, so the tap samples and the sink delays describe the same packets. Check that `tap.system_packets` exceeds `tap.queue_packets` exactly when a packet is in service, and decide which of the two belongs in a formula for $L$ and which in a formula for $L_q$.
+The sink records only the packets that made it through. A `NetworkTap` shows the port itself: sampling every 0.05 s, the tap records the bytes waiting in the buffer (`tap.queue_bytes`), the packets waiting (`tap.queue_packets`), and the packets in the system, the waiting ones plus the one being transmitted (`tap.system_packets`). At the load of Step 2 the tap would show an empty buffer: packets arrive at least 1 s apart, and only a packet larger than 125 B needs longer than that to transmit, but the 100 B buffer never admits one. Step 3 therefore keeps the port and offers it Poisson arrivals with a mean gap of 0.5 s.
+
+The notebook draws the bytes in the buffer against the 100 B capacity and marks every dropped packet at the level the buffer would have reached had it been admitted, so each drop visibly overshoots the capacity, and a packet larger than the buffer overshoots it even when the buffer is empty. Below, the packets at the port are drawn as two stacked areas: those waiting in the buffer at the bottom, and the packet in service, at most one, on top. The top edge is the number in the system; decide which of the two counts belongs in a formula for $L$ and which in a formula for $L_q$. The card beside the chart turns the samples into estimates of the utilization $\rho$, of $L$, and of $L_q$, the quantities Step 4 compares with theory.
+
+**Task 3.** A tap sees only the instants at which it samples. Attach two taps to the same port, one sampling every 1 s and one every 0.05 s, and compare what they report. The busy share and the mean occupancies agree within the sampling noise, because both taps sample the same process. The peaks do not: in a typical run the coarse tap sees the buffer only about half as full within each 10 s window, and for about half of the drops at a full buffer its last sample showed an empty buffer. Relate this to network monitoring that polls router counters every few minutes: short bursts that fill a buffer and cause loss, so-called microbursts, can be invisible to it.
 
 ### Step 4 – M/M/1 approximation
 
 Use exponential intervals with mean 2 s, exponential packet sizes with mean 100 B, one port at 1000 bit/s, and a 10 000 B buffer. Run for 8000 s and exclude the first 1000 s as a warm-up period, during which an initially empty system approaches typical operating conditions.
 
-Before any averaging, `queue_view` plays the run back one instant at a time: the waiting packets in the buffer labelled with their sizes, the packet in the server with the fraction of it already sent, and the two occupancy counters the tap records. Watching a packet leave the buffer and enter the server shows $L_q$ fall by one while $L$ holds, which is the whole difference between the two formulas. The view reconstructs each packet's history from the sink log alone — for one port feeding a sink, transmission takes $8b/R$ seconds and ends on arrival — so the simulation records nothing extra. Because the server is idle most of the time at $\rho = 0.4$, it selects the busiest 60 s rather than an arbitrary stretch; the run as a whole is quieter than the window shown. The notebook plots the occupancy against time with a running mean, so the transient can be seen rather than assumed, and the distribution of the measured delay with its mean and 95th percentile marked.
+Before any averaging, `queue_view` plays the run back one instant at a time: the waiting packets in the buffer labelled with their sizes, the packet in the server with the fraction of it already sent, and the two occupancy counters the tap records. Watching a packet leave the buffer and enter the server shows $L_q$ fall by one while $L$ holds, which is the whole difference between the two formulas. The view reconstructs each packet's history from the sink log alone — for one port feeding a sink, transmission takes $8b/R$ seconds and ends on arrival — so the simulation records nothing extra. Because the server is idle most of the time at $\rho = 0.4$, it selects the busiest 60 s rather than an arbitrary stretch; the run as a whole is quieter than the window shown. The notebook plots the mean occupancy of every 100 s window with the running mean, and the running mean again on a logarithmic time axis, so the transient can be seen rather than assumed, and the distribution of the measured delay with its mean and 95th percentile marked.
 
-**Task 3** is the comparison with theory. Fill the seven theoretical values into a single dictionary:
+**Task 4** is the comparison with theory. Fill the seven theoretical values into a single dictionary:
 
 ```python
-theory = {"lambda": ..., "mu": ..., "rho": ..., "L": ..., "L_q": ..., "W": ..., "W_q": ...}
+theory = {
+    "lambda": ...,
+    "mu": ...,
+    "rho": ...,
+    "L": ...,
+    "L_q": ...,
+    "W": ...,
+    "W_q": ...,
+}
 ```
 
 `mm1_report` then prints one row per symbol, and that row carries everything needed to judge it: the formula the theoretical value follows from, the value itself, the measurement that should confirm it, where in the simulation that measurement was taken, and whether the two agree. Because theory and measurement are matched by dictionary key, no value can be compared against the wrong row.
@@ -245,17 +257,17 @@ One run is one sample. The wiring of Step 4 is wrapped in `simulate_mm1`, which 
 
 ### Step 6 – Delay against utilization
 
-**Task 4.** Call `simulate_mm1` with several mean inter-arrival times to sweep the utilization from roughly 0.2 to 0.95, and plot the measured mean delay as markers against the theoretical curve $W = 1/(\mu - \lambda)$. The agreement is close at low utilization and degrades as $\rho \to 1$: the finite buffer starts to drop packets, the transient outlasts the warm-up period, and the remaining samples are too few for a stable mean. Use the drop count and the number of measured packets to argue which cause dominates at the highest utilization. A longer run reduces sampling variation but does not remove differences in model assumptions.
+**Task 5.** Call `simulate_mm1` with several mean inter-arrival times to sweep the utilization from roughly 0.2 to 0.95, and plot the measured mean delay as markers against the theoretical curve $W = 1/(\mu - \lambda)$. The agreement is close at low utilization and degrades as $\rho \to 1$: the finite buffer starts to drop packets, the transient outlasts the warm-up period, and the remaining samples are too few for a stable mean. Use the drop count and the number of measured packets to argue which cause dominates at the highest utilization. A longer run reduces sampling variation but does not remove differences in model assumptions.
 
 ### Step 7 – A network of queues
 
 Run the final simulation with three sources, two forks, and four switch ports, each port carrying its own tap. A quarter of the traffic leaving port 0 goes to a third sink, representing traffic that leaves this network.
 
-**Task 5** repeats the pattern of Task 3 one level up. Work out the arrival rate $\lambda$ and the offered traffic $A = \lambda S$ of each port from the source rates and the fork probabilities, fill them into `port_theory`, and read the Agreement column. The measured utilization $\rho$ is shown without a theoretical counterpart, because it is the quantity $A$ is meant to predict; where the two differ, decide whether loss or the length of the run explains it. Then explain the difference between the delays at the two sinks.
+**Task 6** repeats the pattern of Task 4 one level up. Work out the arrival rate $\lambda$ and the offered traffic $A = \lambda S$ of each port from the source rates and the fork probabilities, fill them into `port_theory`, and read the Agreement column. The measured utilization $\rho$ is shown without a theoretical counterpart, because it is the quantity $A$ is meant to predict; where the two differ, decide whether loss or the length of the run explains it. Then explain the difference between the delays at the two sinks.
 
 ### Results to retain
 
-Save the completed notebook, the distribution comparison plots, the Task 3 comparison table, the seed table of Step 5, and the delay-against-utilization plot of Task 4. State the units, the observation period, the drop counts, and whether each measurement describes the queue or the whole system. Explain the main discrepancies in a short paragraph.
+Save the completed notebook, the distribution comparison plots, the Task 4 comparison table, the seed table of Step 5, and the delay-against-utilization plot of Task 5. State the units, the observation period, the drop counts, and whether each measurement describes the queue or the whole system. Explain the main discrepancies in a short paragraph.
 
 ## Questions
 
@@ -273,5 +285,5 @@ Save the completed notebook, the distribution comparison plots, the Task 3 compa
 2. D. Gross, J. F. Shortle, J. M. Thompson, and C. M. Harris, *Fundamentals of Queueing Theory*, 4th ed. Wiley, 2008.
 3. J. D. C. Little, "A Proof for the Queuing Formula: L = λW," *Operations Research*, vol. 9, no. 3, pp. 383–387, 1961.
 4. P. J. Burke, "The Output of a Queuing System," *Operations Research*, vol. 4, no. 6, pp. 699–704, 1956. — why the departures of a stable M/M/1 queue again form a Poisson process.
-5. G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking, https://www.grotto-networking.com/DiscreteEventPython.html — origin of the simulation components used in this exercise.
+5. G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking, https://www.grotto-networking.com/DiscreteEventPython.html — origin of the simulation components used in this lab.
 6. SimPy documentation, https://simpy.readthedocs.io/.

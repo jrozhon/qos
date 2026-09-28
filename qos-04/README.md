@@ -1,6 +1,6 @@
-# Exercise 04 – Objective image quality: PSNR and SSIM
+# Lab 04 – Objective image quality: PSNR and SSIM
 
-This exercise transfers the idea of intrusive quality assessment from speech to images. Two full-reference metrics are examined: the peak signal-to-noise ratio (PSNR), a purely signal-based measure, and the structural similarity index (SSIM), which models properties of human vision. Students implement MSE and PSNR, use a supplied SSIM implementation, and apply both metrics to images degraded by dense and by sparse Gaussian noise, observe where the two metrics disagree, and relate the outcome to their own judgment.
+This lab transfers the idea of intrusive quality assessment from speech to images. Two full-reference metrics are examined: the peak signal-to-noise ratio (PSNR), a purely signal-based measure, and the structural similarity index (SSIM), which models properties of human vision. Students implement MSE and PSNR, use a supplied SSIM implementation, and apply both metrics to images degraded by dense and by sparse Gaussian noise, observe where the two metrics disagree, and relate the outcome to their own judgment.
 
 ## Learning objectives
 
@@ -14,9 +14,9 @@ This exercise transfers the idea of intrusive quality assessment from speech to 
 
 Students should be able to:
 
-- Calculate means and squared differences, evaluate logarithms, and interpret variance and standard deviation from [Exercises 01](../qos-01/README.md) and [02](../qos-02/README.md).
+- Calculate means and squared differences, evaluate logarithms, and interpret variance and standard deviation from [Labs 01](../qos-01/README.md) and [02](../qos-02/README.md).
 - Index and slice a two-dimensional NumPy array, perform element-wise arithmetic, and display an array as a grayscale image.
-- Explain the distinction between subjective ratings and objective quality estimates from [Exercise 03](../qos-03/README.md).
+- Explain the distinction between subjective ratings and objective quality estimates from [Lab 03](../qos-03/README.md).
 
 The image quality metrics and their local image statistics are introduced below. The practical work provides implementations for comparing image windows; prior experience implementing image filters is not required.
 
@@ -24,7 +24,7 @@ The image quality metrics and their local image statistics are introduced below.
 
 ### Full-reference metrics
 
-As with PESQ and ViSQOL in [Exercise 03](../qos-03/README.md#speech-quality-assessment), the metrics of this exercise are *intrusive* or *full-reference*: they compare a degraded image $K$ with the undistorted original $I$ and return a single number. Both images are grayscale arrays of $m \times n$ pixels with values in $[0, L]$, where $L$ is the maximum allowed pixel value. For unsigned $b$-bit images, $L = 2^b - 1$ ($255$ for 8-bit images); for images normalized to $[0, 1]$, use $L = 1$. Both inputs must use the same scale, shape, and spatial alignment. Convert to floating point before subtraction to avoid unsigned-integer wraparound.
+As with PESQ and ViSQOL in [Lab 03](../qos-03/README.md#speech-quality-assessment), the metrics of this lab are *intrusive* or *full-reference*: they compare a degraded image $K$ with the undistorted original $I$ and return a single number. Both images are grayscale arrays of $m \times n$ pixels with values in $[0, L]$, where $L$ is the maximum allowed pixel value. For unsigned $b$-bit images, $L = 2^b - 1$ ($255$ for 8-bit images); for images normalized to $[0, 1]$, use $L = 1$. Both inputs must use the same scale, shape, and spatial alignment. Convert to floating point before subtraction to avoid unsigned-integer wraparound.
 
 ### Mean squared error and PSNR
 
@@ -54,7 +54,7 @@ $$
 
 where $c_1 = (k_1 L)^2$ and $c_2 = (k_2 L)^2$ are small constants that stabilize the division when the denominators approach zero, with $k_1 = 0.01$ and $k_2 = 0.03$ by default. The index is dimensionless [–] and lies in $[-1, 1]$; it equals 1 only for identical windows.
 
-SSIM is evaluated over a sliding window. The [original formulation](https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf) uses an $11 \times 11$ Gaussian window with $\sigma = 1.5$ pixels; this exercise starts with uniform weights to simplify the calculation. The result is an *SSIM map* showing where the images differ structurally; the reported index is its mean. Computing the local means and variances is a convolution of the image (and of its square and the product of the two images) with the window, which is how the supplied implementation proceeds. Both course implementations include a value at every pixel, using symmetric padding that repeats the edge pixel. They use weighted population statistics. Record window size, weights, padding, and $L$ when comparing results with another library, since different conventions can change the score.
+SSIM is evaluated over a sliding window. The [original formulation](https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf) uses an $11 \times 11$ Gaussian window with $\sigma = 1.5$ pixels; this lab starts with uniform weights to simplify the calculation. The result is an *SSIM map* showing where the images differ structurally; the reported index is its mean. Computing the local means and variances is a convolution of the image (and of its square and the product of the two images) with the window, which is how the supplied implementation proceeds. Both course implementations include a value at every pixel, using symmetric padding that repeats the edge pixel. They use weighted population statistics. Record window size, weights, padding, and $L$ when comparing results with another library, since different conventions can change the score.
 
 ### Comparison
 
@@ -68,11 +68,11 @@ SSIM is evaluated over a sliding window. The [original formulation](https://ece.
 
 For video, PSNR and SSIM can be computed per frame and then pooled into a sequence score. State the pooling method: averaging frame PSNR values differs from computing PSNR from the average frame MSE because the logarithm is nonlinear.
 
-**VMAF** (Video Multimethod Assessment Fusion), developed by Netflix, combines several image and motion-related features using a model trained on subjective scores. Its agreement with viewers depends on the selected model, content, distortion, and viewing conditions; it is not uniformly superior to PSNR or SSIM. See the [VMAF project documentation](https://github.com/Netflix/vmaf). VMAF is further context rather than an implementation task in this exercise.
+**VMAF** (Video Multimethod Assessment Fusion), developed by Netflix, combines several image and motion-related features using a model trained on subjective scores. Its agreement with viewers depends on the selected model, content, distortion, and viewing conditions; it is not uniformly superior to PSNR or SSIM. See the [VMAF project documentation](https://github.com/Netflix/vmaf). VMAF is further context rather than an implementation task in this lab.
 
 ### Test images
 
-`fig/` contains two 1024 × 1024 grayscale originals, `android_gray.png` (a PNG version of the subject used in Exercise 01) and `parrot_gray.png`, and degraded versions of the android image: `noisy_image_var0_01.png`, `noisy_image_var0_05.png`, and `noisy_image_var0_1.png` with Gaussian noise of variance 0.01, 0.05, and 0.1 on a $[0, 1]$ scale applied to every pixel, and `noisy_image_var0_1_mask0.001.png`, `…mask0.01.png`, and `…mask0.1.png` with noise of variance 0.1 applied to a random fraction of 0.1 %, 1 %, and 10 % of the pixels.
+`fig/` contains two 1024 × 1024 grayscale originals, `android_gray.png` (a PNG version of the subject used in Lab 01) and `parrot_gray.png`, and degraded versions of the android image: `noisy_image_var0_01.png`, `noisy_image_var0_05.png`, and `noisy_image_var0_1.png` with Gaussian noise of variance 0.01, 0.05, and 0.1 on a $[0, 1]$ scale applied to every pixel, and `noisy_image_var0_1_mask0.001.png`, `…mask0.01.png`, and `…mask0.1.png` with noise of variance 0.1 applied to a random fraction of 0.1 %, 1 %, and 10 % of the pixels.
 
 The noise variances describe the generated noise before clipping to the image range and saving. Measure MSE from the saved images; it need not equal the nominal noise variance. Use each degraded image with the exact original from which it was generated.
 
@@ -82,11 +82,11 @@ The noise variances describe the generated noise before clipping to the image ra
 
 ![Gaussian noise of variance 0.1 on 1 % of the pixels](fig/noisy_image_var0_1_mask0.01.png)
 
-## Exercise
+## Tasks
 
 ### Preparation
 
-Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_04/exercise_04.ipynb`.
+Create the environment and start JupyterLab as described in the [root README](../README.md), then open `qos_04/lab_04.ipynb`.
 
 ```bash
 cd qos-04
@@ -98,7 +98,7 @@ uv run jupyter lab --ip 0.0.0.0
 
 ### Step 1 – PSNR of the noisy images
 
-Implement MSE and PSNR, then compute both for the three densely noised images and test whether PSNR falls as the nominal noise variance rises. Add your own degradations from Exercise 01 if you kept them.
+Implement MSE and PSNR, then compute both for the three densely noised images and test whether PSNR falls as the nominal noise variance rises. Add your own degradations from Lab 01 if you kept them.
 
 ### Step 2 – SSIM of the noisy images
 
@@ -114,7 +114,7 @@ Repeat the SSIM computation with the Gaussian window and with window sizes of 7 
 
 ## Questions
 
-1. Why is PSNR expressed relative to the peak value $L$ rather than to the actual signal power, as SNR was in Exercise 01?
+1. Why is PSNR expressed relative to the peak value $L$ rather than to the actual signal power, as SNR was in Lab 01?
 2. Two degraded images have the same MSE and pixel range, but their errors have different spatial patterns. Why must their PSNR values be equal, and why does MSE alone not determine their SSIM values?
 3. For two identical flat windows, which term would be undefined without $c_2$? When is $c_1$ also needed, and what value should SSIM have for identical windows?
 4. Why can two codec outputs with similar PSNR differ in perceived quality? Give an example of a distortion whose visibility depends on its location or spatial pattern.

@@ -114,7 +114,7 @@ def ssim_map(
     C2 = (K2 * L) ** 2
     w = _window(window_size, window)
 
-    conv = lambda x: convolve2d(x, w, mode="same", boundary="symm")  # noqa: E731
+    conv = lambda x: convolve2d(x, w, mode="same", boundary="symm")
     mu1 = conv(img1)
     mu2 = conv(img2)
     sigma1_sq = conv(img1 * img1) - mu1**2
@@ -195,5 +195,7 @@ def ssim_loop(
             s1 = np.sum(w * (r1 - mu1) ** 2)
             s2 = np.sum(w * (r2 - mu2) ** 2)
             s12 = np.sum(w * (r1 - mu1) * (r2 - mu2))
-            total += ((2 * mu1 * mu2 + C1) * (2 * s12 + C2)) / ((mu1**2 + mu2**2 + C1) * (s1 + s2 + C2))
+            total += ((2 * mu1 * mu2 + C1) * (2 * s12 + C2)) / (
+                (mu1**2 + mu2**2 + C1) * (s1 + s2 + C2)
+            )
     return total / (M * N)

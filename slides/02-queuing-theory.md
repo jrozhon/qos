@@ -2,11 +2,11 @@
 theme: seriph
 title: 02 · Kendall's notation and the M/M/1 queue
 info: |
-  440-2216/01 Kvalita služeb — lecture 2.
+  440-2216/01 Quality of Service — lecture 2.
   Queueing systems, Kendall's notation, the Poisson process, the exponential distribution, Little's law, the
   M/M/1 queue, and the erlang traffic-engineering formulas (Erlang B, Erlang C, Engset).
-  Companion lecture to Exercise 02.
-exportFilename: 02-queuing_theory
+  Companion lecture to Lab 02.
+exportFilename: 02-queuing-theory
 layout: cover
 transition: slide-left
 mdc: true
@@ -19,7 +19,7 @@ fonts:
 
 # Kendall's notation and an introduction to queueing theory
 
-### 440-2216/01 Kvalita služeb · Lecture 02
+### 440-2216/01 Quality of Service · Lecture 02
 
 <div class="pt-6 text-sm vsb-muted">
 Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
@@ -28,12 +28,12 @@ Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
 <!--
 Ninety minutes including checkpoints: 5 min motivation, 20 queueing systems/Kendall notation, 15 Poisson
 process/exponential distribution, 30 Little's law/M/M/1 with two worked examples, 15 traffic engineering/Erlang
-formulas, 5 exit questions and exercise setup. Part 1 supports Exercise 02 Steps 1-2; Part 2 supports the
+formulas, 5 exit questions and lab setup. Part 1 supports Lab 02 Steps 1-2; Part 2 supports the
 Preparation step (random samples); Part 3 supports Steps 3-4; Part 4 supports README Question 1. Keep the
 90-minute route to the closing slide. History, M/M/k, and the SimPy component reference are Extras after the
 closing slide; skip them in the main lecture.
 
-If they have already opened Exercise 01, start from "last time" — this lecture reuses the exponential distribution
+If they have already opened Lab 01, start from "last time" — this lecture reuses the exponential distribution
 and the arithmetic-mean skills from the noise experiments.
 -->
 
@@ -50,7 +50,7 @@ and the arithmetic-mean skills from the noise experiments.
 
 Arrivals, servers, waiting positions, and Kendall's A/B/C/D/E/F notation for classifying a queue
 
-<div class="text-xs opacity-60 pt-3">↔ Exercise 02, Steps 1–2</div>
+<div class="text-xs opacity-60 pt-3">↔ Lab 02, Steps 1–2</div>
 </div>
 
 <div class="border border-gray-400 p-4">
@@ -60,7 +60,7 @@ Arrivals, servers, waiting positions, and Kendall's A/B/C/D/E/F notation for cla
 
 The Poisson process, the exponential distribution, Little's law, and the M/M/1 delay and occupancy formulas
 
-<div class="text-xs opacity-60 pt-3">↔ Exercise 02, Preparation and Steps 3–4</div>
+<div class="text-xs opacity-60 pt-3">↔ Lab 02, Preparation and Steps 3–4</div>
 </div>
 
 <div class="border border-gray-400 p-4">
@@ -104,8 +104,8 @@ Keep asking: **which system, which rate, which distribution, and does it have a 
 
 <!--
 These are the five outcomes for the lecture. Students need arithmetic means, basic probability, and the natural
-exponential/logarithm from Exercise 01. Kendall notation and the M/M/1 formulas are introduced here for the
-first time — the exercise's theory cells cover the same random-variable background.
+exponential/logarithm from Lab 01. Kendall notation and the M/M/1 formulas are introduced here for the
+first time — the lab's theory cells cover the same random-variable background.
 -->
 
 ---
@@ -404,7 +404,7 @@ Mean $E(T) = 1/\lambda$, variance $D(T)=1/\lambda^2$.
 </div>
 
 <!--
-Both halves matter for the exercise: the theory cells sample from the exponential directly, and PacketSource is
+Both halves matter for the lab: the theory cells sample from the exponential directly, and PacketSource is
 configured with an exponential inter-arrival callable. Splitting and merging independent Poisson streams gives
 another Poisson stream with the summed rate, λ=λ1+λ2 — useful when several sources feed one queue, mention only
 if time allows.
@@ -456,7 +456,7 @@ The remaining service time still has the same Exponential($\mu$) distribution, r
 
 <!--
 Allow 30 seconds for individual thought, then 30 seconds of pair discussion. Use this to preview why the
-exercise also samples a normal and a uniform distribution: contrasting a memoryless model with bounded,
+lab also samples a normal and a uniform distribution: contrasting a memoryless model with bounded,
 non-memoryless alternatives sharpens what "memoryless" buys you mathematically and costs you physically.
 -->
 
@@ -552,7 +552,7 @@ $$
 
 <!--
 Convert every rate to per-second before multiplying, or keep everything per-minute consistently — the mixed
-units (ms, s, min) are the point of the exercise. Because expectation is linear, the mean total occupancy is
+units (ms, s, min) are the point of the lab. Because expectation is linear, the mean total occupancy is
 the sum of the per-class means even though the classes interleave on one system; this does not require the
 classes to be independent, only that "number of class i in the system" adds up to "number in the system".
 -->
@@ -705,7 +705,7 @@ $W_q = 0.1$ s waiting, $1/\mu = 0.1$ s transmitting
 
 <div class="pt-4 text-sm vsb-muted">
 
-This is Exercise 02, Step 4: a `SwitchPort` with exponential inter-arrivals and exponential packet sizes approximates M/M/1 when its buffer is large enough that loss is negligible.
+This is Lab 02, Step 4: a `SwitchPort` with exponential inter-arrivals and exponential packet sizes approximates M/M/1 when its buffer is large enough that loss is negligible.
 
 </div>
 
@@ -740,7 +740,7 @@ At $\rho=0.9$, $W$ is already $10\times$ the mean service time $1/\mu$; at $\rho
 </div>
 
 <!--
-Allow 30 seconds for individual thought, then 30 seconds of pair discussion. Exercise 02 README question 4 asks
+Allow 30 seconds for individual thought, then 30 seconds of pair discussion. Lab 02 README question 4 asks
 this in the notebook's own words. Sketch L=ρ/(1-ρ) versus ρ on the board if there is time: it is flat until
 about ρ=0.7 and then rises steeply — this is why "utilization under 100%" is not the same as "no problem".
 -->
@@ -1212,12 +1212,12 @@ Allow two minutes for individual answers, then discuss. Answers: (1) Only C=1 an
 L/W/Wq formulas assume exponential service and do not apply to M/D/1, though Little's law and ρ=λ/μ still do.
 (2) The system's future depends only on its current state (number present), not on elapsed service time — a
 Markov chain. (3) No: W=1/(μ−λ) is nonlinear in λ, diverging as λ→μ. (4) Add channels (increase N) or reduce
-offered traffic A (reduce λ or the mean holding time). These lead into the exercise and README Question 1.
+offered traffic A (reduce λ or the mean holding time). These lead into the lab and README Question 1.
 -->
 
 ---
 
-# Exercise 02 — what you will do
+# Lab 02 — what you will do
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
@@ -1268,7 +1268,7 @@ payphone as "is one line an M/M/1 queue with Wq under 3 minutes, or does it need
 
 <!--
 Primary sources for Kendall notation, Little's law, and the three erlang formulas. Kendall's paper is the
-origin of the notation this lecture builds on; further reading, not prerequisites for Exercise 02.
+origin of the notation this lecture builds on; further reading, not prerequisites for Lab 02.
 -->
 
 ---
@@ -1277,7 +1277,7 @@ origin of the notation this lecture builds on; further reading, not prerequisite
 
 - D. Gross, J. F. Shortle, J. M. Thompson, and C. M. Harris, *Fundamentals of Queueing Theory*, 4th ed. Wiley, 2008.
 - Erlang traffic calculators: [Erlang B](https://www.erlang.com/calculator/erlb/) · [Erlang C](https://www.erlang.com/calculator/erlc/) · [Engset](https://www.erlang.com/calculator/engset/).
-- G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking — origin of the SimPy components used in Exercise 02.
+- G. Bernstein, "Discrete Event Simulation in Python," Grotto Networking — origin of the SimPy components used in Lab 02.
 - SimPy documentation, [simpy.readthedocs.io](https://simpy.readthedocs.io/).
 
 <!--
@@ -1366,7 +1366,7 @@ Components connect through a `destination` attribute; sizes and intervals may be
 
 <!--
 This table mirrors qos-02/README.md exactly — use it to orient students inside lib/core.py before they start
-Step 1. One simulation time unit (STU) represents one second throughout the exercise.
+Step 1. One simulation time unit (STU) represents one second throughout the lab.
 -->
 
 ---

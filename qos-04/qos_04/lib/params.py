@@ -2,7 +2,14 @@ textcolor = "#292929"
 
 rc_params = {
     "font.family": "sans-serif",
-    "font.sans-serif": ["Carlito", "Calibri", "Liberation Sans", "DejaVu Sans", "Arial", "sans-serif"],
+    "font.sans-serif": [
+        "Carlito",
+        "Calibri",
+        "Liberation Sans",
+        "DejaVu Sans",
+        "Arial",
+        "sans-serif",
+    ],
     "text.color": textcolor,
     "axes.labelcolor": textcolor,
     "xtick.color": textcolor,
@@ -48,8 +55,14 @@ rc_params = {
 }
 
 colors = [
-    "#00A499", "#43B02A", "#E4002B", "#FFB81C",
-    "#0047BB", "#05C3DE", "#8246AF", "#FF8200",
+    "#00A499",
+    "#43B02A",
+    "#E4002B",
+    "#FFB81C",
+    "#0047BB",
+    "#05C3DE",
+    "#8246AF",
+    "#FF8200",
 ]
 
 
@@ -66,7 +79,7 @@ def add_logo(fig, path="logo.png", box=(0.83, 0.90, 0.10, 0.10)):
     box : tuple[float, float, float, float], optional
         (x, y, width, height) of the logo axes in figure coordinates.
     """
-    import matplotlib.image as image
+    from matplotlib import image
 
     ax = fig.add_axes(box)
     ax.set_axis_off()

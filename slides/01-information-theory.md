@@ -2,9 +2,9 @@
 theme: seriph
 title: 01 · Channel capacity and information theory
 info: |
-  440-2216/01 Kvalita služeb — lecture 1.
+  440-2216/01 Quality of Service — lecture 1.
   Signals, PCM, Gaussian noise, SNR, the Shannon–Hartley theorem, and Hartley's and Shannon's measures of information.
-  Companion lecture to Exercise 01.
+  Companion lecture to Lab 01.
 exportFilename: 01-information-theory
 layout: cover
 transition: slide-left
@@ -18,7 +18,7 @@ fonts:
 
 # Channel capacity and an introduction to information theory
 
-### 440-2216/01 Kvalita služeb · Lecture 01
+### 440-2216/01 Quality of Service · Lecture 01
 
 <div class="pt-6 text-sm vsb-muted">
 Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
@@ -26,8 +26,8 @@ Jan Rozhon, Miroslav Vozňák &middot; Department of Telecommunications, FEECS
 
 <!--
 Ninety minutes including checkpoints: 5 min motivation, 18 signals/PCM, 15 noise/SNR, 20 symbols/capacity,
-12 network rates, FDM/TDM, and qualitative MIMO, 15 information/entropy, 5 exit questions and exercise setup.
-Parts 1–2 support Exercise 01 Step 1; Parts 2–4 support the metrics and noise experiments in Steps 2–4.
+12 network rates, FDM/TDM, and qualitative MIMO, 15 information/entropy, 5 exit questions and lab setup.
+Parts 1–2 support Lab 01 Step 1; Parts 2–4 support the metrics and noise experiments in Steps 2–4.
 Part 5 introduces source coding. Keep the 90-minute route to the slides before the closing slide. The course overview, signal recap, biography, technology/English surveys, and mathematical extensions are Extras slides
 after the closing slide; skip them in the main lecture.
 
@@ -47,7 +47,7 @@ If they have already opened the notebook, refer to the sliders — "remember wha
 
 What carries information, and how an analog signal becomes bits: PCM, sampling, aliasing
 
-<div class="text-xs opacity-60 pt-3">↔ Exercise 01, Step 1</div>
+<div class="text-xs opacity-60 pt-3">↔ Lab 01, Step 1</div>
 </div>
 
 <div class="border border-gray-400 p-4">
@@ -57,7 +57,7 @@ What carries information, and how an analog signal becomes bits: PCM, sampling, 
 
 Gaussian noise, SNR, symbols vs bits, and the Shannon–Hartley bound
 
-<div class="text-xs opacity-60 pt-3">↔ Exercise 01, Steps 2–4</div>
+<div class="text-xs opacity-60 pt-3">↔ Lab 01, Steps 2–4</div>
 </div>
 
 <div class="border border-gray-400 p-4">
@@ -304,7 +304,7 @@ Use the 6 dB/bit rule as the takeaway, not a universal measured SNR. It assumes 
 suitable input, and the usual quantization-error model; low-amplitude inputs have lower SQNR. Quantization error
 need not behave like independent random noise. A-law is common in Europe; mu-law in North America and Japan.
 G.711 companding compresses amplitude range; distinguish it from additional statistical/predictive bit-rate
-compression. Students meet G.711 A-law in Exercise 03.
+compression. Students meet G.711 A-law in Lab 03.
 -->
 
 ---
@@ -345,7 +345,7 @@ one sample every 125 µs · one byte each · fixed bit rate
 
 <div class="pt-4 text-sm vsb-muted">
 
-This stream is the payload of the RTP packets you will dissect in Exercise 03: 20 ms → 160 samples → 160 bytes per packet, 50 packets per second.
+This stream is the payload of the RTP packets you will dissect in Lab 03: 20 ms → 160 samples → 160 bytes per packet, 50 packets per second.
 
 </div>
 
@@ -410,7 +410,7 @@ theorem makes it Gaussian. The notebook's sigma slider is this sigma.
 <!--
 White refers to a flat power spectral density, not the marginal amplitude distribution. Whiteness gives
 uncorrelated samples in the discrete-time white model; joint Gaussianity then gives independence.
-Band-limiting can correlate samples taken at arbitrary spacings. In Exercise 01 we explicitly generate
+Band-limiting can correlate samples taken at arbitrary spacings. In Lab 01 we explicitly generate
 independent Gaussian samples. Assume noise independent of the transmitted signal. AWGN is a useful baseline,
 not a claim that every real channel has white Gaussian noise.
 -->
@@ -443,7 +443,7 @@ The previous figure has **theoretical** $S = 0.5$, $N = 0.1$. Finite-record esti
 
 <div v-click class="pt-6 vsb-muted">
 
-Exercise 01, Step 2 asks you to implement this before importing the reference `calc_signal_power`. Do it yourself first — it is three lines of NumPy.
+Lab 01, Step 2 asks you to implement this before importing the reference `calc_signal_power`. Do it yourself first — it is three lines of NumPy.
 
 </div>
 
@@ -836,7 +836,7 @@ The 33 kbit/s value is a result for the stated assumptions, not a universal limi
 </div>
 
 <!--
-Exercise 01 README question 3. Give 30 seconds of individual thought and 30 seconds of pair discussion.
+Lab 01 README question 3. Give 30 seconds of individual thought and 30 seconds of pair discussion.
 Draw analog speech → PCM → digital network → reconstructed speech. V.34 reached 33.6 kbit/s under suitable
 conditions, not exactly at the bound for these numbers (32.9566 kbit/s). V.90 used digital-network access for
 up to 56 kbit/s downstream and 33.6 upstream; V.92 allowed up to 48 upstream. Neither violated Shannon.
@@ -926,7 +926,7 @@ Less overhead per second, but more packetization delay and more speech affected 
 
 <div class="pt-3 text-sm vsb-muted">
 
-No IPv4 options, no RTP extensions, no link-layer overhead; continuous speech transmission. Same calculation as Exercise 03.
+No IPv4 options, no RTP extensions, no link-layer overhead; continuous speech transmission. Same calculation as Lab 03.
 
 **ČTÚ note:** the Czech Telecommunication Office (Český telekomunikační úřad) requires access-line speed to always be measured at **OSI layer 4** — transport-layer throughput, not the raw physical or IP-layer rate.
 
@@ -999,7 +999,7 @@ More antennas can also improve reliability or received signal strength.
 
 <div class="pt-5 vsb-muted text-sm">
 
-Exercise 01, README question 2 · [Tse and Viswanath, chapters 7–8](https://web.stanford.edu/~dntse/wireless_book.html) · Formula and assumptions in Extras
+Lab 01, README question 2 · [Tse and Viswanath, chapters 7–8](https://web.stanford.edu/~dntse/wireless_book.html) · Formula and assumptions in Extras
 
 </div>
 
@@ -1396,7 +1396,7 @@ Capacity is linear in bandwidth **at fixed SNR**. A binary symbol has 1 bit of e
 </div>
 
 <!--
-Read them aloud, one sentence each. Then the exercise preview.
+Read them aloud, one sentence each. Then the lab preview.
 -->
 
 ---
@@ -1423,7 +1423,7 @@ payload, 50 packets/s; exclude link overhead. These questions check the learning
 
 ---
 
-# Exercise 01 — what you will do
+# Lab 01 — what you will do
 
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
@@ -1472,7 +1472,7 @@ All four README questions were answered somewhere in this deck. Don't tell them 
 
 <!--
 Primary sources for the information measures, channel limits, sampling, English experiment, and thermal noise.
-These are further reading, not prerequisites for Exercise 01. Extras slides follow the closing slide.
+These are further reading, not prerequisites for Lab 01. Extras slides follow the closing slide.
 -->
 
 ---
@@ -1549,7 +1549,7 @@ Not part of the timed 90-minute route. Use to answer questions or extend an adva
 
 <div class="pt-6 vsb-muted text-sm">
 
-Lab exercises (`qos-01` … `qos-05`) run on the laboratory servers over SSH. Each lecture has a matching README with the theory and a notebook with the tasks.
+Labs (`qos-01` … `qos-05`) run on the laboratory servers over SSH. Each lecture has a matching README with the theory and a notebook with the tasks.
 
 </div>
 

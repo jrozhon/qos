@@ -2,51 +2,53 @@ import numpy as np
 
 
 def linear_to_ulaw(pcm_data):
-  """
-  Vectorized conversion of 16-bit linear PCM to μ-law
-  """
-  pcm_data = np.asarray(pcm_data)
-  pcm_data = np.clip(pcm_data, -32768, 32767)
-  
-  # Get sign and magnitude
-  sign = (pcm_data < 0).astype(np.uint8)
-  abs_pcm = np.abs(pcm_data)
-  
-  # Add bias
-  abs_pcm += 0x84
-  
-  # Find segment using log2
-  seg = np.maximum(0, np.minimum(7, (np.log2(abs_pcm) - 6).astype(int)))
-  
-  # Calculate mantissa based on segment
-  mantissa = (abs_pcm >> (seg + 3)) & 0x0F
-  
-  # Combine fields
-  ulaw = ~((sign << 7) | (seg << 4) | mantissa) & 0xFF
-  
-  return ulaw.astype(np.uint8)
+    """
+    Vectorized conversion of 16-bit linear PCM to μ-law
+    """
+    pcm_data = np.asarray(pcm_data)
+    pcm_data = np.clip(pcm_data, -32768, 32767)
+
+    # Get sign and magnitude
+    sign = (pcm_data < 0).astype(np.uint8)
+    abs_pcm = np.abs(pcm_data)
+
+    # Add bias
+    abs_pcm += 0x84
+
+    # Find segment using log2
+    seg = np.maximum(0, np.minimum(7, (np.log2(abs_pcm) - 6).astype(int)))
+
+    # Calculate mantissa based on segment
+    mantissa = (abs_pcm >> (seg + 3)) & 0x0F
+
+    # Combine fields
+    ulaw = ~((sign << 7) | (seg << 4) | mantissa) & 0xFF
+
+    return ulaw.astype(np.uint8)
+
 
 def linear_to_alaw(pcm_data):
-  """
-  Vectorized conversion of 16-bit linear PCM to A-law
-  """
-  pcm_data = np.asarray(pcm_data)
-  pcm_data = np.clip(pcm_data, -32768, 32767)
-  
-  # Get sign and magnitude
-  sign = (pcm_data < 0).astype(np.uint8)
-  abs_pcm = np.abs(pcm_data)
-  
-  # Find segment using log2
-  seg = np.maximum(0, np.minimum(7, (np.log2(abs_pcm) - 6).astype(int)))
-  
-  # Calculate mantissa based on segment
-  mantissa = (abs_pcm >> (seg + 3)) & 0x0F
-  
-  # Combine fields and XOR with 0x55
-  alaw = ((sign << 7) | (seg << 4) | mantissa) ^ 0x55
-  
-  return alaw.astype(np.uint8)
+    """
+    Vectorized conversion of 16-bit linear PCM to A-law
+    """
+    pcm_data = np.asarray(pcm_data)
+    pcm_data = np.clip(pcm_data, -32768, 32767)
+
+    # Get sign and magnitude
+    sign = (pcm_data < 0).astype(np.uint8)
+    abs_pcm = np.abs(pcm_data)
+
+    # Find segment using log2
+    seg = np.maximum(0, np.minimum(7, (np.log2(abs_pcm) - 6).astype(int)))
+
+    # Calculate mantissa based on segment
+    mantissa = (abs_pcm >> (seg + 3)) & 0x0F
+
+    # Combine fields and XOR with 0x55
+    alaw = ((sign << 7) | (seg << 4) | mantissa) ^ 0x55
+
+    return alaw.astype(np.uint8)
+
 
 # ---------------------------------------------------------------------------
 # Objective speech quality: wrappers around the PESQ and ViSQOL binaries
@@ -159,14 +161,18 @@ def run_visqol(reference: Path, degraded: Path, visqol_bin: Path = VISQOL_BIN) -
         out = subprocess.run(
             [
                 str(visqol_bin),
-                "--reference_file", str(ref16),
-                "--degraded_file", str(deg16),
+                "--reference_file",
+                str(ref16),
+                "--degraded_file",
+                str(deg16),
                 "--use_speech_mode",
                 "--use_unscaled_speech_mos_mapping",
             ],
             capture_output=True,
             text=True,
-            cwd=Path(visqol_bin).parents[1],  # model files are resolved relative to the repo
+            cwd=Path(visqol_bin).parents[
+                1
+            ],  # model files are resolved relative to the repo
         )
     m = re.search(r"MOS-LQO:\s*([\d.]+)", out.stdout)
     return float(m.group(1)) if m else float("nan")

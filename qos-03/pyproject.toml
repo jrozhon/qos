@@ -3,9 +3,18 @@ name = "qos-03"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "jupyterlab>=4.4.10",
-    "matplotlib>=3.10.7",
-    "numpy>=2.3.4",
-    "scapy>=2.6.1",
-    "scipy>=1.16.3",
+    "jupyterlab>=4.6.4",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "scapy>=2.7.0",
+    "scipy>=1.18.1",
 ]
+
+[tool.ruff.lint.isort]
+# The notebook and lib/*.py import "lib.*" with the kernel working directory
+# set to qos_03/; the package is not installed.
+known-first-party = ["lib"]
+
+[tool.ruff.lint.per-file-ignores]
+# The imports cell prepares names that only the students' task cells use.
+"*.ipynb" = ["F401"]

@@ -1,31 +1,22 @@
 """
-Presentation helpers for the Exercise 02 notebook.
+Presentation helpers for the Lab 02 notebook.
 
 The point of this module is the pairing between a theoretical quantity and the
 measurement that should confirm it. :data:`MM1_QUANTITIES` states that pairing
 once — symbol, formula, and the simulation output the number comes from — and
 :func:`mm1_report` renders it as one row per symbol, so a student filling in a
 formula can see which measurement it is supposed to reproduce.
+
+The result cards and the Bokeh figures of the notebook are built in
+:mod:`lib.plots`; this module holds the tables and the measurements behind them.
 """
 
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 import numpy as np
 from IPython.display import HTML, display
 
 from lib.core import BYTES_TO_BITS
-
-CARD_STYLE = """
-<style>
-  .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 16px 0; }
-  .card { background: #F2F3F3; border-left: 4px solid #00A499; border-radius: 4px; padding: 12px 16px; }
-  .card h3 { margin: 0 0 6px; font: bold 15px Carlito, Calibri, sans-serif; color: #292929; }
-  .card p { margin: 0; color: #292929; font: bold 20px Carlito, Calibri, sans-serif;
-            font-variant-numeric: tabular-nums; }
-  .card small { display: block; margin: 8px 0 0; color: #292929; line-height: 1.4;
-                font: 13.5px Carlito, Calibri, sans-serif; }
-</style>
-"""
 
 TABLE_STYLE = """
 <style>
@@ -132,30 +123,6 @@ class MM1Samples(NamedTuple):
     service: np.ndarray
 
 
-def dashboard(cards: dict) -> None:
-    """
-    Render a mapping of titles to values as a grid of cards.
-
-    A card states three things: what the quantity is, its value, and what the
-    number actually counts. The third is the one a reader cannot reconstruct
-    from the notebook, so a card should normally carry it.
-
-    Parameters
-    ----------
-    cards : dict
-        Card title, including the unit in square brackets, mapped either to the
-        value alone or to a ``(value, explanation)`` pair. The explanation says
-        what the number counts and which attribute it was read from, and is
-        printed under the value in smaller type.
-    """
-    blocks = []
-    for title, entry in cards.items():
-        value, explanation = entry if isinstance(entry, tuple) else (entry, None)
-        note = f"<small>{explanation}</small>" if explanation else ""
-        blocks.append(f'<div class="card"><h3>{title}</h3><p>{value}</p>{note}</div>')
-    display(HTML(f'{CARD_STYLE}<div class="dashboard">{"".join(blocks)}</div>'))
-
-
 def table(headers: list, rows: list) -> None:
     """
     Render a table in the course style.
@@ -177,52 +144,6 @@ def table(headers: list, rows: list) -> None:
             f"<tbody>{body}</tbody></table>"
         )
     )
-
-
-def sample_summary(x: np.ndarray, mean: float, std: float) -> None:
-    """
-    Compare the moments of a sample with their theoretical values.
-
-    Parameters
-    ----------
-    x : numpy.ndarray
-        The sample.
-    mean : float
-        Theoretical mean of the distribution.
-    std : float
-        Theoretical standard deviation of the distribution.
-    """
-    table(
-        ["Quantity", "Sample", "Theory"],
-        [
-            ["Count", f"{x.size}", "–"],
-            ["Minimum", f"{x.min():.3f}", "–"],
-            ["Mean", f"{x.mean():.3f}", f"{mean:.3f}"],
-            ["Standard deviation", f"{x.std():.3f}", f"{std:.3f}"],
-            ["Maximum", f"{x.max():.3f}", "–"],
-        ],
-    )
-
-
-def last(values, n: int = 10, fmt: str = "{:.3f}") -> str:
-    """
-    Format the last n values of a sequence for a dashboard card.
-
-    Parameters
-    ----------
-    values : Sequence
-        The values to format.
-    n : int, optional
-        How many trailing values to show, by default 10.
-    fmt : str, optional
-        Format string applied to each value, by default "{:.3f}".
-
-    Returns
-    -------
-    str
-        The formatted values, separated by commas.
-    """
-    return ", ".join(fmt.format(v) for v in values[-n:])
 
 
 def mm1_measurements(sink, tap, port, warmup: float, duration: float, rate: float):
@@ -283,7 +204,7 @@ def mm1_measurements(sink, tap, port, warmup: float, duration: float, rate: floa
     return values, MM1Samples(times, system, queue, delays, service)
 
 
-def _agreement(theory: Optional[float], measured: float, tolerance: float) -> tuple:
+def _agreement(theory: float | None, measured: float, tolerance: float) -> tuple:
     """
     Describe how close a measurement is to its theoretical value.
 

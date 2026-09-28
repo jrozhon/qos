@@ -1,6 +1,6 @@
-# Exercise 05 – Software-defined network emulation in Mininet
+# Lab 05 – Software-defined network emulation in Mininet
 
-This exercise introduces Mininet, an emulator that runs a complete network of hosts, switches, and links on a single Linux machine, and uses it to look inside a software-defined network. Students start Mininet with built-in topologies, treat the emulated hosts as ordinary Linux machines, read and modify the OpenFlow flow table of an Open vSwitch instance, measure link performance with iperf, and finally define their own topology with bandwidth, delay, and loss on the links. The exercise runs entirely in the Mininet command line on the laboratory servers; no notebook is used.
+This lab introduces Mininet, an emulator that runs a complete network of hosts, switches, and links on a single Linux machine, and uses it to look inside a software-defined network. Students start Mininet with built-in topologies, treat the emulated hosts as ordinary Linux machines, read and modify the OpenFlow flow table of an Open vSwitch instance, measure link performance with iperf, and finally define their own topology with bandwidth, delay, and loss on the links. The lab runs entirely in the Mininet command line on the laboratory servers; no notebook is used.
 
 ## Learning objectives
 
@@ -16,11 +16,11 @@ This exercise introduces Mininet, an emulator that runs a complete network of ho
 Students should be able to:
 
 - Distinguish a host, a switch, and a router, and explain the purpose of Ethernet MAC addresses and IP addresses.
-- Describe the basic roles of TCP and UDP, and interpret throughput, delay, and packet loss using [Exercise 03](../qos-03/README.md).
+- Describe the basic roles of TCP and UDP, and interpret throughput, delay, and packet loss using [Lab 03](../qos-03/README.md).
 - Navigate directories, run Linux commands, and recognize the purpose of `sudo` and `ping`.
 - Read a simple Python class definition and identify its constructor and method calls.
 
-Mininet, software-defined networking, and OpenFlow are introduced in this exercise. The supplied Python template provides the structure for defining a custom topology.
+Mininet, software-defined networking, and OpenFlow are introduced in this lab. The supplied Python template provides the structure for defining a custom topology.
 
 ## Theory
 
@@ -40,9 +40,9 @@ Controller-free MAC learning requires bridge/standalone mode: use `--switch ovsb
 
 ### Link emulation
 
-The `tc` link type applies the mechanisms of [Exercise 03](../qos-03/README.md#traffic-control-in-linux) to every link automatically: an `htb` qdisc limits the bandwidth (`bw`, in Mbit/s) and a `netem` qdisc adds the delay (`delay`) and independent random loss (`loss`, in percent). Parameters apply per direction on the interface at each end of the link, so a `delay="30ms"` link adds 30 ms each way and 60 ms to the round-trip time.
+The `tc` link type applies the mechanisms of [Lab 03](../qos-03/README.md#traffic-control-in-linux) to every link automatically: an `htb` qdisc limits the bandwidth (`bw`, in Mbit/s) and a `netem` qdisc adds the delay (`delay`) and independent random loss (`loss`, in percent). Parameters apply per direction on the interface at each end of the link, so a `delay="30ms"` link adds 30 ms each way and 60 ms to the round-trip time.
 
-## Exercise
+## Tasks
 
 ### Preparation
 

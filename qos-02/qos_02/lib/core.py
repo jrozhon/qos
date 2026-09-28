@@ -1,5 +1,5 @@
 """
-Discrete-event building blocks for the Exercise 02 queueing simulations.
+Discrete-event building blocks for the Lab 02 queueing simulations.
 
 The components form a pipeline that is wired by assigning ``destination``
 attributes::
@@ -17,32 +17,31 @@ exclude the packet in service, whereas
 include it. The M/M/1 quantities $L_q$ and $W_q$ refer to the queue, $L$ and $W$
 to the system.
 
-One simulation time unit (STU) represents one second in this exercise.
+One simulation time unit (STU) represents one second in this lab.
 """
 
 import sys
 from bisect import bisect_right
+from collections.abc import Callable
 from itertools import accumulate, count
 from math import isclose
-from typing import Callable, Optional, Protocol, Union
+from typing import Protocol
 
 import simpy
 from loguru import logger
 from numpy.random import Generator, default_rng
 
 logger.remove()
-logger.add(
-    sys.stdout,
-    colorize=True,
-    format="<green>{time}</green> | <level>{level}</level> | {message}",
-)
+# Only the message: each line states the simulation time itself, and the wall
+# clock of the computer running the notebook says nothing about the simulation.
+logger.add(sys.stdout, colorize=False, format="{message}")
 
 BYTES_TO_BITS = 8
 
 #: A quantity that is either a fixed number or a zero-argument callable
 #: returning a number. Use :func:`functools.partial` to bind the arguments of a
 #: random generator method, for example ``partial(rng.exponential, 2)``.
-Variate = Union[Callable[[], float], float]
+Variate = Callable[[], float] | float
 
 
 def draw(value: Variate) -> float:
@@ -51,7 +50,7 @@ def draw(value: Variate) -> float:
 
     Parameters
     ----------
-    value : Union[Callable[[], float], float]
+    value : Callable[[], float] | float
         Either a number, returned unchanged, or a zero-argument callable that
         is called once and whose result is returned.
 
@@ -75,8 +74,10 @@ class PacketProto(Protocol):
     size: int
     creation_time: float
     source: str
-    sink_id: Optional[str]
-    sink_time: Optional[float]
+    sink_id: str | None
+    sink_time: float | None
+    drop_time: float | None
+    drop_queue_bytes: int | None
 
 
 class DestinationProto(Protocol):
@@ -84,7 +85,7 @@ class DestinationProto(Protocol):
 
     env: simpy.Environment
 
-    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]: ...
+    def process_packet(self, packet: PacketProto) -> simpy.Event | None: ...
 
 
 class PacketSourceProto(Protocol):
@@ -92,7 +93,7 @@ class PacketSourceProto(Protocol):
 
     env: simpy.Environment
     source_id: str
-    destination: Optional[DestinationProto]
+    destination: DestinationProto | None
     packet_interval: Variate
     packet_size: Variate
     packets_sent: int
@@ -106,15 +107,16 @@ class SwitchPortProto(DestinationProto, Protocol):
     """Single server with a finite buffer, draining at a fixed bit rate."""
 
     port_no: int
-    capacity: Optional[int]
+    capacity: int | None
     transmission_rate: float
     queue: simpy.Store
-    destination: Optional[DestinationProto]
+    destination: DestinationProto | None
     queue_packets: int
     queue_bytes: int
     cum_packet_count: int
     cum_byte_count: int
     cum_drop_count: int
+    dropped_packets: list[PacketProto]
 
     @property
     def packets_in_system(self) -> int: ...
@@ -183,6 +185,13 @@ class Packet:
     sink_time : Optional[float]
         Simulation time at which the packet reached a sink [STU], None while in
         transit.
+    drop_time : Optional[float]
+        Simulation time at which a port dropped the packet for lack of buffer
+        space [STU], None unless it was dropped.
+    drop_queue_bytes : Optional[int]
+        Bytes already waiting in that port's buffer when the packet was dropped
+        [B], None unless it was dropped. The packet did not fit because this
+        plus its own size exceeded the buffer capacity.
     """
 
     cnt: "count[int]" = count()
@@ -204,8 +213,10 @@ class Packet:
         self.size = size
         self.creation_time: float = env.now
         self.source = source
-        self.sink_id: Optional[str] = None
-        self.sink_time: Optional[float] = None
+        self.sink_id: str | None = None
+        self.sink_time: float | None = None
+        self.drop_time: float | None = None
+        self.drop_queue_bytes: int | None = None
 
     @classmethod
     def reset_counter(cls) -> None:
@@ -247,10 +258,10 @@ class PacketSource:
         Identifier for this packet source.
     destination : Optional[DestinationProto]
         Component the generated packets are handed to.
-    packet_interval : Union[Callable[[], float], float]
+    packet_interval : Callable[[], float] | float
         Interval between two packets [STU], a number or a zero-argument
         callable.
-    packet_size : Union[Callable[[], float], float]
+    packet_size : Callable[[], float] | float
         Size of a generated packet [B], a number or a zero-argument callable.
         The drawn value is rounded to the nearest whole byte, with a floor of
         one byte.
@@ -262,7 +273,7 @@ class PacketSource:
         self,
         env: simpy.Environment,
         source_id: str,
-        destination: Optional[DestinationProto] = None,
+        destination: DestinationProto | None = None,
         packet_interval: Variate = 1.0,
         packet_size: Variate = 10,
         debug: bool = False,
@@ -279,11 +290,11 @@ class PacketSource:
         destination : Optional[DestinationProto], optional
             The port, fork, or sink to which generated packets will be sent, by
             default None. It may also be assigned after construction.
-        packet_interval : Union[Callable[[], float], float], optional
+        packet_interval : Callable[[], float] | float, optional
             The interval between packet generations [STU], by default 1.0. Use
             :func:`functools.partial` to bind the arguments of a random
             generator method, for example ``partial(rng.exponential, 2)``.
-        packet_size : Union[Callable[[], float], float], optional
+        packet_size : Callable[[], float] | float, optional
             The size of the generated packets [B], by default 10. Accepts a
             callable on the same terms as `packet_interval`.
         debug : bool, optional
@@ -326,7 +337,10 @@ class PacketSource:
         self.destination.process_packet(packet)
         self.packets_sent += 1
         if self.debug:
-            logger.info(f"Source {self.source_id}. Generated: {packet}.")
+            logger.info(
+                f"t = {self.env.now:8.2f} s  {self.source_id} → packet {packet.id} "
+                f"({packet.size} B)"
+            )
 
     def start(self) -> simpy.Process:
         """
@@ -380,15 +394,18 @@ class SwitchPort:
         Bytes offered to the port, including those dropped [B].
     cum_drop_count : int
         Packets dropped for lack of buffer space [–].
+    dropped_packets : list[PacketProto]
+        The dropped packets themselves, each stamped with its ``drop_time``, so
+        that a packet missing at the sink can be traced to this port.
     """
 
     def __init__(
         self,
         env: simpy.Environment,
         port_no: int,
-        capacity: Optional[int] = 10,
+        capacity: int | None = 10,
         transmission_rate: float = 1.0,
-        destination: Optional[DestinationProto] = None,
+        destination: DestinationProto | None = None,
     ) -> None:
         """
         Initialize a new switch port and start serving its buffer.
@@ -415,12 +432,13 @@ class SwitchPort:
         self.transmission_rate = transmission_rate
         self.queue: simpy.Store = simpy.Store(env)
         self.destination = destination
-        self.packet_in_service: Optional[PacketProto] = None
+        self.packet_in_service: PacketProto | None = None
         self.queue_packets: int = 0
         self.queue_bytes: int = 0
         self.cum_packet_count: int = 0
         self.cum_byte_count: int = 0
         self.cum_drop_count: int = 0
+        self.dropped_packets: list[PacketProto] = []
 
         # start the packet processing process
         self.process = self.env.process(self.start())  # type: ignore
@@ -485,7 +503,7 @@ class SwitchPort:
             yield self.env.process(self.transmit(packet))  # type: ignore
             self.packet_in_service = None
 
-    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+    def process_packet(self, packet: PacketProto) -> simpy.Event | None:
         """
         Enqueue a packet, or drop it when the buffer cannot hold it.
 
@@ -506,6 +524,9 @@ class SwitchPort:
         queue_bytes = self.queue_bytes + packet.size
         if self.capacity is not None and queue_bytes > self.capacity:
             self.cum_drop_count += 1
+            packet.drop_time = self.env.now
+            packet.drop_queue_bytes = self.queue_bytes
+            self.dropped_packets.append(packet)
             return None
 
         self.queue_bytes = queue_bytes
@@ -550,7 +571,7 @@ class Switch:
         env: simpy.Environment,
         switch_id: str,
         num_ports: int,
-        port_capacity: Optional[int],
+        port_capacity: int | None,
         port_transmission_rate: float,
     ) -> None:
         """
@@ -725,7 +746,7 @@ class PacketSink:
         self.last_arrival_time: float = 0.0
         self.debug = debug
 
-    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+    def process_packet(self, packet: PacketProto) -> simpy.Event | None:
         """
         Receive a packet and log its details.
 
@@ -749,7 +770,9 @@ class PacketSink:
         self.last_arrival_time = arrival_time
         if self.debug:
             logger.info(
-                f"{self}. Arrival time {arrival_time:6.2f}. Processed: {packet}"
+                f"t = {arrival_time:8.2f} s  {self.sink_id} ← packet {packet.id} "
+                f"({packet.size} B, {packet.source}, "
+                f"{arrival_time - packet.creation_time:.2f} s in system)"
             )
         return None
 
@@ -793,7 +816,7 @@ class PacketFork:
         self,
         env: simpy.Environment,
         probs: list[float],
-        rng: Optional[Generator] = None,
+        rng: Generator | None = None,
     ):
         """
         Initialize a new packet fork.
@@ -822,10 +845,10 @@ class PacketFork:
         self.env = env
         self.probs = probs
         self.cum_probs = list(accumulate(probs))
-        self.destinations: list[Optional[DestinationProto]] = [None for _ in probs]
+        self.destinations: list[DestinationProto | None] = [None for _ in probs]
         self.rng = default_rng() if rng is None else rng
 
-    def process_packet(self, packet: PacketProto) -> Optional[simpy.Event]:
+    def process_packet(self, packet: PacketProto) -> simpy.Event | None:
         """
         Select a branch at random and hand the packet to its destination.
 
