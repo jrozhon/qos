@@ -308,7 +308,15 @@ The Mermaid theme above is retained for ad-hoc diagrams; it does not style these
   use the faculty palette in the R26 order (EKF blue, FBI orange, FMT red for error marks).
 - FEI cyan is reserved for small graphical accents; labels use ink, muted neutral or dark green.
 - Every SVG carries a descriptive title and description, and every slide image has alt text.
-- White figure surfaces are intentional in dark mode, preserving the checked contrast.
+- **R7a — every visual must work in dark mode (`d`).** Generated figures exist twice: `name.svg` (light, also
+  used by the PDF export) and `name.dark.svg` (dark palette: background `#0E1A19` as in `style.css`, ink `#E8ECEB`,
+  muted `#9BA8A6`, green text `#4DD8CE` per R7, series colours lightened to EKF `#6E9BFF` and FMT `#FF4D6D`, fills
+  as dark tints of the same hues). Figures take every colour from `PALETTES` in the script, never a literal hex
+  value, and slides embed them with `<Figure src="…svg" alt="…" />`, never a bare `<img>`, so the dark variant is
+  swapped in when the theme changes. Components drawn in the slide (`GilbertSim`, `FourStateDiagram`, the
+  self-similarity animations) colour themselves with the CSS variables and follow dark mode automatically; new
+  components must do the same. The Mermaid theme in `setup/mermaid.ts` is light-only; no deck uses Mermaid today,
+  so give it a dark variant before the first diagram.
 - One SVG unit is one slide CSS pixel: full-width artwork is 880 px; the shared type scale is 18 px labels,
   15 px annotations, 16 px section labels and 24 px callouts. `.lecture-diagram` renders at native size.
 

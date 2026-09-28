@@ -8,23 +8,49 @@ hard-edged boxes, one CSS pixel per SVG unit on the 980 x 552 slide canvas.
 
 Run from anywhere::
 
-    python3 scripts/generate-figures.py
+    python3 scripts/generate-figures.py          # both themes: name.svg and name.dark.svg
+    python3 scripts/generate-figures.py dark     # one theme only
 """
 from __future__ import annotations
 
 import base64
 import math
 import random
+import subprocess
+import sys
 from html import escape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FIGURES = ROOT / 'public' / 'figures'
 
-# Palette — VSB-STYLE.md §1 and §6. Cyan never carries text (R5).
-G, D, C, INK, MUT, TINT, LINE, GRID = (
-    '#00A499', '#00736B', '#05C3DE', '#1A1A1A', '#5A6664', '#EBF8F7', '#BCCFCD', '#E6ECEB')
-FMT, EKF, FBI = '#E4002B', '#0047BB', '#FF8200'  # other faculty colours, chart series only (R26)
+# Palette — VSB-STYLE.md §1, §6 and §10. Cyan never carries text (R5).
+# Every figure is written twice: light (name.svg, also used by the PDF export) and dark (name.dark.svg,
+# shown by components/Figure.vue when the deck is in dark mode). Figures must take every colour from this
+# table — a literal hex value in a figure would stay light-mode in the dark variant.
+PALETTES = {
+    'light': dict(
+        G='#00A499', D='#00736B', C='#05C3DE', INK='#1A1A1A', MUT='#5A6664', TINT='#EBF8F7', LINE='#BCCFCD',
+        GRID='#E6ECEB', FMT='#E4002B', EKF='#0047BB', FBI='#FF8200',
+        PAPER='#FFFFFF', NEUTRAL='#F6F8F8', NEUTRAL2='#F3F6F5', CTINT='#E8F9FC',
+        TINT2='#D6F0EE', TINT3='#BFE7E3', TINT4='#A6DDD8',
+        YTINT='#FFF4D6', OTINT='#FFE6D0', RTINT='#FBD9DF', GREYTINT='#F3F3F3'),
+    # dark: the deck's dark background (#0E1A19, style.css), R7's light green for green text, lightened
+    # series colours that keep ≥ 3:1 on the background, and dark tints of the same hues for fills
+    'dark': dict(
+        G='#00A499', D='#4DD8CE', C='#05C3DE', INK='#E8ECEB', MUT='#9BA8A6', TINT='#143633', LINE='#3C5552',
+        GRID='#223432', FMT='#FF4D6D', EKF='#6E9BFF', FBI='#FF8200',
+        PAPER='#0E1A19', NEUTRAL='#16292A', NEUTRAL2='#1B2B2C', CTINT='#0C3239',
+        TINT2='#1A4541', TINT3='#20564F', TINT4='#276A61',
+        YTINT='#3A3218', OTINT='#3D2A1A', RTINT='#3E1E25', GREYTINT='#232626'),
+}
+if len(sys.argv) < 2:  # no theme given: run the script once per theme
+    for theme in PALETTES:
+        subprocess.run([sys.executable, __file__, theme], check=True)
+    sys.exit(0)
+THEME = sys.argv[1]
+globals().update(PALETTES[THEME])
+SUFFIX = '' if THEME == 'light' else f'.{THEME}'
 
 FONTS = ''.join(
     '@font-face{font-family:Carlito;font-weight:%d;src:url(data:font/woff2;base64,%s) format("woff2");}'
@@ -51,7 +77,7 @@ class SVG:
             f'.bold{{font-weight:700}} .big{{font-size:24px;font-weight:700}} .green{{fill:{D}}} '
             f'.math{{font-style:italic}}</style>{markers}</defs>',
         ]
-        self.rect(0, 0, w, h, '#FFFFFF', 'none')
+        self.rect(0, 0, w, h, PAPER, 'none')
 
     # --- primitives --------------------------------------------------------
     def rect(self, x, y, w, h, fill=TINT, stroke=LINE, sw=1):
@@ -90,7 +116,7 @@ class SVG:
     def save(self):
         out = FIGURES / self.deck
         out.mkdir(parents=True, exist_ok=True)
-        (out / f'{self.name}.svg').write_text('\n'.join(self.parts + ['</svg>']) + '\n')
+        (out / f'{self.name}{SUFFIX}.svg').write_text('\n'.join(self.parts + ['</svg>']) + '\n')
 
 
 class Axes:
@@ -143,8 +169,8 @@ sine = lambda f: (lambda t: math.sin(2 * math.pi * f * t))  # noqa: E731
 s = SVG(DECK, 'comm-system', 190, 'Block diagram of a communication system',
         'A source produces a message. The transmitter encodes it into a signal, the channel carries the signal '
         'while noise is added, and the receiver decodes the signal back into a message for the destination.')
-blocks = [('Source', 'message', '#F6F8F8'), ('Transmitter', 'encodes into a signal', TINT),
-          ('Channel', 'bandwidth B', TINT), ('Receiver', 'decodes the signal', TINT), ('Destination', 'message', '#F6F8F8')]
+blocks = [('Source', 'message', NEUTRAL), ('Transmitter', 'encodes into a signal', TINT),
+          ('Channel', 'bandwidth B', TINT), ('Receiver', 'decodes the signal', TINT), ('Destination', 'message', NEUTRAL)]
 x = 20
 for i, (t, sub, fill) in enumerate(blocks):
     w = 130 if i in (0, 4) else 160
@@ -153,7 +179,7 @@ for i, (t, sub, fill) in enumerate(blocks):
         s.line(x + w, 104, x + w + 20, 104, INK, 2, arrow='ink')
     x += w + 20
 # Noise sits centred above the channel (x = 350, w = 160) and enters it from the top.
-s.box(350, 6, 160, 34, 'Noise', '', '#FFFFFF')
+s.box(350, 6, 160, 34, 'Noise', '', PAPER)
 s.line(430, 40, 430, 72, INK, 2, arrow='ink')
 s.text(440, 172, 'Telephony: microphone → network → earpiece.   Information theory: message → channel symbols → message.',
        'small', 'middle')
@@ -274,7 +300,7 @@ for row, (title, L) in enumerate([('M = 2 states · 1 bit per symbol', 2), ('M =
     s.text(50, y0 - 6, title, 'label')
     n = 10 if L == 2 else 5
     x0, w = 50, 560
-    s.rect(x0, y0, w, 60, '#FFFFFF', LINE)
+    s.rect(x0, y0, w, 60, PAPER, LINE)
     for k in range(n + 1):
         s.line(x0 + k * w / n, y0, x0 + k * w / n, y0 + 60, GRID, 1)
     pts = []
@@ -383,7 +409,7 @@ band_h, band_gap = 40, 10
 for i in range(3):  # i=0 lowest band (channel 1) … i=2 highest (channel 3)
     by = y0 + h - 4 - (i + 1) * band_h - i * band_gap
     bx, bw = x0 + 10, w - 20
-    s.rect(bx, by, bw, band_h, '#FFFFFF', chan[i], 2)
+    s.rect(bx, by, bw, band_h, PAPER, chan[i], 2)
     s.rect(bx, by, bw, 4, chan[i], 'none')  # accent bar, same language as box()
     s.text(bx + bw / 2, by + band_h / 2 + 8, f'Channel {i + 1}', 'bold', 'middle')
 # Axes drawn last so their arrowheads sit on top of the band rectangles, not behind them.
@@ -401,7 +427,7 @@ slot_y, slot_h = y0 + 4, h - 8
 for k in range(n_slots):
     ch = k % 3
     sx = x0 + 10 + k * slot_w
-    s.rect(sx, slot_y, slot_w, slot_h, '#FFFFFF', chan[ch], 2)
+    s.rect(sx, slot_y, slot_w, slot_h, PAPER, chan[ch], 2)
     s.rect(sx, slot_y, slot_w, 4, chan[ch], 'none')
     s.text(sx + slot_w / 2, slot_y + slot_h / 2 + 8, str(ch + 1), 'bold', 'middle')
 # Axes drawn last so their arrowheads sit on top of the slot rectangles, not behind them.
@@ -416,7 +442,7 @@ s.text(x0, y0 + h + 66, 'once per frame.', 'small')
 
 for i in range(3):  # shared legend
     lx = 300 + i * 130
-    s.rect(lx, 262, 14, 14, '#FFFFFF', chan[i], 2)
+    s.rect(lx, 262, 14, 14, PAPER, chan[i], 2)
     s.text(lx + 22, 273, f'Channel {i + 1}', 'small')
 s.save()
 
@@ -523,7 +549,7 @@ s = SVG(DECK, 'littles-law', 230, "Delay decomposition in a queueing system",
 x0 = 206
 s.line(126, 100, x0, 100, G, 2, arrow='green')
 s.text(126, 85, 'λ', 'bold')
-s.box(x0, 68, 220, 64, 'Queue', 'waiting, Lq', '#F6F8F8')
+s.box(x0, 68, 220, 64, 'Queue', 'waiting, Lq', NEUTRAL)
 s.box(x0 + 220, 68, 180, 64, 'Server', 'in service, rate μ', TINT)
 s.line(x0 + 400, 100, x0 + 450, 100, INK, 2, arrow='ink')
 s.text(x0 + 458, 105, 'Departures', 'bold')
@@ -574,14 +600,14 @@ s = SVG(DECK, 'delay-budget', 275, 'A one-way delay budget, fixed and variable c
 # Legend as one centered row (not a right-side float) so the bar itself can be centered below it.
 s.rect(207, 12, 18, 18, TINT, G, 2)
 s.text(233, 26, 'Fixed — codec & link', 'small')
-s.rect(430, 12, 18, 18, '#E8F9FC', C, 2)
+s.rect(430, 12, 18, 18, CTINT, C, 2)
 s.text(456, 26, 'Variable — traffic-dependent', 'small')
 segments = [('Codec', 55, True), ('Serialization', 45, True), ('Propagation', 100, True),
             ('Queuing', 140, False), ('Forwarding', 35, False), ('Shaping', 85, False)]
 total_w = sum(w for _, w, _ in segments)
 cursor, bar_y, bar_h = (880 - total_w) // 2, 110, 60  # centre the bar itself in the 880-wide canvas
 for i, (name, w, fixed) in enumerate(segments):
-    fill, stroke = (TINT, G) if fixed else ('#E8F9FC', C)
+    fill, stroke = (TINT, G) if fixed else (CTINT, C)
     s.rect(cursor, bar_y, w, bar_h, fill, stroke, 2)
     mid = cursor + w / 2
     if i % 2 == 0:  # alternate labels above/below so narrow segments still get room for a leader line
@@ -604,7 +630,7 @@ s = SVG(DECK, 'weighted-queues', 260, 'Weighted scheduling across two output que
 s.text(402, 28, 'R1 — OUTPUT SCHEDULER', 'label', 'middle')
 s.text(216, 130, 'Arrivals', 'bold', 'end')
 s.line(230, 125, 252, 125, G, 2, arrow='green')
-s.rect(252, 40, 300, 170, '#FFFFFF', INK, 1.5)
+s.rect(252, 40, 300, 170, PAPER, INK, 1.5)
 s.rect(277, 68, 62, 30, G, 'none')
 s.rect(339, 68, 188, 30, EKF, 'none')
 s.text(308, 58, '25%', 'bold', 'middle')
@@ -627,13 +653,13 @@ s = SVG(DECK, 'token-bucket', 300, 'The token bucket enforces a rate and a burst
         'removed; otherwise it must wait for tokens to accumulate, or be dropped or marked as non-conformant.')
 s.text(114, 148, 'Arrivals', 'bold', 'end')
 s.line(128, 135, 160, 135, G, 2, arrow='green')
-s.rect(160, 30, 240, 210, '#FFFFFF', INK, 1.5)
+s.rect(160, 30, 240, 210, PAPER, INK, 1.5)
 s.text(280, 20, 'TOKEN BUCKET', 'label', 'middle')
-s.rect(185, 70, 90, 140, '#FFFFFF', INK, 1.5)
+s.rect(185, 70, 90, 140, PAPER, INK, 1.5)
 token_cols = [192, 228]
 token_rows = [185, 163, 141, 119]
 for ri, ty in enumerate(token_rows):
-    fill = TINT if ri < 3 else '#FFFFFF'
+    fill = TINT if ri < 3 else PAPER
     stroke = G if ri < 3 else LINE
     for tx in token_cols:
         s.rect(tx, ty, 18, 18, fill, stroke, 1.5)
@@ -649,7 +675,7 @@ s.line(400, 175, 470, 175, INK, 2, arrow='ink')
 s.rect(470, 50, 330, 70, TINT, G, 2)
 s.text(485, 80, 'Enough tokens', 'bold')
 s.text(485, 102, 'packet sent immediately, tokens removed', 'small')
-s.rect(470, 140, 330, 70, '#E8F9FC', C, 2)
+s.rect(470, 140, 330, 70, CTINT, C, 2)
 s.text(485, 170, 'Not enough tokens', 'bold')
 s.text(485, 192, 'wait (shaping) or drop/mark (policing)', 'small')
 s.text(440, 260, 'Traffic entering any interval of length T is bounded by b + rT: bursts up to b tokens pass', 'small', 'middle')
@@ -704,14 +730,14 @@ def span_bracket(x1, x2, y, label):
 ox = 105
 s.text(80 + ox, 25, 'WITHOUT LFI', 'label')
 cursor = timeline_block(80 + ox, 45, 320, 55, TINT, G, 'Large packet', '1500 B')
-cursor = timeline_block(cursor, 45, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+cursor = timeline_block(cursor, 45, 100, 55, CTINT, C, 'Small', '200 B')
 s.line(cursor + 10, 72, cursor + 50, 72, INK, 2, arrow='ink')
 s.text(cursor + 58, 77, 'link', 'small')
 span_bracket(80 + ox, 400 + ox, 120, 'the urgent packet waits for the whole 1500 B packet')
 
 s.text(80 + ox, 165, 'WITH LFI (FRAGMENTATION + INTERLEAVING)', 'label')
 cursor = timeline_block(80 + ox, 185, 100, 55, TINT, G, 'F1')
-cursor = timeline_block(cursor, 185, 100, 55, '#E8F9FC', C, 'Small', '200 B')
+cursor = timeline_block(cursor, 185, 100, 55, CTINT, C, 'Small', '200 B')
 cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F2')
 cursor = timeline_block(cursor, 185, 100, 55, TINT, G, 'F3')
 s.line(cursor + 10, 212, cursor + 50, 212, INK, 2, arrow='ink')
@@ -744,7 +770,7 @@ def span_above(x1, x2, y, label):
 
 x0, cw = 240, 50
 s.text(x0, 25, 'TOS BYTE — PRE-DIFFSERV (RFC 791/1349)', 'label')
-cell_row(x0, 60, [(3 * cw, TINT), (4 * cw, '#F3F6F5'), (cw, '#FFFFFF')])
+cell_row(x0, 60, [(3 * cw, TINT), (4 * cw, NEUTRAL2), (cw, PAPER)])
 span_above(x0, x0 + 3 * cw, 60, 'IP Precedence (3 bits)')
 span_above(x0 + 3 * cw, x0 + 7 * cw, 60, 'ToS bits (4 bits)')
 span_above(x0 + 7 * cw, x0 + 8 * cw, 60, 'Unused')
@@ -752,7 +778,7 @@ span_above(x0 + 7 * cw, x0 + 8 * cw, 60, 'Unused')
 s.text(440, 145, 'Same 8 bits, reinterpreted:', 'small', 'middle')
 
 s.text(x0, 185, 'DS FIELD — DIFFSERV (RFC 2474)', 'label')
-cell_row(x0, 220, [(6 * cw, TINT), (2 * cw, '#F3F6F5')])
+cell_row(x0, 220, [(6 * cw, TINT), (2 * cw, NEUTRAL2)])
 span_above(x0, x0 + 6 * cw, 220, 'DSCP (6 bits)')
 span_above(x0 + 6 * cw, x0 + 8 * cw, 220, 'ECN (2 bits)')
 
@@ -763,10 +789,9 @@ s.save()
 # =============================================================================
 # 04 — Network traffic modelling: distributions and self-similarity
 # =============================================================================
-# The five Markov loss-model state diagrams for this deck (Bernoulli, Simple Gilbert, Gilbert,
-# Gilbert-Elliott, four-state) are NOT generated here — hand-rolled SVG bezier math could not match
-# matplotlib's FancyArrowPatch (auto node-edge clipping via patchA/patchB, properly weighted arc3
-# curves). They live in generate-markov-figures.py instead; run both scripts to regenerate the deck.
+# The Markov loss-model state diagrams for this deck (Bernoulli, Simple Gilbert, Gilbert,
+# Gilbert-Elliott, four-state) are NOT generated here: they are drawn on the slides by the Vue components
+# GilbertSim (diagram mode) and FourStateDiagram, so they match the live loss simulations.
 DECK = '04'
 
 # --- Exponential distribution: density and cumulative distribution -----------
@@ -911,6 +936,33 @@ for i, (factor, title) in enumerate(zip(factors, titles)):
 s.text(440, 300, 'A Poisson-based model would flatten towards a smooth average as aggregation grows — this one does not.', 'small', 'middle')
 s.save()
 
+# --- Extras: Pareto tail vs exponential tail (log–log CCDF) -------------------
+# Same mean period (12 slots) as the deck's live ON/OFF animations. Axes are in log10 units, because
+# Axes maps linearly; on log–log axes a Pareto tail is a straight line of slope −α.
+PARETO_MEAN = 12
+s = SVG(DECK, 'pareto-ccdf', 250, 'Pareto versus exponential tails',
+        'Complementary cumulative distribution P(X > x) on log-log axes for Pareto periods with shape alpha '
+        '1.2, 1.5 and 1.9 and for an exponential period, all with mean 12 slots. Each Pareto tail is a straight '
+        'line of slope minus alpha; the exponential tail falls away steeply, so very long periods are practically '
+        'impossible for it but routine for the Pareto distribution.')
+ax = Axes(s, 80, 16, 500, 190, (0, 4), (-6, 0.2), xlabel='period length x [slots]', ylabel='P(X > x)',
+          xticks=[(0, '1'), (1, '10'), (2, '100'), (3, '1 000'), (4, '10 000')],
+          yticks=[(0, '1'), (-2, '10⁻²'), (-4, '10⁻⁴'), (-6, '10⁻⁶')])
+for alpha, color in ((1.2, G), (1.5, EKF), (1.9, FBI)):
+    xm = PARETO_MEAN * (alpha - 1) / alpha
+    top = min(4, math.log10(xm) + 6 / alpha)  # where the tail leaves the plot at 10⁻⁶
+    ax.curve(lambda lx, a=alpha, m=xm: 0 if 10 ** lx < m else a * (math.log10(m) - lx), color, 3, n=300, xr=(0, top))
+ax.curve(lambda lx: -(10 ** lx) / PARETO_MEAN / math.log(10), MUT, 2.5, n=300, dash=True,
+         xr=(0, math.log10(6 * math.log(10) * PARETO_MEAN)))
+for i, (label, color, dash) in enumerate((('Pareto α = 1.2 (H = 0.90)', G, False), ('Pareto α = 1.5 (H = 0.75)', EKF, False),
+                                          ('Pareto α = 1.9 (H = 0.55)', FBI, False), ('exponential', MUT, True))):
+    s.line(620, 34 + i * 30, 660, 34 + i * 30, color, 3, dash)
+    s.text(668, 39 + i * 30, label, 'small')
+s.text(620, 170, 'all four: mean period 12 slots', 'small')
+s.text(620, 192, 'Pareto: straight line, slope −α', 'small')
+s.text(620, 214, 'exponential: below 10⁻⁶ by ~170 slots', 'small')
+s.save()
+
 # =============================================================================
 # 05 — Speech quality measurement: MOS, intrusive models and the E-model
 # =============================================================================
@@ -938,8 +990,8 @@ for i, (title, sub, rows) in enumerate(scales):
     s.text(x0, 42, sub, 'small')
     for k, (score, lab) in enumerate(rows):
         y = 56 + k * 36
-        s.rect(x0, y, 260, 32, TINT if k % 2 == 0 else '#FFFFFF', LINE)
-        s.rect(x0, y, 44, 32, '#FFFFFF', G, 1.5)
+        s.rect(x0, y, 260, 32, TINT if k % 2 == 0 else PAPER, LINE)
+        s.rect(x0, y, 44, 32, PAPER, G, 1.5)
         s.text(x0 + 22, y + 22, score, 'bold green', 'middle')
         s.text(x0 + 56, y + 22, lab)
 s.text(440, 322, 'MOS = arithmetic mean of all listeners’ scores for one condition · always report it with its confidence interval',
@@ -952,11 +1004,11 @@ s = SVG(DECK, 'model-families', 300, 'Intrusive, non-intrusive and parametric sp
         'degraded speech. An intrusive model compares the reference with the degraded signal. A non-intrusive '
         'signal-based model listens to the degraded signal only. A parametric model uses no audio at all, only '
         'network and terminal parameters such as delay, loss and codec type.')
-s.box(20, 30, 200, 60, 'Reference speech', 'clean, known in advance', '#F6F8F8')
+s.box(20, 30, 200, 60, 'Reference speech', 'clean, known in advance', NEUTRAL)
 s.line(220, 60, 330, 60, INK, 2, arrow='ink')
 s.box(330, 30, 220, 60, 'System under test', 'codec · network · terminal')
 s.line(550, 60, 660, 60, INK, 2, arrow='ink')
-s.box(660, 30, 200, 60, 'Degraded speech', 'what the listener hears', '#F6F8F8')
+s.box(660, 30, 200, 60, 'Degraded speech', 'what the listener hears', NEUTRAL)
 # Reference drops straight into the intrusive model; the degraded signal runs along one bus at
 # y = 130 to both signal-based models, so no two connectors cross.
 s.line(90, 90, 90, 190, G, 2, arrow='green')
@@ -965,7 +1017,7 @@ s.line(230, 130, 230, 190, G, 2, arrow='green')
 s.line(440, 130, 440, 190, G, 2, arrow='green')
 s.box(20, 190, 270, 64, 'Intrusive · full reference', 'PESQ P.862 · POLQA P.863 · ViSQOL')
 s.box(305, 190, 270, 64, 'Non-intrusive · signal', 'P.563 · DNSMOS (degraded only)')
-s.box(590, 190, 270, 64, 'Parametric · no audio', 'E-model G.107 · RTCP probes', '#FFFFFF')
+s.box(590, 190, 270, 64, 'Parametric · no audio', 'E-model G.107 · RTCP probes', PAPER)
 s.text(725, 152, 'delay, loss, codec, echo …', 'small', 'middle')
 s.line(725, 158, 725, 190, MUT, 2, dash=True, arrow='muted')
 s.text(440, 290, 'More information in → more accurate, but harder to deploy: a reference signal exists only in a test call.',
@@ -985,7 +1037,7 @@ s.text(20, 22, 'INPUT: REFERENCE + DEGRADED SIGNAL', 'label')
 for k, (t, sub) in enumerate(steps):
     col, row = k % 3, k // 3
     x, y = 20 + col * 295, 40 + row * 110
-    s.box(x, y, 250, 60, t, sub, TINT if k < 5 else '#FFFFFF')
+    s.box(x, y, 250, 60, t, sub, TINT if k < 5 else PAPER)
     if col < 2:
         s.line(x + 250, y + 30, x + 295, y + 30, INK, 2, arrow='ink')
 s.path('M735,100 L735,125 L145,125', INK, 2)
@@ -1010,7 +1062,7 @@ for k, (name, lo, hi, std) in enumerate(bands):
     y = 20 + k * 50
     s.text(20, y + 20, name, 'bold')
     s.text(20, y + 38, std, 'small')
-    s.rect(LX(lo), y + 4, LX(hi) - LX(lo), 30, [TINT, '#D6F0EE', '#BFE7E3', '#A6DDD8'][k], G, 1.5)
+    s.rect(LX(lo), y + 4, LX(hi) - LX(lo), 30, [TINT, TINT2, TINT3, TINT4][k], G, 1.5)
     s.text(LX(lo) + 6, y + 24, fmt(lo), 'small green', 'start')
     s.text(LX(hi) - 6, y + 24, fmt(hi), 'small green', 'end')
 s.line(290, 218, 850, 218, INK, 1.5)
@@ -1040,7 +1092,7 @@ panels = [(20, 230, 'SEND SIDE · talker', 78, [('SLR', 'send loudness'), ('Ps',
           (630, 230, 'RECEIVE SIDE · listener', 78, [('RLR', 'receive loudness'), ('Pr', 'room noise'),
                                                      ('LSTR', 'listener sidetone'), ('Dr', 'handset D-factor')])]
 for x, w, title, indent, rows in panels:
-    s.rect(x, 60, w, 180, '#FFFFFF', LINE)
+    s.rect(x, 60, w, 180, PAPER, LINE)
     s.rect(x, 60, w, 4, G, 'none')
     s.text(x + 14, 90, title, 'label')
     for k, (sym, desc) in enumerate(rows):
@@ -1098,9 +1150,9 @@ axes_at = len(s.parts)  # the bands are inserted here so the axes and arrowheads
 ax = Axes(s, 70, 20, 520, 220, (0, 104), (1, 4.7), xlabel='R', ylabel='MOS-CQE',
           xticks=[(v, str(v)) for v in (0, 20, 40, 50, 60, 70, 80, 90, 100)],
           yticks=[(v, str(v)) for v in (1, 2, 3, 4, 4.5)], grid=False)
-cats = [(90, 100, '#BFE7E3', 'Very satisfied'), (80, 90, TINT, 'Satisfied'), (70, 80, '#FFF4D6', 'Some users dissatisfied'),
-        (60, 70, '#FFE6D0', 'Many users dissatisfied'), (50, 60, '#FBD9DF', 'Nearly all dissatisfied'),
-        (0, 50, '#F3F3F3', 'Not recommended')]
+cats = [(90, 100, TINT3, 'Very satisfied'), (80, 90, TINT, 'Satisfied'), (70, 80, YTINT, 'Some users dissatisfied'),
+        (60, 70, OTINT, 'Many users dissatisfied'), (50, 60, RTINT, 'Nearly all dissatisfied'),
+        (0, 50, GREYTINT, 'Not recommended')]
 for k, (lo, hi, fill, lab) in enumerate(cats):
     s.parts.insert(axes_at, f'<rect x="{ax.px(lo):.1f}" y="{ax.py(4.7):.1f}" width="{ax.px(hi) - ax.px(lo):.1f}" '
                             f'height="{ax.py(1) - ax.py(4.7):.1f}" fill="{fill}" stroke="none"/>')
@@ -1179,4 +1231,4 @@ s.text(440, 316, 'Provisional planning values of ITU-T G.113 Appendix I (1999) �
        'small', 'middle')
 s.save()
 
-print(f'Figures written to {FIGURES}')
+print(f'{THEME} figures written to {FIGURES}')

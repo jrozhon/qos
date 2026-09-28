@@ -128,7 +128,7 @@ layout: section
 
 # Exponential distribution — the memoryless baseline
 
-<img class="lecture-diagram" src="/figures/04/exp-pdf-cdf.svg" alt="Density and cumulative distribution of the exponential distribution with rate 1: the density decays monotonically from 1, the cumulative distribution rises from 0 towards 1." />
+<Figure src="/figures/04/exp-pdf-cdf.svg" alt="Density and cumulative distribution of the exponential distribution with rate 1: the density decays monotonically from 1, the cumulative distribution rises from 0 towards 1." />
 
 <div class="pt-2 text-sm">
 
@@ -146,7 +146,7 @@ traffic breaks the independence assumption behind it entirely.
 
 # Weibull distribution — a better fit at scale
 
-<img class="lecture-diagram" src="/figures/04/weibull-pdf.svg" alt="Weibull probability density for shape parameter k from 1 to 5 and scale 1: k equals 1 reproduces the exponential; larger k concentrates the density more tightly around x equals 1." />
+<Figure src="/figures/04/weibull-pdf.svg" alt="Weibull probability density for shape parameter k from 1 to 5 and scale 1: k equals 1 reproduces the exponential; larger k concentrates the density more tightly around x equals 1." />
 
 <div class="pt-2 text-sm">
 
@@ -164,7 +164,7 @@ This is a preview of Part 3, where aggregation itself starts to matter even more
 
 # Normal distribution — jitter
 
-<img class="lecture-diagram" src="/figures/04/normal-jitter.svg" alt="Density and cumulative distribution of a zero-mean, unit-variance Normal distribution used to model jitter: the density is symmetric and bell-shaped." />
+<Figure src="/figures/04/normal-jitter.svg" alt="Density and cumulative distribution of a zero-mean, unit-variance Normal distribution used to model jitter: the density is symmetric and bell-shaped." />
 
 <div class="pt-2 text-sm">
 
@@ -252,7 +252,9 @@ following slides differ only in how many states and emission probabilities they 
 
 # Packet loss — Bernoulli model
 
-<img class="lecture-diagram" src="/figures/04/bernoulli-model.svg" alt="Two-state diagram: Transmit and Loss, connected symmetrically with transition probability p into Loss and 1 minus p into Transmit, from either state." />
+<GilbertSim model="bernoulli" diagram alt="Two-state diagram: Transmit and Loss, connected symmetrically with transition probability p into Loss and 1 minus p into Transmit, from either state." />
+
+<p class="diagram-caption">The simplest loss model — a single independent variable p; losses are completely independent.</p>
 
 <div class="pt-2 text-sm">
 
@@ -267,10 +269,28 @@ of the current state. It is the baseline the next three models improve on by add
 -->
 
 ---
+class: export-skip
+---
+
+# Bernoulli model — live
+
+<GilbertSim model="bernoulli" :p="0.14" />
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+One draw per packet, compared with the same p whatever the current state — the bar never changes, which is
+the whole point: no memory. p = 0.14 gives roughly the same average loss as the Simple Gilbert run on the next
+live slide (≈ 14 %), so keep this grid in mind: the red squares here are scattered singletons, there they come
+in bursts. Ask: how long is the typical run of red squares here? (Mean burst 1/(1−p) ≈ 1.2 packets.)
+-->
+
+---
 
 # Packet loss — Simple Gilbert model
 
-<img class="lecture-diagram" src="/figures/04/gilbert-simple-model.svg" alt="Two-state diagram: Transmit and Loss, with independent transition probabilities p from Transmit to Loss and q from Loss to Transmit." />
+<GilbertSim model="simple" diagram alt="Two-state diagram: Transmit and Loss, with independent transition probabilities p from Transmit to Loss and q from Loss to Transmit." />
+
+<p class="diagram-caption">A more elaborate Bernoulli model with a second independent variable q — can produce loss bursts.</p>
 
 <div class="pt-2 text-sm">
 
@@ -285,10 +305,26 @@ first model in the lecture with genuine state-dependence.
 -->
 
 ---
+class: export-skip
+---
+
+# Simple Gilbert model — live
+
+<GilbertSim :p="0.05" :q="0.3" />
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+Run it once with the defaults: losses arrive in short red bursts (mean burst length 1/q ≈ 3.3 packets), and the
+cumulative loss wanders around π_L = p/(p+q) ≈ 14 % before settling. Then ask for predictions before moving a
+slider: halve both p and q → the same π_L but bursts twice as long; raise p alone → bursts start more often.
+Compare with Bernoulli: the same 14 % loss would scatter single red squares across the grid.
+-->
+
+---
 
 # Simple Gilbert model — convergence to steady state
 
-<img class="lecture-diagram" src="/figures/04/gilbert-convergence.svg" alt="Two panels showing the empirical probability of Transmit and Loss over time for a simple Gilbert chain with p equals 0.8 and q equals 0.4, starting in Transmit and starting in Loss, both converging to the same steady-state probabilities." />
+<Figure src="/figures/04/gilbert-convergence.svg" alt="Two panels showing the empirical probability of Transmit and Loss over time for a simple Gilbert chain with p equals 0.8 and q equals 0.4, starting in Transmit and starting in Loss, both converging to the same steady-state probabilities." />
 
 <div class="pt-2 text-sm">
 
@@ -306,7 +342,9 @@ it is a property of any finite stochastic realization, not evidence the chain ha
 
 # Packet loss — Gilbert model
 
-<img class="lecture-diagram" src="/figures/04/gilbert-model.svg" alt="The Simple Gilbert two-state diagram with an added emission probability h at the Loss state: even in Loss, a packet is transmitted correctly with probability h and lost with probability 1 minus h." />
+<GilbertSim model="gilbert" diagram alt="The Simple Gilbert two-state diagram with an added emission probability h at the Loss state: even in Loss, a packet is transmitted correctly with probability h and lost with probability 1 minus h." />
+
+<p class="diagram-caption">Even in the "bad" state, the system can still transmit individual packets correctly.</p>
 
 <div class="pt-2 text-sm">
 
@@ -324,7 +362,9 @@ period does not lose every single packet.
 
 # Packet loss — Gilbert-Elliott model
 
-<img class="lecture-diagram" src="/figures/04/gilbert-elliott-model.svg" alt="The Gilbert two-state diagram with a second emission probability k added at the Transmit state: even in Transmit, a packet is lost with probability 1 minus k." />
+<GilbertSim model="elliott" diagram alt="The Gilbert two-state diagram with a second emission probability k added at the Transmit state: even in Transmit, a packet is lost with probability 1 minus k." />
+
+<p class="diagram-caption">Even in the "good" state, the system can still lose a packet correctly modelled by chance.</p>
 
 <div class="pt-2 text-sm">
 
@@ -341,21 +381,40 @@ used loosely to mean either — check which emission probabilities a given paper
 -->
 
 ---
+class: export-skip
+---
+
+# Gilbert-Elliott model — live
+
+<GilbertSim model="elliott" :p="0.05" :q="0.3" :h="0.2" :k="0.97" />
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+Two draws per packet now: u moves the chain exactly as in the Simple Gilbert model, and v decides the packet's
+fate against k (in T) or h (in L). The state no longer equals the outcome: watch for green packets while the
+chain sits in L, and the occasional red one in T. Same ≈ 14 % average loss as the two earlier live slides, but
+the bursts are "leaky". Try h = 0 and k = 1 to recover the Simple Gilbert model.
+-->
+
+---
 
 # Packet loss — four-state model
 
-<img class="lecture-diagram" src="/figures/04/four-state-model.svg" alt="Four states in a row: state 4 (Loss), state 1 (Transmit), state 3 (Loss), state 2 (Transmit), connected by transition arrows, with self-loops on states 3 and 2 only. State 4 always transitions to state 1 with probability 1 and never repeats itself." />
+<FourStateDiagram alt="Four states in a row: state 4 (Loss), state 1 (Transmit), state 3 (Loss), state 2 (Transmit), connected by transition arrows between neighbours, with self-loops on states 1, 3 and 2. State 4 always transitions to state 1 with probability 1 and never repeats itself." />
+
+<p class="diagram-caption">State 4 (isolated loss) always returns to state 1 (p₄₁ = 1) and never repeats (p₄₄ = 0); state 1 repeats through the loss-free gaps (p₁₁), state 3 through a burst of consecutive losses (p₃₃).</p>
 
 <div class="pt-2 text-sm">
 
-The most advanced model in this group, with **no emission probabilities** at all — the state alone determines whether a packet is lost. Splitting each outcome into two states lets a **short, isolated event** (states 4 and 1) and a **sustained run** (states 3 and 2, which can self-loop) carry independently tunable durations.
+The most advanced model in this group, with **no emission probabilities** at all — the state alone determines whether a packet is lost. Splitting each outcome into two states lets a **short, isolated event** (states 4 and 1) and a **sustained run** (states 3 and 2) carry independently tunable durations.
 
 </div>
 
 <!--
 The trade-off across this whole progression: Bernoulli (1 parameter, no memory) → Simple Gilbert (2 parameters,
 one memory time constant per outcome) → Gilbert / Gilbert-Elliott (up to 4 parameters, memory plus per-state
-risk) → four-state (6 parameters, independent burst-length and good-run-length distributions, but no
+risk) → four-state (5 free parameters p₁₄, p₁₃, p₃₁, p₃₂, p₂₃ — p₄₁ = 1 is fixed and the self-loops p₁₁, p₃₃,
+p₂₂ follow from each row summing to 1 — independent burst-length and good-run-length distributions, but no
 per-packet risk within a state). More parameters buy more realistic burst statistics at the cost of harder
 estimation from measured traces.
 -->
@@ -454,6 +513,29 @@ produces H close to 1 — highly self-similar traffic.
 -->
 
 ---
+class: export-skip
+---
+
+# Where self-similarity comes from — live
+
+<OnOffSim :n="16" :alpha="1.4" />
+
+<p class="sim-note"><b>slot</b> = one time step of the simulation; each source is ON or OFF for a whole slot. For scale: 1&nbsp;slot = 1&nbsp;ms makes a mean period 12&nbsp;ms and the long view 100&nbsp;s. The speed slider only sets playback.</p>
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+Top: all 16 sources over the last 400 slots; toggle exponential / Pareto periods (same mean, 12 slots)
+and point out the Pareto rows: most periods are short, but some sources sit ON or OFF for the whole window.
+Bottom is the long view, both populations at once, averaged over 250-slot blocks: the exponential aggregate
+(grey) hugs 0.5 because short periods are forgotten quickly — the Central Limit Theorem at work; the Pareto
+aggregate (green) keeps wandering far from the mean, and its spread stays clearly larger. In any single slot the
+two look alike (every source is ON half the time); what differs is how long a deviation lasts. Lower α
+towards 1.1 (H → 0.95) to make the Pareto excursions longer.
+A slot is the simulation's unit of time, left abstract on purpose: self-similar traffic looks the same at every time scale, so the conclusions do not depend on its length. If students want numbers, take 1 slot = 1 ms: the mean ON/OFF period is 12 ms and the long view spans
+100 s. Speed = slots played per wall-clock second; it changes nothing in the result.
+-->
+
+---
 
 # The Hurst parameter
 
@@ -468,7 +550,7 @@ Introduced by **Harold Hurst (1965)** — a measure of "burstiness," also consid
 
 - $0 < H < 1$
 - H increases as traffic becomes **more self-similar**
-- **white noise has H = 0**
+- **uncorrelated (white-noise) traffic has H = 0.5**
 - measures **long-term dependence** of the process
 
 </div>
@@ -485,13 +567,16 @@ H = 0.5 is the boundary case (uncorrelated increments, like ordinary Brownian mo
 long-range-dependent regime real traffic traces consistently fall into, typically in the 0.7–0.9 range for
 measured Ethernet and WAN traffic. Estimation methods (R/S statistic, variance-time plots, wavelet-based
 estimators) are in Extras.
+Some texts quote H = 0 for white noise; that uses the strict self-similarity definition applied to the
+noise process itself (X(ct) has the distribution of c^H X(t), which stationary noise satisfies trivially with
+H = 0), not the increment/aggregation convention used for traffic, where white noise is the H = 0.5 baseline.
 -->
 
 ---
 
 # Self-similar traffic across aggregation levels
 
-<img class="lecture-diagram" src="/figures/04/self-similar-traffic.svg" alt="Four bar-chart panels of a synthetic self-similar trace, zoomed from 1 fine time bin per bar up to the whole trace aggregated into about 328 bins per bar, all four remaining visibly bursty." />
+<Figure src="/figures/04/self-similar-traffic.svg" alt="Four bar-chart panels of a synthetic self-similar trace, zoomed from 1 fine time bin per bar up to the whole trace aggregated into about 328 bins per bar, all four remaining visibly bursty." />
 
 <div class="pt-2 text-sm">
 
@@ -509,6 +594,28 @@ Leland, Taqqu, Willinger & Wilson's 1994 Bellcore Ethernet measurements are the 
 Compare directly against the Poisson-process figure from Lecture 02: aggregating that process's arrivals over
 a wide enough window converges to a smooth rate. Nothing here converges — every panel shows comparable
 relative variability, which is the operational definition of scale-invariance from two slides ago.
+-->
+
+---
+class: export-skip
+---
+
+# Self-similar traffic across aggregation levels — live
+
+<AggregationZoom :alpha="1.4" />
+
+<p class="sim-note"><b>slot</b> = one time step of the simulation, the finest counting bin; each bar averages m slots. For scale: 1&nbsp;slot = 10&nbsp;ms (the Bellcore bin) makes m = 256 bars 2.56&nbsp;s long and the window 5.5&nbsp;min.</p>
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+Both traces have the same mean rate. Press "Zoom out": each step doubles the block that one bar averages
+(m = 1 … 256) and the window grows with it. The Poisson trace collapses onto the mean line; the ON/OFF trace
+keeps swinging at every level — scale-invariance. The variance-time plot fills in as you zoom: independent
+arrivals fall with slope −1 (H = 0.5), the self-similar trace much more slowly (slope 2H − 2). A finite trace
+under-estimates H a little compared with the theoretical (3 − α)/2 — that is the "must be estimated" bullet
+from the Hurst slide.
+A slot is the simulation's unit of time, left abstract on purpose: self-similar traffic looks the same at every time scale, so the conclusions do not depend on its length. This mirrors the measurements: Leland et al. counted packets in 10 ms bins and aggregated them up to
+100 s. With 1 slot = 10 ms, m = 256 means 2.56 s bars and the 128-bar window covers about 5.5 minutes.
 -->
 
 ---
@@ -538,6 +645,36 @@ This closes the loop back to Lecture 02 explicitly: the "queuing delay diverges 
 lecture assumed independent arrivals throughout. Self-similar traffic can produce that same delay blow-up at
 utilizations well below 1, simply because sustained bursts look, locally, like a much higher arrival rate than
 the long-run average.
+-->
+
+---
+class: export-skip
+---
+
+# Why this matters for capacity planning — live
+
+<SelfSimilarQueue :rho="0.8" :buffer="100" :alpha="1.4" />
+
+<p class="sim-note"><b>slot</b> = one time step: per slot, arrivals join the buffer and the port sends up to c&nbsp;packets. <b>λ</b> = ρ·c = mean arrivals per slot, identical on both sides. For scale: 1&nbsp;slot = 1&nbsp;ms makes c = 10&nbsp;000&nbsp;packets/s (≈&nbsp;120&nbsp;Mbit/s at 1500&nbsp;B). Speed only sets playback.</p>
+
+<!--
+Browser-only slide: the PDF export leaves it out (class export-skip, see slides/README.md).
+Two identical ports, same capacity, same buffer, same mean load ρ = 0.8. Poisson arrivals (left) fluctuate
+around λ but never for long, so the queue stays short and loss stays at or near zero. The self-similar arrivals
+(right) sit above capacity for long stretches; the buffer fills and packets are lost, although the average load
+is identical. Try doubling the buffer: it delays the self-similar losses but does not remove them — the
+"under-provisioned" point of the next checkpoint. Press Reset for another run; how bad a run gets varies a
+lot from seed to seed, which is itself a symptom of long-range dependence.
+A slot is the simulation's unit of time, left abstract on purpose: self-similar traffic looks the same at every time scale, so the conclusions do not depend on its length. If students want numbers, take 1 slot = 1 ms: c = 10 packets/slot is 10 000 packets/s, about 120 Mbit/s
+with 1500-byte packets, the buffer of 100 packets holds 10 ms of line rate, and the ON/OFF sources' mean
+period is 40 ms. Speed = slots played per wall-clock second; a run of 4000 slots loses the same whatever
+the speed.
+λ is the mean arrival rate, λ = ρ·c: with ρ = 0.8 and c = 10 packets/slot, 8 packets/slot on both sides, so
+the two ports carry exactly the same average load. Only how the arrivals are spread in time differs. The
+Poisson side draws a Poisson(λ) count every slot, so it fluctuates quickly around λ. The self-similar side is
+8 ON/OFF sources, each sending 2λ/8 = 2 packets/slot while ON and ON half the time, which also averages λ —
+but its arrivals move in steps of 2 packets/slot and can sit above c for long stretches whenever 5 or more
+sources happen to be ON together.
 -->
 
 ---
@@ -592,9 +729,9 @@ A Markov chain's steady state is a long-run *average*. Self-similarity is about 
 </div>
 <div class="border border-orange-400 p-3">
 
-**H = 0.5 vs. H = 0**
+**H = 0.5 vs. H > 0.5**
 
-H = 0.5 is uncorrelated (Brownian-motion-like) traffic. H = 0 is white noise specifically. Neither is the self-similar regime — that needs H > 0.5.
+H = 0.5 is uncorrelated, white-noise-like traffic — the no-memory boundary, not the self-similar regime; that needs H > 0.5. (Texts giving white noise H = 0 use a different definition of H.)
 
 </div>
 <div class="border border-orange-400 p-3">
@@ -771,6 +908,46 @@ Not part of the timed 90-minute route. Use to answer questions or extend an adva
 
 ---
 
+# Extras — the Pareto distribution and α
+
+<Figure src="/figures/04/pareto-ccdf.svg" alt="Complementary cumulative distribution on log-log axes for Pareto periods with alpha 1.2, 1.5 and 1.9 and an exponential period, all with mean 12 slots: the Pareto tails are straight lines of slope minus alpha, the exponential tail falls below one in a million by about 170 slots." />
+
+<div class="pt-2 grid grid-cols-3 gap-4 text-sm">
+<div class="border border-gray-400 p-3">
+
+**Tail**
+
+$P(X > x) = (x_m/x)^{\alpha}$ for $x \ge x_m$: a period ten times longer is only $10^{\alpha}$ times less likely — never exponentially less.
+
+</div>
+<div class="border border-gray-400 p-3">
+
+**α sets the moments**
+
+The mean $\frac{\alpha x_m}{\alpha-1}$ exists only for $\alpha > 1$, the variance only for $\alpha > 2$. The heavy-tailed regime $1 < \alpha < 2$ has a finite mean but infinite variance.
+
+</div>
+<div class="border border-gray-400 p-3">
+
+**α sets H**
+
+$H = (3-\alpha)/2$ for ON/OFF sources with $1 < \alpha < 2$, so H lies between 0.5 and 1: smaller α, longer extreme periods, more self-similar. For $\alpha \ge 2$, $H = 0.5$.
+
+</div>
+</div>
+
+<!--
+Why Pareto and not just "some long periods": its tail is a power law, so on log-log axes it is a straight line
+of slope −α, and very long periods (hundreds or thousands of times the mean) keep a non-negligible
+probability. The exponential with the same mean is effectively zero beyond ~170 slots here.
+The live slides draw Pareto periods by inverse-transform sampling, x = x_m · U^(−1/α) with U uniform on (0, 1),
+choosing x_m = x̄ (α − 1)/α so that every α has the same mean period x̄ as the exponential it is compared with.
+Measured ON/OFF periods of real traffic (file sizes, session lengths) typically fit α between 1 and 2, which
+is why the aggregate traffic of Part 3 lands in the H ≈ 0.7–0.9 range.
+-->
+
+---
+
 # Extras — estimating H from a finite trace
 
 <div class="pt-2 text-sm">
@@ -818,7 +995,7 @@ variance falls as you aggregate.
 | Simple Gilbert | p, q | state memory → loss bursts |
 | Gilbert | p, q, h | probabilistic recovery *within* a burst |
 | Gilbert-Elliott | p, q, h, k | probabilistic loss *within* a good period too |
-| Four-state | p₄₁, p₁₄, p₁₃, p₃₁, p₃₂, p₂₃ | independently shaped burst-length and good-run-length distributions |
+| Four-state | p₁₄, p₁₃, p₃₁, p₃₂, p₂₃ (p₄₁ = 1 fixed) | independently shaped burst-length and good-run-length distributions |
 
 <div class="pt-4 text-sm vsb-muted">
 
