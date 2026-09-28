@@ -207,7 +207,14 @@ textcolor = "#292929"
 
 rc_params = {
     "font.family": "sans-serif",
-    "font.sans-serif": ["Carlito", "Calibri", "Liberation Sans", "DejaVu Sans", "Arial", "sans-serif"],
+    "font.sans-serif": [
+        "Carlito",
+        "Calibri",
+        "Liberation Sans",
+        "DejaVu Sans",
+        "Arial",
+        "sans-serif",
+    ],
     "text.color": textcolor,
     "axes.labelcolor": textcolor,
     "xtick.color": textcolor,
@@ -253,8 +260,14 @@ rc_params = {
 }
 
 colors = [
-    "#00A499", "#43B02A", "#E4002B", "#FFB81C",
-    "#0047BB", "#05C3DE", "#8246AF", "#FF8200",
+    "#00A499",
+    "#43B02A",
+    "#E4002B",
+    "#FFB81C",
+    "#0047BB",
+    "#05C3DE",
+    "#8246AF",
+    "#FF8200",
 ]
 
 
@@ -271,7 +284,7 @@ def add_logo(fig, path="logo.png", box=(0.83, 0.90, 0.10, 0.10)):
     box : tuple[float, float, float, float], optional
         (x, y, width, height) of the logo axes in figure coordinates.
     """
-    import matplotlib.image as image
+    from matplotlib import image
 
     ax = fig.add_axes(box)
     ax.set_axis_off()
@@ -328,11 +341,13 @@ Conventions:
 - Histograms: `rwidth=0.8`, `colors[0]`, `alpha=0.5` when overlapping.
 - Theory overlays (analytic PDF, M/M/1 formula): `colors[4]` or grey `#818386`, dashed, `linewidth=2`.
 
-### 5.2 Bokeh / Panel (qos-01)
+### 5.2 Bokeh / Panel (qos-01, qos-02)
 
 - `line_width=3`, `line_alpha=0.6`, line colour `colors[0]`; second signal `colors[4]`; combined/result `colors[5]`.
 - Tools `"crosshair,pan,reset,save,wheel_zoom"`; plot 600 × 400.
-- Titles and axis labels follow §5.1 wording rules. Set `p.title.text_font = "Carlito"`, `p.axis.axis_label_text_font = "Carlito"`, `p.axis.axis_label_text_font_style = "bold"`.
+- Titles and axis labels follow §5.1 wording rules. Set `p.title.text_font = "Carlito"`, `p.axis.axis_label_text_font = "Carlito"`, `p.axis.axis_label_text_font_style = "bold"` — `style_plot` does all of this.
+- Legends of static charts go below the plot area, as in §5.1 (`legend_below` in `qos-02/lib/plots.py`); histograms use bars 80 % of the bin width (`histogram`). Text glyphs need `text_font=value(FONT)`: a bare string is read as a column name and falls back to a serif font.
+- Results are shown in cards (§5.3) built by `card_html`, placed beside or below the plots with `pn.Row` / `pn.Column`.
 
 ### 5.3 HTML dashboards in notebooks
 

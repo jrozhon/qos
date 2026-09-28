@@ -2,10 +2,14 @@
 An interactive view of packets passing through a single-server queue.
 
 The averages of Step 4 say what the queue does on average; this module shows
-the mechanism they average over. Dragging the time slider moves through the
-run one instant at a time, showing which packets are waiting in the buffer,
-which one is being transmitted and how far it has got, and how the two
-occupancy counters follow from that picture.
+the mechanism they average over. Dragging the time slider, or pressing play,
+moves through the run one instant at a time, showing which packets are waiting
+in the buffer, which one is being transmitted and how far it has got, and how
+the two occupancy counters follow from that picture.
+
+The picture is drawn with Bokeh and updated in place: moving the slider changes
+the data of a few glyphs rather than redrawing an image, so playback stays
+smooth even over a remote session.
 
 Nothing extra has to be recorded during the simulation. For a single port
 feeding a sink directly, the service interval of every delivered packet
@@ -23,10 +27,14 @@ a sink.
 
 from typing import NamedTuple
 
-import matplotlib.pyplot as plt
 import numpy as np
+import panel as pn
+from bokeh.core.properties import value
+from bokeh.models import Arrow, ColumnDataSource, Span, VeeHead
+from bokeh.plotting import figure
 
 from lib.core import BYTES_TO_BITS
+from lib.plots import FONT, card_html, new_plot
 
 WAIT_FILL, WAIT_EDGE = "#E6F6F5", "#00A499"
 CURSOR = "#0047BB"  # blue, so the time cursor is never read as teal data
@@ -34,7 +42,8 @@ SERVE_FILL, SERVE_EDGE = "#E6F9FC", "#05C3DE"
 DONE_FILL = "#B2E4E0"
 NEUTRAL, INK = "#818386", "#292929"
 SLOTS = 6  # buffer positions drawn before the queue is summarized as "+ n more"
-WIDTH_IN, HEIGHT_IN = 10, 5  # frame size [in]; fixed so playback does not jump
+SLOT_X = [2.1 + slot * 0.62 for slot in range(SLOTS)]  # left edge of each slot
+WIDTH = 700  # width of the picture and the strip [px]
 
 
 class Timeline(NamedTuple):
@@ -151,129 +160,6 @@ def busiest_window(timeline: Timeline, length: float = 60.0, after: float = 0.0)
     return best_start, best_start + length
 
 
-def _draw_packet(ax, x, y, width, height, fill, edge, label):
-    """Draw one packet box with its size written inside."""
-    ax.add_patch(
-        plt.Rectangle(
-            (x, y), width, height, facecolor=fill, edgecolor=edge, linewidth=2
-        )
-    )
-    ax.text(x + width / 2, y + height / 2, label, ha="center", va="center", fontsize=13)
-
-
-def _draw_state(ax, timeline: Timeline, t: float) -> tuple:
-    """
-    Draw the buffer and the server as they stand at time t.
-
-    Returns
-    -------
-    tuple[int, int]
-        Packets waiting and packets in the system at that instant.
-    """
-    waiting, serving = queue_state(timeline, t)
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 2.6)
-    ax.axis("off")
-
-    ax.text(0.5, 1.3, "Source", ha="center", va="center", fontsize=14, weight="bold")
-    ax.annotate(
-        "",
-        xy=(2.0, 1.3),
-        xytext=(1.1, 1.3),
-        arrowprops={"arrowstyle": "->", "color": INK, "linewidth": 2},
-    )
-
-    # Buffer: the packet nearest the server is the next one to be transmitted,
-    # so waiting[0], the oldest, is drawn rightmost and later arrivals extend
-    # to the left. Any overflow is at the back of the queue, on the far left.
-    ax.text(3.7, 2.15, "Waiting queue", ha="center", fontsize=13, color=NEUTRAL)
-    shown = waiting[:SLOTS]
-    for slot in range(SLOTS):
-        x = 2.1 + slot * 0.62
-        position = SLOTS - 1 - slot  # 0 is nearest the server
-        if position < len(shown):
-            packet = shown[position]
-            _draw_packet(
-                ax,
-                x,
-                1.0,
-                0.52,
-                0.62,
-                WAIT_FILL,
-                WAIT_EDGE,
-                f"{int(timeline.size[packet])}",
-            )
-        else:
-            ax.add_patch(
-                plt.Rectangle(
-                    (x, 1.0),
-                    0.52,
-                    0.62,
-                    facecolor="#FFFFFF",
-                    edgecolor=NEUTRAL,
-                    linewidth=1.5,
-                    linestyle=(0, (4, 3)),
-                )
-            )
-    if len(waiting) > SLOTS:
-        ax.text(
-            2.05,
-            1.78,
-            f"+ {len(waiting) - SLOTS} further back",
-            ha="left",
-            fontsize=12,
-            color=NEUTRAL,
-        )
-
-    # Server, with a bar showing how much of the packet has been sent.
-    ax.text(7.0, 2.15, "Server", ha="center", fontsize=13, color=NEUTRAL)
-    ax.add_patch(
-        plt.Rectangle(
-            (6.0, 0.95),
-            2.0,
-            0.72,
-            facecolor=SERVE_FILL,
-            edgecolor=SERVE_EDGE,
-            linewidth=2,
-        )
-    )
-    if serving is None:
-        ax.text(7.0, 1.31, "idle", ha="center", va="center", fontsize=14, color=NEUTRAL)
-    else:
-        span = timeline.depart[serving] - timeline.start[serving]
-        done = 0.0 if span <= 0 else (t - timeline.start[serving]) / span
-        ax.add_patch(
-            plt.Rectangle(
-                (6.0, 0.95), 2.0 * done, 0.72, facecolor=DONE_FILL, edgecolor="none"
-            )
-        )
-        ax.text(
-            7.0,
-            1.31,
-            f"{int(timeline.size[serving])} B, {done:.0%} sent",
-            ha="center",
-            va="center",
-            fontsize=13,
-        )
-
-    ax.annotate(
-        "",
-        xy=(9.0, 1.3),
-        xytext=(8.1, 1.3),
-        arrowprops={"arrowstyle": "->", "color": INK, "linewidth": 2},
-    )
-    ax.text(9.5, 1.3, "Sink", ha="center", va="center", fontsize=14, weight="bold")
-
-    in_system = len(waiting) + (0 if serving is None else 1)
-    for x, text in (
-        (0.0, f"t = {t:.2f} s"),
-        (3.1, f"waiting  $L_q$ = {len(waiting)}"),
-        (6.6, f"in system  $L$ = {in_system}"),
-    ):
-        ax.text(x, 0.25, text, fontsize=15, color=INK)
-    return len(waiting), in_system
-
-
 def _occupancy_series(timeline: Timeline, t0: float, t1: float, points: int = 400):
     """
     Sample the number of packets in the system across a window.
@@ -303,69 +189,252 @@ def _occupancy_series(timeline: Timeline, t0: float, t1: float, points: int = 40
     return grid, occupancy
 
 
-def _build_figure(timeline: Timeline, t: float, t0: float, t1: float, series):
-    """
-    Build the figure for one instant without displaying it.
-
-    Parameters
-    ----------
-    timeline : Timeline
-        Reconstructed packet timeline.
-    t : float
-        Instant to draw [s].
-    t0, t1 : float
-        Bounds of the window being inspected [s].
-    series : tuple
-        Occupancy series from :func:`_occupancy_series`.
-
-    Returns
-    -------
-    matplotlib.figure.Figure
-        The finished figure, still open.
-    """
-    grid, occupancy = series
-    fig, (ax_state, ax_strip) = plt.subplots(
-        2, 1, figsize=(WIDTH_IN, HEIGHT_IN), gridspec_kw={"height_ratios": [2, 1]}
+def _text(plot: figure, source, color=INK, size="14px", style="normal", **kwargs):
+    """Draw centred labels from a data source in the course font."""
+    plot.text(
+        "x",
+        "y",
+        text="text",
+        source=source,
+        text_font=value(FONT),
+        text_font_size=size,
+        text_font_style=style,
+        text_color=color,
+        text_align="center",
+        text_baseline="middle",
+        **kwargs,
     )
-    _draw_state(ax_state, timeline, t)
-    ax_strip.step(grid, occupancy, where="post", color=WAIT_EDGE, linewidth=2)
-    ax_strip.axvline(t, color=CURSOR, linewidth=2, linestyle="--")
-    ax_strip.set_xlim(t0, t1)
-    ax_strip.set_ylim(0, max(3, int(occupancy.max()) + 1))
-    ax_strip.set_xlabel("Time [s]")
-    ax_strip.set_ylabel("In system [–]")
-    fig.tight_layout(h_pad=2.0)
-    return fig
 
 
-def draw_frame(timeline: Timeline, t: float, t0: float, t1: float):
+class QueueView:
     """
-    Draw the queue at time t above a strip locating t within the window.
+    Bokeh picture of the queue at one instant, above an occupancy strip.
+
+    The glyphs are built once; :meth:`show` only replaces the data of their
+    sources, so changing the instant is cheap.
 
     Parameters
     ----------
     timeline : Timeline
         Reconstructed packet timeline.
-    t : float
-        Instant to draw [s].
     t0, t1 : float
         Bounds of the window being inspected [s].
     """
-    _build_figure(timeline, t, t0, t1, _occupancy_series(timeline, t0, t1))
-    plt.show()
+
+    def __init__(self, timeline: Timeline, t0: float, t1: float):
+        self.timeline, self.t0, self.t1 = timeline, t0, t1
+        self.state = self._state_figure()
+        self.strip = self._strip_figure()
+        self.card = pn.pane.HTML("", width=250)
+
+    def _state_figure(self) -> figure:
+        """Build the buffer and server diagram, with empty packet glyphs."""
+        plot = figure(
+            width=WIDTH,
+            height=230,
+            x_range=(0, 10),
+            y_range=(0.7, 2.45),
+            toolbar_location=None,
+            tools="",
+        )
+        plot.axis.visible = False
+        plot.grid.visible = False
+        plot.outline_line_color = None
+
+        # Component names in bold, the two areas captioned in grey above them.
+        names = dict(x=[0.5, 9.5], y=[1.3, 1.3], text=["Source", "Sink"])
+        captions = dict(x=[3.7, 7.0], y=[2.15, 2.15], text=["Waiting queue", "Server"])
+        _text(plot, ColumnDataSource(names), style="bold")
+        _text(plot, ColumnDataSource(captions), color=NEUTRAL, size="13px")
+        for x_start, x_end in ((1.1, 2.0), (8.1, 9.0)):
+            plot.add_layout(
+                Arrow(
+                    end=VeeHead(size=12, fill_color=INK, line_color=INK),
+                    x_start=x_start,
+                    y_start=1.3,
+                    x_end=x_end,
+                    y_end=1.3,
+                    line_color=INK,
+                    line_width=2,
+                )
+            )
+
+        # Buffer: the packet nearest the server is the next one to be sent, so
+        # the oldest waiting packet is drawn rightmost and later arrivals extend
+        # to the left; any overflow is at the back of the queue, on the far left.
+        self.empty_slots = ColumnDataSource(dict(left=[], right=[]))
+        plot.quad(
+            left="left",
+            right="right",
+            bottom=1.0,
+            top=1.62,
+            source=self.empty_slots,
+            fill_color="#FFFFFF",
+            line_color=NEUTRAL,
+            line_width=1.5,
+            line_dash=[4, 3],
+        )
+        self.waiting = ColumnDataSource(dict(left=[], right=[], x=[], y=[], text=[]))
+        plot.quad(
+            left="left",
+            right="right",
+            bottom=1.0,
+            top=1.62,
+            source=self.waiting,
+            fill_color=WAIT_FILL,
+            line_color=WAIT_EDGE,
+            line_width=2,
+        )
+        _text(plot, self.waiting, size="13px")
+        self.overflow = ColumnDataSource(dict(x=[2.05], y=[1.8], text=[""]))
+        plot.text(
+            "x",
+            "y",
+            text="text",
+            source=self.overflow,
+            text_font=value(FONT),
+            text_font_size="12px",
+            text_color=NEUTRAL,
+            text_baseline="middle",
+        )
+
+        # Server, with a bar showing how much of the packet has been sent. The
+        # background, the progress bar, and the outline are separate glyphs so
+        # the bar never covers the outline.
+        plot.quad(
+            left=6.0,
+            right=8.0,
+            bottom=0.95,
+            top=1.67,
+            fill_color=SERVE_FILL,
+            line_color=None,
+        )
+        self.progress = ColumnDataSource(dict(right=[6.0]))
+        plot.quad(
+            left=6.0,
+            right="right",
+            bottom=0.95,
+            top=1.67,
+            source=self.progress,
+            fill_color=DONE_FILL,
+            line_color=None,
+        )
+        plot.quad(
+            left=6.0,
+            right=8.0,
+            bottom=0.95,
+            top=1.67,
+            fill_color=None,
+            line_color=SERVE_EDGE,
+            line_width=2,
+        )
+        self.server = ColumnDataSource(
+            dict(x=[7.0], y=[1.31], text=["idle"], color=[NEUTRAL])
+        )
+        plot.text(
+            "x",
+            "y",
+            text="text",
+            source=self.server,
+            text_font=value(FONT),
+            text_font_size="13px",
+            text_color="color",
+            text_align="center",
+            text_baseline="middle",
+        )
+        return plot
+
+    def _strip_figure(self) -> figure:
+        """Build the occupancy strip with a cursor at the current instant."""
+        grid, occupancy = _occupancy_series(self.timeline, self.t0, self.t1)
+        plot = new_plot(
+            "Packets in the system across the window",
+            "Time [s]",
+            "In system [–]",
+            width=WIDTH,
+            height=220,
+            x_range=(self.t0, self.t1),
+            y_range=(0, max(3, int(occupancy.max()) + 1)),
+        )
+        plot.step(grid, occupancy, mode="after", line_color=WAIT_EDGE, line_width=2)
+        self.cursor = Span(
+            location=self.t0,
+            dimension="height",
+            line_color=CURSOR,
+            line_width=2,
+            line_dash="dashed",
+        )
+        plot.add_layout(self.cursor)
+        return plot
+
+    def show(self, t: float) -> None:
+        """
+        Redraw the picture, the cursor, and the counters for instant t.
+
+        Parameters
+        ----------
+        t : float
+            Instant to show [s].
+        """
+        timeline = self.timeline
+        waiting, serving = queue_state(timeline, t)
+        shown = waiting[:SLOTS]
+        # Slot SLOTS - 1 (rightmost) holds position 0, the next packet to send.
+        occupied = [SLOTS - 1 - position for position in range(len(shown))]
+        self.waiting.data = dict(
+            left=[SLOT_X[slot] for slot in occupied],
+            right=[SLOT_X[slot] + 0.52 for slot in occupied],
+            x=[SLOT_X[slot] + 0.26 for slot in occupied],
+            y=[1.31] * len(occupied),
+            text=[f"{int(timeline.size[packet])}" for packet in shown],
+        )
+        free = [slot for slot in range(SLOTS) if slot not in occupied]
+        self.empty_slots.data = dict(
+            left=[SLOT_X[slot] for slot in free],
+            right=[SLOT_X[slot] + 0.52 for slot in free],
+        )
+        extra = len(waiting) - SLOTS
+        self.overflow.data = dict(
+            x=[2.05], y=[1.8], text=[f"+ {extra} further back" if extra > 0 else ""]
+        )
+
+        if serving is None:
+            done = 0.0
+            self.server.data = dict(x=[7.0], y=[1.31], text=["idle"], color=[NEUTRAL])
+        else:
+            span = timeline.depart[serving] - timeline.start[serving]
+            done = 0.0 if span <= 0 else (t - timeline.start[serving]) / span
+            self.server.data = dict(
+                x=[7.0],
+                y=[1.31],
+                text=[f"{int(timeline.size[serving])} B, {done:.0%} sent"],
+                color=[INK],
+            )
+        self.progress.data = dict(right=[6.0 + 2.0 * done])
+        self.cursor.location = t
+
+        in_system = len(waiting) + (serving is not None)
+        self.card.object = card_html(
+            f"At t = {t:.2f} s",
+            [
+                ("Waiting, <em>L</em><sub>q</sub> [–]", f"{len(waiting)}"),
+                ("In system, <em>L</em> [–]", f"{in_system}"),
+            ],
+            note="A packet leaving the buffer for the server lowers "
+            "<em>L</em><sub>q</sub> by one and leaves <em>L</em> unchanged.",
+        )
 
 
 def queue_view(
     sink,
     rate: float,
-    t0: float = None,
-    t1: float = None,
+    t0: float | None = None,
+    t1: float | None = None,
     length: float = 60.0,
     after: float = 0.0,
     step: float = 0.2,
-    dpi: int = 110,
     interval: int = 150,
-):
+) -> pn.Column:
     """
     Show the queue as an interactive, playable view over a time window.
 
@@ -387,66 +456,40 @@ def queue_view(
     step : float, optional
         Time between two positions of the slider [s], by default 0.2. A mean
         packet takes 0.8 s to transmit here, so this still shows the server
-        filling up gradually while keeping the number of frames modest.
-    dpi : int, optional
-        Resolution of each frame, by default 110. Every frame is sent to the
-        browser as a picture, so a higher value costs bandwidth on a remote
-        session without adding much at this size.
+        filling up gradually.
     interval : int, optional
-        Milliseconds between frames while playing, by default 150. Rendering a
-        frame takes roughly 65 ms, so this leaves room on a loaded machine.
+        Milliseconds between two positions while playing, by default 150.
 
-    Notes
-    -----
-    The view is displayed as a side effect and nothing is returned, so that a
-    notebook cell ending in this call does not render the controls twice.
+    Returns
+    -------
+    panel.Column
+        The player, the picture with its counters, and the occupancy strip.
+        Returned as the last value of a cell, it is displayed there.
     """
-    import io
-
-    import ipywidgets as widgets
-    from IPython.display import display
-
     timeline = packet_timeline(sink, rate)
     if t0 is None:
         t0, t1 = busiest_window(timeline, length, after)
     elif t1 is None:
         t1 = t0 + length
-    frames = max(1, int(round((t1 - t0) / step)))
-    series = _occupancy_series(timeline, t0, t1)
+    frames = max(1, round((t1 - t0) / step))
 
-    # Frames are kept once drawn. Drawing one costs about 65 ms, which is
-    # close to the playback interval, so the first pass through the window can
-    # stutter; afterwards every frame is already in hand and both playback and
-    # dragging the slider are immediate. At the default step a window holds a
-    # few hundred frames, on the order of ten megabytes.
-    drawn: dict[int, bytes] = {}
-
-    def render(frame):
-        """Return one frame as PNG bytes, at a size that never varies."""
-        if frame not in drawn:
-            figure = _build_figure(timeline, t0 + frame * step, t0, t1, series)
-            buffer = io.BytesIO()
-            # bbox_inches=None overrides the "tight" default of rc_params: a
-            # frame cropped to its own content would change size as the labels
-            # change, and the picture would jump about during playback.
-            figure.savefig(buffer, format="png", dpi=dpi, bbox_inches=None)
-            plt.close(figure)
-            drawn[frame] = buffer.getvalue()
-        return drawn[frame]
-
-    # The frame is swapped into an Image widget rather than written to an
-    # Output widget. An Output is cleared and refilled for every frame, which
-    # blanks the picture between frames and reads as flicker; assigning to
-    # Image.value replaces the picture in place, and fixing the widget size
-    # keeps the surrounding layout still.
-    picture = widgets.Image(
-        value=render(0), format="png", width=WIDTH_IN * 100, height=HEIGHT_IN * 100
+    view = QueueView(timeline, t0, t1)
+    view.show(t0)
+    player = pn.widgets.Player(
+        name="Time",
+        start=0,
+        end=frames,
+        value=0,
+        step=1,
+        interval=interval,
+        loop_policy="once",
+        show_value=False,
+        show_loop_controls=False,
+        width=WIDTH,
     )
-    play = widgets.Play(min=0, max=frames, step=1, value=0, interval=interval)
-    cursor = widgets.IntSlider(min=0, max=frames, step=1, value=0, readout=False)
-    widgets.jslink((play, "value"), (cursor, "value"))
-    cursor.observe(
-        lambda change: setattr(picture, "value", render(change["new"])),
-        names="value",
+    player.param.watch(lambda event: view.show(t0 + event.new * step), "value")
+    return pn.Column(
+        player,
+        pn.Row(view.state, pn.Column(pn.Spacer(height=20), view.card)),
+        view.strip,
     )
-    display(widgets.VBox([widgets.HBox([play, cursor]), picture]))

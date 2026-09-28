@@ -3,11 +3,20 @@ name = "qos-01"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "bokeh>=3.8.0",
-    "jupyter-bokeh>=4.0.5",
-    "jupyterlab>=4.4.7",
-    "matplotlib>=3.10.6",
-    "numpy>=2.3.3",
-    "panel>=1.8.0",
+    "bokeh>=3.9.2",
+    "jupyter-bokeh>=4.1.0",
+    "jupyterlab>=4.6.4",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "panel>=1.9.4",
     "scipy>=1.18.1",
 ]
+
+[tool.ruff.lint.isort]
+# The notebook and lib/*.py import "lib.*" with the kernel working directory
+# set to qos_01/; the package is not installed.
+known-first-party = ["lib"]
+
+[tool.ruff.lint.per-file-ignores]
+# The imports cell prepares names that only the students' task cells use.
+"*.ipynb" = ["F401"]
