@@ -1759,9 +1759,9 @@ s.text(440, 312, f'The same frames give a score between {min(pool.values()):.0f}
 s.save()
 
 # =============================================================================
-# 09 — Software-defined networking with OpenFlow, and VXLAN-EVPN for comparison
+# 07 — Streaming and adaptive bit rate: the QoE of HTTP adaptive streaming
 # =============================================================================
-DECK = '09'
+DECK = '07'
 
 
 def cell(x, y, w, h, label, sub='', fill=TINT, stroke=LINE, sw=1.5):
@@ -1772,6 +1772,259 @@ def cell(x, y, w, h, label, sub='', fill=TINT, stroke=LINE, sw=1.5):
         s.text(x + w / 2, y + h / 2 + 17, sub, 'small', 'middle')
     else:
         s.text(x + w / 2, y + h / 2 + 6, label, 'bold', 'middle')
+
+
+# --- A small HTTP-adaptive-streaming player simulator -----------------------------------------
+# Shared by the buffer and ABR-comparison figures, so the slides quote numbers this code actually produced.
+# One client downloads 30 segments of 4 s over a seeded, piecewise-constant throughput trace; playback starts
+# after the first segment, the buffer is capped at 30 s, and the player stalls whenever the buffer is empty.
+LADDER = [0.375, 0.75, 1.75, 3.0, 4.3, 5.8]  # Mbit/s — a subset of Netflix's former fixed ladder
+SEG, NSEG, MAXBUF = 4.0, 30, 30.0
+
+
+def make_trace():
+    rnd = random.Random(7)
+    levels = [(0, 6.5), (20, 1.4), (48, 4.6), (80, 2.2), (100, 6.0)]
+    return [max(0.3, [v for t0, v in levels if sec >= t0][-1] * (1 + rnd.uniform(-0.18, 0.18))) for sec in range(400)]
+
+
+TRACE = make_trace()
+
+
+def simulate(policy, dt=0.02):
+    t = buf = stall = 0.0
+    k, dl, rem, rate, t0 = 0, False, 0.0, 0.0, 0.0
+    started, startup, samples, rates, bufs, stalls, in_stall = False, None, [], [], [], [], None
+    while t < 300:
+        if not dl and k < NSEG and buf + SEG <= MAXBUF:
+            rate = policy(buf, samples)
+            rem, dl, t0 = rate * SEG, True, t
+        if dl:
+            rem -= TRACE[int(t)] * dt
+            if rem <= 0:
+                dl, buf, k = False, buf + SEG, k + 1
+                samples.append(rate * SEG / (t + dt - t0))
+                rates.append((t0, t + dt, rate))
+                if not started:
+                    started, startup = True, t + dt
+        if started:
+            if buf > 0:
+                if in_stall is not None:
+                    stalls.append((in_stall, t))
+                    in_stall = None
+                buf -= min(dt, buf)
+            elif k < NSEG or dl:
+                stall += dt
+                in_stall = t if in_stall is None else in_stall
+            else:
+                break
+        bufs.append((t, buf))
+        t += dt
+    return dict(rates=rates, buf=bufs[::5], stall=stall, startup=startup, stalls=stalls)
+
+
+def fixed(r):
+    return lambda buf, samples: r
+
+
+def rate_based(buf, samples):  # harmonic mean of the last five segment throughputs, 15 % safety margin
+    if not samples:
+        return LADDER[0]
+    last = samples[-5:]
+    est = len(last) / sum(1 / x for x in last)
+    return max([r for r in LADDER if r <= 0.85 * est] or [LADDER[0]])
+
+
+RESERVOIR, CUSHION = 8.0, 18.0
+
+
+def bba_rate(buf):  # BBA-0 rate map (Huang et al., SIGCOMM 2014)
+    if buf <= RESERVOIR:
+        return LADDER[0]
+    if buf >= RESERVOIR + CUSHION:
+        return LADDER[-1]
+    return LADDER[0] + (LADDER[-1] - LADDER[0]) * (buf - RESERVOIR) / CUSHION
+
+
+def bba(buf, samples):
+    return max([r for r in LADDER if r <= bba_rate(buf)] or [LADDER[0]])
+
+
+def summary(res):
+    rs = [r for _, _, r in res['rates']]
+    sw = sum(abs(b - a) for a, b in zip(rs, rs[1:]))
+    return dict(avg=sum(rs) / len(rs), nsw=sum(1 for a, b in zip(rs, rs[1:]) if a != b), stall=res['stall'],
+                nstall=len(res['stalls']), startup=res['startup'],
+                # linear QoE of Yin et al. (SIGCOMM 2015): quality − switching − rebuffering, per segment, mu = Rmax
+                qoe=sum(rs) - sw - LADDER[-1] * (res['stall'] + res['startup']))
+
+
+def trace_line(ax, color=MUT, sw=1.5):
+    s.polyline([(ax.px(x), ax.py(TRACE[x])) for x in range(0, 131)], color, sw)
+
+
+def rate_steps(ax, res, color, sw=2.5, dash=False):
+    pts = []
+    for t0, t1, r in res['rates']:
+        pts += [(ax.px(t0), ax.py(r)), (ax.px(min(t1, 130)), ax.py(r))]
+    s.polyline(pts, color, sw, dash)
+
+
+# --- HAS architecture ---------------------------------------------------------------------
+s = SVG(DECK, 'has-architecture', 300, 'HTTP adaptive streaming: encoding ladder, segments, CDN and a client-driven player',
+        'The encoder produces the same content at several bit rates, the ladder, and cuts each version into segments of a few '
+        'seconds. The segments and a manifest describing them are stored on an origin server and cached by a CDN. The player '
+        'first downloads the manifest, then requests one segment at a time over plain HTTP, choosing the bit rate of each '
+        'request with its adaptive bit rate logic from the measured throughput and its buffer level.')
+cell(10, 115, 110, 60, 'Encoder', 'packager', TINT3)
+s.line(120, 145, 148, 145, INK, 2, arrow='ink')
+s.text(150, 40, 'LADDER × SEGMENTS', 'label')
+for j, (res, br) in enumerate([('1080p', '5.8'), ('720p', '3.0'), ('480p', '1.75'), ('240p', '0.375')]):
+    y = 60 + j * 42
+    s.text(150, y + 21, f'{res} · {br}', 'small')
+    for i in range(5):
+        s.rect(250 + i * 30, y, 26, 30, TINT3 if j == 0 else TINT2 if j == 1 else TINT, LINE)
+s.text(325, 240, 'segments of 2–6 s', 'small', 'middle')
+s.line(405, 145, 433, 145, INK, 2, arrow='ink')
+cell(435, 105, 120, 80, 'Origin', 'and CDN', NEUTRAL)
+s.rect(680, 30, 190, 230, PAPER, INK, 1.5)
+s.text(692, 52, 'PLAYER', 'label')
+cell(695, 65, 160, 50, 'ABR logic', fill=TINT3)
+s.rect(695, 130, 160, 50, TINT, LINE)
+for i in range(3):
+    s.rect(700 + i * 30, 138, 26, 34, G, 'none')
+s.text(848, 161, 'buffer', 'bold', 'end')
+cell(695, 195, 160, 50, 'Decoder, screen', fill=NEUTRAL)
+s.line(775, 115, 775, 128, MUT, 1.5, arrow='muted')
+s.line(775, 180, 775, 193, MUT, 1.5, arrow='muted')
+s.line(678, 90, 557, 90, EKF, 2, arrow='ink')
+s.text(618, 83, 'GET manifest', 'small', 'middle')
+s.line(678, 128, 557, 128, EKF, 2, arrow='ink')
+s.text(618, 121, 'GET seg k @ R', 'small', 'middle')
+s.line(557, 160, 678, 160, G, 2.5, arrow='green')
+s.text(618, 180, 'segment k', 'small', 'middle')
+s.text(440, 285, 'The server is a plain web server; every adaptation decision is made by the client, one segment at a time.',
+       'small', 'middle')
+s.save()
+
+# --- Buffer dynamics of a fixed-bit-rate player ---------------------------------------------
+fx = simulate(fixed(4.3))
+fs = summary(fx)
+s = SVG(DECK, 'buffer-dynamics', 392, 'Buffer level of a player that always requests 4.3 Mbit/s over a varying link',
+        'Top: the available throughput over 130 seconds, about 6.5 Mbit/s at first, dropping to about 1.4 Mbit/s at 20 s, '
+        'recovering to 4.6, dropping to 2.2 at 80 s and recovering to 6 at 100 s, against the constant requested bit rate '
+        f'of 4.3 Mbit/s. Bottom: the playout buffer grows while throughput exceeds the bit rate and drains otherwise; it '
+        f'empties {fs["nstall"]} times, giving {fs["stall"]:.0f} seconds of stalling in total, marked in red.')
+ax = Axes(s, 70, 15, 780, 120, (0, 130), (0, 8), ylabel='Mbit/s',
+          xticks=[(v, '') for v in range(0, 131, 10)], yticks=[(v, str(v)) for v in (0, 2, 4, 6, 8)])
+trace_line(ax, MUT, 2)
+s.line(ax.px(0), ax.py(4.3), ax.px(130), ax.py(4.3), G, 2.5, dash=True)
+s.text(ax.px(33), ax.py(4.3) + 20, 'requested bit rate 4.3 Mbit/s', 'small green', 'middle')
+s.text(ax.px(22), ax.py(7.2), 'available throughput', 'small')
+bx = Axes(s, 70, 180, 780, 130, (0, 130), (0, 16), xlabel='time (s)', ylabel='buffer (s)',
+          xticks=[(v, str(v)) for v in range(0, 131, 10)], yticks=[(v, str(v)) for v in (0, 4, 8, 12, 16)])
+for a, b in fx['stalls']:
+    s.rect(bx.px(a), bx.py(16), bx.px(b) - bx.px(a), bx.py(0) - bx.py(16), RTINT, 'none')
+s.polyline([(bx.px(t), bx.py(v)) for t, v in fx['buf'] if t <= 130], G, 2.5)
+s.text(bx.px(fx['stalls'][0][0]) + 4, bx.py(14.5), 'stall', 'small bold')
+s.text(440, 382, f'Each 4 s segment takes 4.3/C × 4 s to download: whenever C < 4.3 Mbit/s the buffer drains — here '
+       f'{fs["nstall"]} stalls, {fs["stall"]:.0f} s in total.', 'small', 'middle')
+s.save()
+
+# --- BBA rate map ------------------------------------------------------------------------------
+s = SVG(DECK, 'bba-map', 312, 'The rate map of a buffer-based ABR algorithm',
+        f'Horizontal axis: buffer level from 0 to 30 seconds. Below a reservoir of {RESERVOIR:.0f} seconds the player '
+        f'always requests the lowest rate; across a cushion of {CUSHION:.0f} seconds the target rate rises linearly to the '
+        'highest rate; above it the highest rate is requested. The chosen ladder rung is the highest one below the line, '
+        'so the request rate is a staircase.')
+ax = Axes(s, 80, 20, 740, 210, (0, 30), (0, 6.5), xlabel='buffer level (s)', ylabel='requested rate (Mbit/s)',
+          xticks=[(v, str(v)) for v in range(0, 31, 5)], yticks=[(r, f'{r:g}') for r in LADDER if r != 0.75])
+s.rect(ax.px(0), ax.py(6.5), ax.px(RESERVOIR) - ax.px(0), ax.py(0) - ax.py(6.5), RTINT, 'none')
+s.rect(ax.px(RESERVOIR + CUSHION), ax.py(6.5), ax.px(30) - ax.px(RESERVOIR + CUSHION), ax.py(0) - ax.py(6.5), TINT, 'none')
+ax.curve(bba_rate, MUT, 1.5, n=300, dash=True)
+pts, prev = [], None
+for i in range(301):
+    b = 30 * i / 300
+    r = bba(b, [])
+    if prev is not None and r != prev:
+        pts.append((ax.px(b), ax.py(prev)))
+    pts.append((ax.px(b), ax.py(r)))
+    prev = r
+s.polyline(pts, G, 3)
+s.text(ax.px(RESERVOIR / 2), ax.py(5.9), 'reservoir', 'small bold', 'middle')
+s.text(ax.px(RESERVOIR + CUSHION / 2), ax.py(5.9), 'cushion', 'small bold', 'middle')
+s.text(ax.px(28), ax.py(5.9) + 30, 'upper', 'small bold', 'middle')
+s.text(ax.px(RESERVOIR + CUSHION / 2) + 40, ax.py(2.2), 'rate map f(B)', 'small')
+s.text(440, 302, 'The buffer level alone chooses the rate: no throughput estimate is needed while the buffer is in the cushion.',
+       'small', 'middle')
+s.save()
+
+# --- Throughput-based vs buffer-based ABR on the same trace ---------------------------------
+rb, bb = simulate(rate_based), simulate(bba)
+rs, bs = summary(rb), summary(bb)
+s = SVG(DECK, 'abr-compare', 392, 'A throughput-based and a buffer-based ABR algorithm on the same throughput trace',
+        'Top: requested bit rate of a throughput-based algorithm, harmonic mean of the last five segments with a 15 percent '
+        'margin, and of the buffer-based BBA-0 algorithm, over the same trace. Bottom: their buffer levels. The '
+        f'throughput-based player starts at a high rate, is caught by the drop at 20 seconds and stalls {rs["nstall"]} times '
+        f'for {rs["stall"]:.1f} seconds in total; the buffer-based player ramps up slowly, keeps its buffer, and never stalls, '
+        f'at the cost of {bs["nsw"]} switches against {rs["nsw"]}.')
+ax = Axes(s, 60, 15, 520, 130, (0, 130), (0, 8), ylabel='Mbit/s',
+          xticks=[(v, '') for v in range(0, 131, 20)], yticks=[(v, str(v)) for v in (0, 2, 4, 6, 8)])
+trace_line(ax, LINE, 1.5)
+rate_steps(ax, rb, EKF, 2.5)
+rate_steps(ax, bb, G, 2.5)
+bx = Axes(s, 60, 185, 520, 130, (0, 130), (0, 32), xlabel='time (s)', ylabel='buffer (s)',
+          xticks=[(v, str(v)) for v in range(0, 131, 20)], yticks=[(v, str(v)) for v in (0, 10, 20, 30)])
+for a, b in rb['stalls']:
+    s.rect(bx.px(a), bx.py(32), bx.px(b) - bx.px(a), bx.py(0) - bx.py(32), RTINT, 'none')
+s.polyline([(bx.px(t), bx.py(v)) for t, v in rb['buf'] if t <= 130], EKF, 2)
+s.polyline([(bx.px(t), bx.py(v)) for t, v in bb['buf'] if t <= 130], G, 2.5)
+s.line(610, 30, 640, 30, EKF, 2.5)
+s.text(648, 35, 'throughput-based', 'small')
+s.line(610, 55, 640, 55, G, 2.5)
+s.text(648, 60, 'buffer-based (BBA-0)', 'small')
+s.line(610, 80, 640, 80, LINE, 1.5)
+s.text(648, 85, 'available throughput', 'small')
+s.text(610, 125, 'SESSION METRICS', 'label')
+s.text(815, 150, 'rate', 'small bold', 'end')
+s.text(870, 150, 'buffer', 'small bold', 'end')
+rows = [('mean bit rate, Mbit/s', f'{rs["avg"]:.2f}', f'{bs["avg"]:.2f}'),
+        ('bit-rate switches', f'{rs["nsw"]}', f'{bs["nsw"]}'),
+        ('stalls', f'{rs["nstall"]}', f'{bs["nstall"]}'),
+        ('stall time, s', f'{rs["stall"]:.1f}', f'{bs["stall"]:.1f}'),
+        ('linear QoE', f'{rs["qoe"]:.0f}', f'{bs["qoe"]:.0f}')]
+for k, (name, a, b) in enumerate(rows):
+    y = 178 + k * 28
+    s.text(610, y, name, 'small')
+    s.text(815, y, a, 'bold', 'end')
+    s.text(870, y, b, 'bold green', 'end')
+s.text(440, 382, 'Same link, same ladder: the rule that picks the next segment decides whether the viewer ever sees a stall.',
+       'small', 'middle')
+s.save()
+
+# --- Stalling and MOS: the exponential model of Hossfeld et al. --------------------------------
+s = SVG(DECK, 'stall-mos', 312, 'Mean opinion score of a short video clip against the number of stalls',
+        'The exponential model of Hossfeld et al. (2011) for 30-second clips, MOS = 3.5 exp(−(0.15 L + 0.19) N) + 1.5, where '
+        'N is the number of stalls and L their length in seconds. Curves for L = 1, 3 and 5 seconds all fall steeply: already '
+        'one or two stalls push the MOS from 5 towards 3, and the score saturates near 1.5.')
+ax = Axes(s, 80, 15, 520, 220, (0, 6), (1, 5), xlabel='number of stalls N', ylabel='MOS',
+          xticks=[(v, str(v)) for v in range(7)], yticks=[(v, str(v)) for v in range(1, 6)])
+for L, color in [(1, G), (3, EKF), (5, FMT)]:
+    ax.curve(lambda n, L=L: 3.5 * math.exp(-(0.15 * L + 0.19) * n) + 1.5, color, 2.5)
+    s.line(640, 40 + [1, 3, 5].index(L) * 28, 670, 40 + [1, 3, 5].index(L) * 28, color, 2.5)
+    s.text(678, 45 + [1, 3, 5].index(L) * 28, f'stall length L = {L} s', 'small')
+s.text(640, 150, 'MOS = 3.5·exp(−(0.15 L + 0.19) N)', 'small bold')
+s.text(640, 170, '        + 1.5', 'small bold')
+s.text(640, 196, '30 s clips, crowdsourced', 'small')
+s.text(640, 216, '(Hoßfeld et al., QoMEX 2011)', 'small')
+s.text(440, 302, 'Number of stalls matters more than their length: a single 1 s stall already costs about one MOS point.',
+       'small', 'middle')
+s.save()
+
+# =============================================================================
+# 09 — Software-defined networking with OpenFlow, and VXLAN-EVPN for comparison
+# =============================================================================
+DECK = '09'
 
 
 # --- Traditional (distributed) control vs SDN (logically centralized) --------------------
