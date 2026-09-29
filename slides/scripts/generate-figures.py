@@ -14,6 +14,7 @@ Run from anywhere::
 from __future__ import annotations
 
 import base64
+import json
 import math
 import random
 import subprocess
@@ -34,7 +35,8 @@ PALETTES = {
         GRID='#E6ECEB', FMT='#E4002B', EKF='#0047BB', FBI='#FF8200',
         PAPER='#FFFFFF', NEUTRAL='#F6F8F8', NEUTRAL2='#F3F6F5', CTINT='#E8F9FC',
         TINT2='#D6F0EE', TINT3='#BFE7E3', TINT4='#A6DDD8',
-        YTINT='#FFF4D6', OTINT='#FFE6D0', RTINT='#FBD9DF', GREYTINT='#F3F3F3'),
+        YTINT='#FFF4D6', OTINT='#FFE6D0', RTINT='#FBD9DF', GREYTINT='#F3F3F3',
+        IMG0='#000000', IMG1='#FFFFFF'),
     # dark: the deck's dark background (#0E1A19, style.css), R7's light green for green text, lightened
     # series colours that keep ≥ 3:1 on the background, and dark tints of the same hues for fills
     'dark': dict(
@@ -42,7 +44,9 @@ PALETTES = {
         GRID='#223432', FMT='#FF4D6D', EKF='#6E9BFF', FBI='#FF8200',
         PAPER='#0E1A19', NEUTRAL='#16292A', NEUTRAL2='#1B2B2C', CTINT='#0C3239',
         TINT2='#1A4541', TINT3='#20564F', TINT4='#276A61',
-        YTINT='#3A3218', OTINT='#3D2A1A', RTINT='#3E1E25', GREYTINT='#232626'),
+        YTINT='#3A3218', OTINT='#3D2A1A', RTINT='#3E1E25', GREYTINT='#232626',
+        # image pixels are content, not chrome: black and white stay the same in both themes
+        IMG0='#000000', IMG1='#FFFFFF'),
 }
 if len(sys.argv) < 2:  # no theme given: run the script once per theme
     for theme in PALETTES:
@@ -1228,6 +1232,798 @@ for k, (name, col, dash, pts) in enumerate(G113_IE):
     s.text(648, 49 + k * 30, name, 'small')
 s.text(600, 240, 'Dots: tabulated values', 'small')
 s.text(440, 316, 'Provisional planning values of ITU-T G.113 Appendix I (1999) — the data the Bpl formula was later fitted to.',
+       'small', 'middle')
+s.save()
+
+# =============================================================================
+# 06 — Video quality assessment: subjective methods, PSNR, SSIM and VMAF
+# =============================================================================
+DECK = '06'
+
+# --- The video delivery chain and where quality is lost ------------------------
+s = SVG(DECK, 'video-chain', 300, 'The video delivery chain and the impairments each stage adds',
+        'Five stages from left to right: capture, pre-processing, encoding, transmission, and decoding with '
+        'display. Under each stage the impairments it typically introduces: sensor resolution, noise and motion '
+        'blur at capture; scaling, colour conversion and chroma subsampling in pre-processing; blocking, blurring, '
+        'ringing and mosquito noise in the encoder; packet loss, delay and stalling during transmission; error '
+        'concealment, display size and viewing distance at the receiver.')
+stages = [('Capture', 'camera, sensor'), ('Pre-processing', 'scaling, 4:2:0'), ('Encoding', 'H.264 … AV1'),
+          ('Transmission', 'IP network, CDN'), ('Playback', 'decoder, screen')]
+impairments = [['resolution', 'sensor noise', 'motion blur'], ['down-scaling', 'colour conversion', 'chroma loss'],
+               ['blocking, blurring', 'ringing', 'mosquito noise'], ['packet loss', 'delay, jitter', 'stalling'],
+               ['error concealment', 'screen size', 'viewing distance']]
+for k, ((t, sub), imps) in enumerate(zip(stages, impairments)):
+    x = 20 + k * 172
+    s.box(x, 40, 150, 60, t, sub, TINT if k != 2 else TINT3)
+    if k < 4:
+        s.line(x + 150, 70, x + 172, 70, INK, 2, arrow='ink')
+    s.line(x + 75, 100, x + 75, 128, FMT, 1.5, dash=True, arrow='red')
+    s.rect(x, 130, 150, 92, PAPER, LINE)
+    for j, imp in enumerate(imps):
+        s.text(x + 12, 156 + j * 26, imp, 'small')
+s.text(20, 22, 'SOURCE → VIEWER', 'label')
+s.text(20, 252, 'Signal quality is lost at every stage; what the viewer finally judges also depends on the display and on',
+       'small')
+s.text(20, 274, 'the viewing context — the QoS/QoE distinction of Lecture 03 applies to video as it did to speech.', 'small')
+s.save()
+
+# --- Group of pictures: prediction structure and error propagation ------------
+s = SVG(DECK, 'gop', 300, 'A group of pictures and the propagation of a transmission error',
+        'Thirteen frames in display order: an I-frame, then B, B, P repeated, and the next I-frame. P-frames are '
+        'predicted from the previous I- or P-frame, B-frames from the reference frames on both sides. A packet '
+        'lost in the first P-frame corrupts that frame, the two B-frames before it that use it as a backward '
+        'reference, and every later frame predicted from it, until the next I-frame refreshes the picture.')
+frames = ['I', 'B', 'B', 'P', 'B', 'B', 'P', 'B', 'B', 'P', 'B', 'B', 'I']
+W, X0, Y0 = 56, 40, 70
+hit = 3  # the P-frame that loses a packet
+for k, f in enumerate(frames):
+    x = X0 + k * (W + 7)
+    damaged = 1 <= k < 12  # B1, B2 use P3 as their backward reference, so they are hit too
+    fill = RTINT if damaged else (TINT3 if f == 'I' else TINT if f == 'P' else PAPER)
+    s.rect(x, Y0, W, 60, fill, FMT if k == hit else LINE, 2.5 if k == hit else 1)
+    s.text(x + W / 2, Y0 + 38, f, 'big', 'middle')
+refs = [k for k, f in enumerate(frames) if f in 'IP']
+for a, b in zip(refs, refs[1:]):  # forward prediction arcs above the frames
+    xa, xb = X0 + a * (W + 7) + W / 2, X0 + b * (W + 7) + W / 2
+    if frames[b] == 'P':
+        s.path(f'M{xa:.1f},{Y0} Q{(xa + xb) / 2:.1f},{Y0 - 44} {xb:.1f},{Y0 - 2}', G, 2, arrow='green')
+s.text(X0, 20, 'I — intra-coded (self-contained)   P — predicted from the past   B — bi-directionally predicted',
+       'small')
+# B-frame references, shown once for frames 4 and 5
+for bk in (4, 5):
+    xb = X0 + bk * (W + 7) + W / 2
+    for rk in (3, 6):
+        xr = X0 + rk * (W + 7) + W / 2
+        s.path(f'M{xr:.1f},{Y0 + 60} Q{(xr + xb) / 2:.1f},{Y0 + 60 + 40 + 12 * abs(rk - bk)} {xb:.1f},{Y0 + 62}', MUT, 1.2, arrow='muted')
+s.text(X0 + hit * (W + 7) - 8, Y0 + 90, 'packet lost', 'small bold', 'end')
+x1, x2 = X0 + 1 * (W + 7), X0 + 11 * (W + 7) + W
+s.line(x1, 218, x2, 218, FMT, 2)
+s.line(x1, 210, x1, 226, FMT, 2); s.line(x2, 210, x2, 226, FMT, 2)
+s.text((x1 + x2) / 2, 246, 'error propagates through every frame that references the damaged one', 'small', 'middle')
+s.text(X0 + 12 * (W + 7) + W / 2, 246, 'refresh', 'small green', 'middle')
+s.text(440, 284, 'Longer GOPs save bits (fewer I-frames) but let a single loss stay visible longer.', 'small', 'middle')
+s.save()
+
+# --- Equal MSE, different perceived quality -----------------------------------------
+# A 32 x 32 synthetic reference and four distortions scaled to exactly the same MSE, in the spirit of
+# Wang & Bovik (2009), Fig. 2. PSNR is therefore identical; SSIM is computed here with the lab's defaults
+# (L = 255, k1 = 0.01, k2 = 0.03) over uniform 8 x 8 windows, so the values match what lab 04's code would give
+# for a uniform window.
+N = 32
+
+
+def ref_pixel(i, j):
+    v = 118 + 48 * math.sin(2 * math.pi * (i + 0.6 * j) / 13) * math.cos(2 * math.pi * j / 21)
+    v += 40 if (i - 20) ** 2 + (j - 11) ** 2 < 36 else 0   # a bright disc: a sharp edge for the eye to find
+    v += 30 if j > 22 else 0                                # a vertical step
+    return v
+
+
+REF = [[ref_pixel(i, j) for j in range(N)] for i in range(N)]
+
+
+def mse_of(a, b):
+    return sum((a[i][j] - b[i][j]) ** 2 for i in range(N) for j in range(N)) / N ** 2
+
+
+def mix(a, b, alpha):  # a + alpha (b - a): scales a distortion without changing its shape
+    return [[a[i][j] + alpha * (b[i][j] - a[i][j]) for j in range(N)] for i in range(N)]
+
+
+def ssim_uniform(a, b, win=8, L=255):
+    c1, c2, vals = (0.01 * L) ** 2, (0.03 * L) ** 2, []
+    for i in range(N - win + 1):
+        for j in range(N - win + 1):
+            xs = [a[i + u][j + v] for u in range(win) for v in range(win)]
+            ys = [b[i + u][j + v] for u in range(win) for v in range(win)]
+            mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+            vx = sum((x - mx) ** 2 for x in xs) / len(xs)
+            vy = sum((y - my) ** 2 for y in ys) / len(ys)
+            cxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / len(xs)
+            vals.append((2 * mx * my + c1) * (2 * cxy + c2) / ((mx * mx + my * my + c1) * (vx + vy + c2)))
+    return sum(vals) / len(vals)
+
+
+rng = random.Random(6)
+blocks = [[sum(REF[8 * (i // 8) + u][8 * (j // 8) + v] for u in range(8) for v in range(8)) / 64
+           for j in range(N)] for i in range(N)]
+blur = [[sum(REF[min(N - 1, max(0, i + u))][min(N - 1, max(0, j + v))] for u in (-2, -1, 0, 1, 2) for v in (-2, -1, 0, 1, 2)) / 25
+         for j in range(N)] for i in range(N)]
+noise = [[REF[i][j] + rng.gauss(0, 1) for j in range(N)] for i in range(N)]
+TARGET = 225.0  # MSE 225 → 15 grey levels RMS → PSNR 24.6 dB
+shift = [[REF[i][j] + math.sqrt(TARGET) for j in range(N)] for i in range(N)]
+variants = [('Reference', REF)]
+for name, d in [('Mean shift', shift), ('Gaussian noise', noise), ('Blur', blur), ('Blocking 8 × 8', blocks)]:
+    variants.append((name, mix(REF, d, math.sqrt(TARGET / mse_of(REF, d)))))
+psnr_db = 10 * math.log10(255 ** 2 / TARGET)
+s = SVG(DECK, 'equal-mse', 300, 'Four distortions with the same MSE and PSNR but very different SSIM',
+        'A synthetic 32 by 32 pixel reference image and four distorted versions: a uniform brightness shift, '
+        'additive Gaussian noise, blur, and 8 by 8 blocking. Each distortion is scaled so that the mean squared '
+        f'error is exactly {TARGET:.0f}, giving the same PSNR of {psnr_db:.1f} dB for all four. SSIM, computed with 8 by 8 '
+        'windows, ranks them very differently: ' + ', '.join(
+            f'{n} {ssim_uniform(REF, v):.2f}' for n, v in variants[1:]) + '.')
+P = 5  # screen pixels per image pixel → 160 x 160 panels
+for k, (name, img) in enumerate(variants):
+    x0, y0 = 20 + k * 172, 30
+    s.text(x0, 20, name, 'bold')
+    s.rect(x0, y0, N * P, N * P, IMG0, 'none')
+    for i in range(N):
+        for j in range(N):
+            v = min(255, max(0, img[i][j])) / 255
+            s.parts.append(f'<rect x="{x0 + j * P}" y="{y0 + i * P}" width="{P}" height="{P}" fill="{IMG1}" '
+                           f'fill-opacity="{v:.3f}"/>')
+    s.rect(x0, y0, N * P, N * P, 'none', LINE)
+    if k:
+        s.text(x0, 214, f'MSE {mse_of(REF, img):.0f} · PSNR {psnr_db:.1f} dB', 'small')
+        s.text(x0, 238, f'SSIM {ssim_uniform(REF, img):.2f}', 'bold green')
+    else:
+        s.text(x0, 214, 'MSE 0 · PSNR ∞', 'small')
+        s.text(x0, 238, 'SSIM 1.00', 'bold green')
+s.text(440, 284, 'PSNR cannot tell these apart; SSIM, which compares local structure, can.', 'small', 'middle')
+s.save()
+
+# --- Structure of a subjective test session ------------------------------------
+s = SVG(DECK, 'session', 250, 'Structure of a subjective video test session',
+        'A session starts with a short training sequence of representative conditions, followed by a break for '
+        'questions. The session proper opens with a few stabilising sequences whose ratings are discarded, '
+        'followed by the main part in randomised order. The whole session should not exceed about 30 minutes.')
+s.text(20, 22, 'TRAINING', 'label')
+for k in range(4):
+    s.rect(20 + k * 30, 70, 30, 44, NEUTRAL, LINE)
+s.text(80, 140, 'representative', 'small', 'middle')
+s.text(80, 158, 'conditions', 'small', 'middle')
+s.text(215, 96, 'break', 'bold', 'middle')
+s.text(215, 116, 'questions', 'small', 'middle')
+s.line(150, 92, 180, 92, MUT, 1.5, arrow='muted')
+s.line(250, 92, 280, 92, MUT, 1.5, arrow='muted')
+s.text(290, 22, 'STABILISING', 'label')
+for k in range(4):
+    s.rect(290 + k * 30, 70, 30, 44, GREYTINT, LINE)
+s.text(350, 140, 'not processed', 'small', 'middle')
+s.text(430, 22, 'MAIN PART — RANDOMISED ORDER', 'label')
+for k in range(14):
+    s.rect(430 + k * 30, 70, 30, 44, TINT if k % 2 else TINT2, LINE)
+s.line(290, 50, 850, 50, G, 1.5)
+s.line(290, 44, 290, 56, G, 1.5); s.line(850, 44, 850, 56, G, 1.5)
+s.text(640, 40, '≤ 30 min per session', 'small green', 'middle')
+s.text(640, 140, 'each cell: one sequence + vote', 'small', 'middle')
+s.text(640, 158, 'replicated conditions check each viewer’s consistency', 'small', 'middle')
+s.text(440, 220, 'Randomisation cancels order and fatigue effects; the stabilising items absorb the “first impressions”.',
+       'small', 'middle')
+s.save()
+
+# --- Presentation timing of the main test methods -----------------------------------
+s = SVG(DECK, 'methods-timing', 300, 'Presentation patterns of ACR, ACR-HR, DCR, PC and DSCQS',
+        'Timelines of the five methods. ACR shows one test sequence of about 10 seconds followed by a vote. ACR-HR '
+        'is the same, but the unprocessed reference is hidden among the test sequences. DCR, called DSIS in ITU-R '
+        'BT.500, shows the reference, a 2 second grey pause, the test sequence, then a vote on the impairment. PC '
+        'shows the same content through two systems and asks for a preference. DSCQS alternates A and B twice, the '
+        'viewer not knowing which is the reference, and rates both.')
+rows = [('ACR', [('Test sequence', 170, PAPER), ('Vote ≤ 10 s', 110, GREYTINT)], 'no reference, absolute scale'),
+        ('ACR-HR', [('Test or hidden ref.', 170, PAPER), ('Vote', 110, GREYTINT)], 'reference hidden → DMOS'),
+        ('DCR / DSIS', [('Reference', 150, TINT), ('', 16, NEUTRAL), ('Test', 150, PAPER), ('Vote', 90, GREYTINT)],
+         'impairment vs. known ref.'),
+        ('PC', [('System A', 150, PAPER), ('', 16, NEUTRAL), ('System B', 150, PAPER), ('Vote', 90, GREYTINT)],
+         'preference within a pair'),
+        ('DSCQS', [('A', 90, PAPER), ('B', 90, PAPER), ('A', 90, PAPER), ('B', 90, PAPER), ('Vote A, B', 90, GREYTINT)],
+         'ref. is A or B, unknown')]
+for k, (name, segs, note) in enumerate(rows):
+    y = 16 + k * 50
+    s.text(20, y + 26, name, 'bold')
+    x = 130
+    for lab, w, fill in segs:
+        s.rect(x, y, w, 38, fill, LINE)
+        if lab:
+            s.text(x + w / 2, y + 25, lab, '', 'middle')
+        x += w
+    s.text(x + 14, y + 25, note, 'small')
+s.text(440, 290, '~10 s per sequence · grey pause ≈ 2 s between the two stimuli of a pair (ITU-T P.910)', 'small', 'middle')
+s.save()
+
+# --- Rating scales for video ----------------------------------------------------
+s = SVG(DECK, 'video-scales', 320, 'Rating scales used in subjective video tests',
+        'Four scales side by side. The five-grade ACR scale from Excellent to Bad. The nine-grade scale with the '
+        'same five labels on every second grade, 9 to 1. The eleven-grade scale from 0 to 10, where 10 means a '
+        'reproduction perfectly faithful to the original and 0 no similarity to it, both endpoints used only as '
+        'anchors. The continuous scale from 0 to 100 with the five labels as guides, used by DSCQS and SAMVIQ.')
+labels = ['Excellent', 'Good', 'Fair', 'Poor', 'Bad']
+cols = [('5-grade · ACR', [(str(5 - k), labels[k]) for k in range(5)]),
+        ('9-grade', [(str(9 - k), labels[k // 2] if k % 2 == 0 else '') for k in range(9)]),
+        ('11-grade', [('10', 'faithful to original')] + [(str(9 - k), labels[k // 2] if k % 2 == 0 else '')
+                                                         for k in range(9)] + [('0', 'no similarity')])]
+H = 256
+for c, (title, grades) in enumerate(cols):
+    x0 = 20 + c * 215
+    s.text(x0, 20, title, 'label')
+    step = H / len(grades)
+    for k, (g, lab) in enumerate(grades):
+        y = 34 + k * step
+        anchor = title == '11-grade' and g in ('10', '0')
+        s.rect(x0, y, 40, step - 2, PAPER if anchor else TINT, LINE)
+        s.text(x0 + 20, y + step / 2 + 4, g, 'small bold green' if step < 26 else 'bold green', 'middle')
+        if lab:
+            s.text(x0 + 50, y + step / 2 + 5, lab, 'small' if anchor else '')
+x0 = 665
+s.text(x0, 20, 'Continuous · DSCQS', 'label')
+s.rect(x0 + 10, 34, 26, H - 2, TINT, G, 1.5)
+for k, lab in enumerate(labels):
+    y = 34 + k * H / 5
+    s.line(x0 + 10, y, x0 + 36, y, G, 1)
+    s.text(x0 + 46, y + H / 10 + 5, lab)
+s.line(x0 + 4, 34 + 0.37 * H, x0 + 42, 34 + 0.37 * H, FMT, 3)
+s.text(x0 + 124, 34 + 0.37 * H + 5, '← 63', 'small')
+s.text(440, 312, 'More grades add resolution only if viewers can use it; verbal labels anchor the meaning of the numbers.',
+       'small', 'middle')
+s.save()
+
+# --- Spatial and temporal information plane (schematic) ------------------------------
+s = SVG(DECK, 'siti-plane', 300, 'The spatial–temporal information plane used to select test content',
+        'Schematic plane with spatial information SI on the horizontal axis and temporal information TI on the '
+        'vertical axis. Low SI and low TI: a news presenter or video call. High SI, low TI: a slow pan over a '
+        'detailed landscape or text. Low SI, high TI: fast camera motion over smooth surfaces. High SI and high '
+        'TI: sport or a crowd scene, the hardest content to compress. A test set should cover all four quadrants.', w=470)
+ax = Axes(s, 60, 20, 390, 210, (0, 1), (0, 1), xlabel='SI — spatial detail', ylabel='TI — motion', grid=False)
+s.line(ax.px(0.5), ax.py(0), ax.px(0.5), ax.py(1), LINE, 1.5, dash=True)
+s.line(ax.px(0), ax.py(0.5), ax.px(1), ax.py(0.5), LINE, 1.5, dash=True)
+quad = [(0.25, 0.25, 'news presenter', 'video call'), (0.75, 0.25, 'landscape pan', 'text, fine texture'),
+        (0.25, 0.75, 'fast pan over', 'smooth surfaces'), (0.75, 0.75, 'sport, crowd', 'hardest to compress')]
+for x, y, a, b in quad:
+    s.dot(ax.px(x), ax.py(y) - 26, 6, FMT if x > 0.5 and y > 0.5 else G)
+    s.text(ax.px(x), ax.py(y) + 2, a, 'bold' if x > 0.5 and y > 0.5 else '', 'middle')
+    s.text(ax.px(x), ax.py(y) + 22, b, 'small', 'middle')
+s.text(235, 292, 'Schematic · difficulty grows towards the top right', 'small', 'middle')
+s.save()
+
+# --- Families of objective video quality models -------------------------------------
+s = SVG(DECK, 'vqa-families', 300, 'Full-reference, reduced-reference, no-reference and parametric video models',
+        'The source video passes through the system under test and comes out as the received video. A '
+        'full-reference model compares every pixel of both. A reduced-reference model compares a few features '
+        'extracted from the source and sent alongside. A no-reference model sees the received video only. A '
+        'bitstream or parametric model reads no pixels at all, only packet headers or stream metadata such as '
+        'bit rate, resolution and stalling events.')
+s.box(20, 30, 200, 60, 'Source video', 'pristine, known', NEUTRAL)
+s.line(220, 60, 330, 60, INK, 2, arrow='ink')
+s.box(330, 30, 220, 60, 'System under test', 'encoder · network · player')
+s.line(550, 60, 660, 60, INK, 2, arrow='ink')
+s.box(660, 30, 200, 60, 'Received video', 'what the viewer sees', NEUTRAL)
+s.line(60, 90, 60, 190, G, 2, arrow='green')
+s.line(150, 90, 150, 140, G, 1.5, dash=True)
+s.path('M150,140 L260,140', G, 1.5, dash=True)
+s.line(260, 140, 260, 190, G, 1.5, dash=True, arrow='green')
+s.text(160, 132, 'features', 'small')
+s.path('M790,90 L790,115 L110,115', G, 2)
+s.line(110, 115, 110, 190, G, 2, arrow='green')
+s.line(300, 115, 300, 190, G, 2, arrow='green')
+s.line(520, 115, 520, 190, G, 2, arrow='green')
+s.box(20, 190, 190, 64, 'Full reference', 'PSNR · SSIM · VMAF')
+s.box(225, 190, 190, 64, 'Reduced reference', 'ITU-T J.249 · J.342')
+s.box(430, 190, 200, 64, 'No reference', 'BRISQUE · deep models')
+s.box(645, 190, 215, 64, 'Bitstream, parametric', 'ITU-T P.1203 · P.1204', PAPER)
+s.text(752, 152, 'headers, bit rate, stalls', 'small', 'middle')
+s.line(752, 158, 752, 190, MUT, 2, dash=True, arrow='muted')
+s.text(440, 290, 'The same trade-off as for speech: less input → easier deployment → usually lower accuracy.',
+       'small', 'middle')
+s.save()
+
+# --- SSIM block diagram (after Wang et al. 2004, Fig. 3) ---------------------------
+# The three comparisons sit between the two signal rows and multiply, as in the SSIM formula with
+# alpha = beta = gamma = 1, instead of the original figure's crossing connectors.
+s = SVG(DECK, 'ssim-diagram', 340, 'Block diagram of the structural similarity index',
+        'Two signals x and y, one window of the reference and of the test image. For each, the mean is measured '
+        'and subtracted, and the standard deviation is measured and divided out. Luminance comparison uses the '
+        'two means, contrast comparison the two standard deviations, structure comparison the two normalised '
+        'signals. The product of the three comparisons is the similarity index. After Wang et al., 2004, Fig. 3.')
+cols6 = [(150, 'Luminance', 'mean μ', 'l(x, y)'), (340, 'Contrast', 'std. dev. σ', 'c(x, y)'),
+         (530, 'Normalise', '(· − μ) / σ', 's(x, y)')]
+for sig, y in [('x', 14), ('y', 216)]:
+    s.text(12, y + 36, f'Signal {sig}', 'bold math')
+    for k, (x, t, sub, _) in enumerate(cols6):
+        s.box(x, y, 160, 60, t, ' ')  # blank sub keeps the title on the upper line; the sub is written below
+        sub_ = escape(sub.replace('·', sig))  # μ and σ get a subscripted signal name
+        for sym in ('μ', 'σ'):
+            sub_ = sub_.replace(sym, f'{sym}<tspan baseline-shift="sub" font-size="11">{sig}</tspan>')
+        s.parts.append(f'<text x="{x + 14}" y="{y + 49}" class="small">{sub_}</text>')
+        s.line(x - (60 if k == 0 else 30), y + 30, x, y + 30, INK, 1.5, arrow='ink')
+# comparison row centred between the two signal rows (74 … 216): boxes 44 high around y = 145
+for k, (x, _, _, cmp_lab) in enumerate(cols6):
+    s.rect(x + 25, 123, 110, 44, TINT3, LINE)
+    s.text(x + 80, 151, cmp_lab, 'bold math', 'middle')
+    s.line(x + 80, 74, x + 80, 123, G, 1.5, arrow='green')
+    s.line(x + 80, 216, x + 80, 167, G, 1.5, arrow='green')
+    if k < 2:
+        s.text(x + 175, 153, '×', 'big', 'middle')
+s.line(665, 145, 720, 145, INK, 2, arrow='ink')
+s.rect(720, 119, 145, 52, PAPER, G, 1.5)
+s.text(792, 151, 'SSIM(x, y)', 'bold', 'middle')
+s.text(440, 308, 'Each comparison uses one statistic of both signals; their product is SSIM.', 'small', 'middle')
+s.text(440, 330, 'After Z. Wang et al., IEEE Trans. Image Processing 13(4), 2004, Fig. 3.', 'small', 'middle')
+s.save()
+
+# --- VMAF processing pipeline ------------------------------------------------------
+s = SVG(DECK, 'vmaf-pipeline', 300, 'Processing pipeline of Netflix VMAF',
+        'The reference and the distorted video are both scaled to the resolution of the model. Three elementary '
+        'features are computed per frame: visual information fidelity at four spatial scales, the additive '
+        'detail-loss metric, and a motion feature from the reference, the mean co-located pixel difference of '
+        'consecutive frames. A support vector regressor trained on subjective scores fuses them into a per-frame '
+        'score from 0 to 100, which is pooled over time, by default as the arithmetic mean.')
+# Orthogonal routing with one end point per arrow, so no two arrowheads meet at the same spot. The one
+# unavoidable crossing (reference → ADM over the distorted bus) is drawn with a gap in the crossing line.
+s.box(20, 20, 170, 56, 'Reference', 'scaled to model res.', NEUTRAL)       # centre y = 48
+s.box(20, 168, 170, 56, 'Distorted', 'scaled to model res.', NEUTRAL)      # centre y = 196
+for t, sub, yc in [('Motion', 'reference only', 48), ('VIF × 4 scales', 'information fidelity', 118),
+                   ('ADM (DLM)', 'detail loss', 188)]:
+    s.box(290, yc - 28, 200, 56, t, sub)
+s.line(190, 48, 290, 48, INK, 1.5, arrow='ink')                             # reference → motion
+s.path('M215,48 L215,180', INK, 1.5)                                        # reference bus
+s.line(215, 108, 290, 108, INK, 1.5, arrow='ink')                           # reference → VIF
+s.line(215, 180, 244, 180, INK, 1.5)                                        # reference → ADM, gap at the bus
+s.line(256, 180, 290, 180, INK, 1.5, arrow='ink')
+s.dot(215, 48, 3.5, INK); s.dot(215, 108, 3.5, INK)
+s.line(190, 196, 290, 196, INK, 1.5, arrow='ink')                           # distorted → ADM
+s.path('M250,196 L250,128 L290,128', INK, 1.5, arrow='ink')                 # distorted → VIF
+s.dot(250, 196, 3.5, INK)
+s.path('M490,48 L515,48 L515,100 L545,100', INK, 1.5, arrow='ink')         # motion → SVR
+s.line(490, 118, 545, 118, INK, 1.5, arrow='ink')                           # VIF → SVR
+s.path('M490,188 L515,188 L515,136 L545,136', INK, 1.5, arrow='ink')       # ADM → SVR
+s.box(545, 90, 145, 56, 'SVR fusion', 'trained on MOS', TINT3)
+s.line(690, 118, 720, 118, INK, 2, arrow='ink')
+s.box(720, 90, 150, 56, 'Score 0 … 100', 'per frame → mean', PAPER)
+s.text(20, 258, 'Models: vmaf_v0.6.1 (1080p TV at 3H) · 4K model (1.5H) · phone model · NEG variant (no enhancement gain).',
+       'small')
+s.text(20, 282, 'The features are per-frame; temporal behaviour enters only through the motion feature and the pooling.',
+       'small')
+s.save()
+
+# --- Correlation of objective metrics with subjective scores -------------------------
+# Spearman rank-order correlation (SROCC) over all codecs, read from the MSU Video Quality Metrics Benchmark
+# chart (videoprocessing.ai) used in the original 2023 course slides. Each bar spans the variants of one
+# metric family (colour spaces, model versions, weightings) from the lowest to the highest SROCC.
+SROCC = [('VMAF (v0.6.1 – v0.6.3, NEG)', 0.9130, 0.9449, G), ('MS-SSIM', 0.8353, 0.9090, EKF),
+         ('SSIM', 0.8428, 0.9059, EKF), ('PSNR', 0.8650, 0.8833, FBI), ('Other full-reference metrics', 0.5367, 0.9372, MUT)]
+s = SVG(DECK, 'metric-srocc', 300, 'Rank correlation of objective video metrics with subjective scores',
+        'Spearman rank-order correlation with subjective scores over all codecs of the MSU video quality metrics '
+        'benchmark. VMAF variants range from 0.913 to 0.945, MS-SSIM variants from 0.835 to 0.909, SSIM from '
+        '0.843 to 0.906, PSNR from 0.865 to 0.883, and other full-reference metrics from 0.537 to 0.937. '
+        'A perfect predictor would reach 1.')
+ax = Axes(s, 250, 20, 520, 200, (0.5, 1.0), (0, len(SROCC)), xlabel='SROCC with subjective score',
+          xticks=[(v / 100, f'{v / 100:.2f}') for v in range(50, 101, 5)], grid=True)
+for k, (name, lo, hi, col) in enumerate(SROCC):
+    yc = ax.py(len(SROCC) - k - 0.5)
+    s.text(238, yc + 6, name, 'bold' if k == 0 else '', 'end')
+    s.rect(ax.px(lo), yc - 10, ax.px(hi) - ax.px(lo), 20, col, 'none')
+    s.text(ax.px(hi) + 8, yc + 5, f'{hi:.3f}', 'small')
+s.line(ax.px(1.0), ax.py(0), ax.px(1.0), ax.py(len(SROCC)), FMT, 1.5, dash=True)
+s.text(ax.px(1.0) - 4, 14, 'ideal', 'small', 'end')
+s.text(440, 292, 'Bars span all variants of a metric (colour planes, versions). Data: MSU Video Quality Metrics Benchmark.',
+       'small', 'middle')
+s.save()
+
+# --- Measured data: scripts/data/06-video-metrics.json (written by generate-video-samples.py) --------------
+# Two 2 s SVT test clips (1280 x 720, 50 fps), encoded with ffmpeg; VMAF (default model v0.6.1) and PSNR-Y
+# from libvmaf. The figures below only plot these numbers; regenerate the data to change them.
+VIDEO_DATA = json.loads((ROOT / 'scripts' / 'data' / '06-video-metrics.json').read_text())
+CODEC_COLOURS = {'H.264': EKF, 'HEVC': FBI, 'AV1': G}
+
+
+def polyfit3(xs, ys):
+    """Least-squares cubic, coefficients c0..c3 (normal equations, Gauss-Jordan)."""
+    n = 4
+    a = [[sum(x ** (i + j) for x in xs) for j in range(n)] for i in range(n)]
+    b = [sum(y * x ** i for x, y in zip(xs, ys)) for i in range(n)]
+    for c in range(n):
+        p = max(range(c, n), key=lambda r: abs(a[r][c]))
+        a[c], a[p], b[c], b[p] = a[p], a[c], b[p], b[c]
+        for r in range(n):
+            if r != c:
+                f = a[r][c] / a[c][c]
+                a[r] = [u - f * v for u, v in zip(a[r], a[c])]
+                b[r] -= f * b[c]
+    return [b[i] / a[i][i] for i in range(n)]
+
+
+def bd_rate(ref, test, key):
+    """Bjøntegaard delta rate [%]: average bit-rate difference at equal quality over the common quality range."""
+    def fit(pts):
+        return polyfit3([p[key] for p in pts], [math.log10(p['kbps']) for p in pts])
+
+    lo = max(min(p[key] for p in ref), min(p[key] for p in test))
+    hi = min(max(p[key] for p in ref), max(p[key] for p in test))
+    integral = lambda c: sum(ci * (hi ** (i + 1) - lo ** (i + 1)) / (i + 1) for i, ci in enumerate(c))  # noqa: E731
+    return (10 ** ((integral(fit(test)) - integral(fit(ref))) / (hi - lo)) - 1) * 100
+
+
+# --- Rate–quality curves: three codecs, two contents -----------------------------------------------
+s = SVG(DECK, 'rd-curves', 330, 'Measured rate–quality curves of H.264, HEVC and AV1 on two contents',
+        'VMAF against bit rate on a logarithmic axis for H.264, HEVC and AV1, measured on two 2-second 720p50 '
+        'SVT test clips. Left, park_joy, a demanding scene with trees, water and motion: all codecs need several '
+        'megabits per second for good quality. Right, old_town_cross, a slow pan over a city: the same quality '
+        'costs about a tenth of the bit rate. The Bjøntegaard delta rates against H.264 are printed under each panel.')
+panels06 = [('park_joy', 'park_joy — high SI, high TI', 70, (2.4, 4.7)), ('old_town_cross', 'old_town_cross — low TI', 500, (2.0, 3.9))]
+for content, title, x0, (lx0, lx1) in panels06:
+    decades = [v for v in (100, 300, 1000, 3000, 10000, 30000) if lx0 <= math.log10(v) <= lx1]
+    ax = Axes(s, x0, 32, 340, 210, (lx0, lx1), (20, 100), xlabel='bit rate [kbit/s]', ylabel='VMAF' if x0 < 100 else '',
+              xticks=[(math.log10(v), f'{v:g}' if v < 1000 else f'{v // 1000:g}k') for v in decades],
+              yticks=[(v, str(v)) for v in (20, 40, 60, 80, 100)])
+    s.text(x0, 20, title, 'label')
+    rd = VIDEO_DATA['rd'][content]
+    for codec, pts in rd.items():
+        xy = [(ax.px(math.log10(p['kbps'])), ax.py(p['vmaf'])) for p in pts
+              if lx0 <= math.log10(p['kbps']) <= lx1 and p['vmaf'] >= 20]
+        s.polyline(xy, CODEC_COLOURS[codec], 2.5)
+        for x, y in xy:
+            s.dot(x, y, 3.5, CODEC_COLOURS[codec])
+    bd = ' · '.join(f'{c} {bd_rate(rd["H.264"], rd[c], "vmaf"):+.0f} %'.replace('-', '−') for c in ('HEVC', 'AV1'))
+    s.text(x0 + 170, 300, f'BD-rate vs H.264 (VMAF): {bd}', 'small bold', 'middle')
+for k, codec in enumerate(CODEC_COLOURS):
+    s.line(290 + k * 110, 322, 320 + k * 110, 322, CODEC_COLOURS[codec], 2.5)
+    s.text(326 + k * 110, 327, codec, 'small')
+s.save()
+
+# --- Encoding ladder and its convex hull ---------------------------------------------------------------
+s = SVG(DECK, 'convex-hull', 330, 'Rate–quality curves of one clip at four resolutions and their convex hull',
+        'VMAF against bit rate for park_joy encoded with H.264 at 270p, 360p, 540p and 720p and upscaled to 720p. '
+        'At low bit rates a lower resolution gives the higher VMAF; as the bit rate grows the best resolution '
+        'moves up. The upper envelope of all points, the convex hull, is the ideal encoding ladder for this clip.')
+LADDER_COLOURS = {'270p': MUT, '360p': EKF, '540p': FBI, '720p': G}
+lx0, lx1 = 2.0, 4.6
+ax = Axes(s, 70, 20, 520, 230, (lx0, lx1), (0, 100), xlabel='bit rate [kbit/s]', ylabel='VMAF',
+          xticks=[(math.log10(v), f'{v:g}' if v < 1000 else f'{v // 1000:g}k') for v in (100, 300, 1000, 3000, 10000, 30000)],
+          yticks=[(v, str(v)) for v in (20, 40, 60, 80, 100)])
+allpts = []
+for res, pts in VIDEO_DATA['ladder'].items():
+    xy = [(math.log10(p['kbps']), p['vmaf']) for p in pts if lx0 <= math.log10(p['kbps']) <= lx1]
+    allpts += [(x, y, res) for x, y in xy]
+    s.polyline([(ax.px(x), ax.py(y)) for x, y in xy], LADDER_COLOURS[res], 2)
+    for x, y in xy:
+        s.dot(ax.px(x), ax.py(y), 3, LADDER_COLOURS[res])
+hull = []  # upper convex hull in linear bit rate (the rate–quality trade-off an encoder can interpolate)
+for x, y, res in sorted(allpts, key=lambda t: 10 ** t[0]):
+    while len(hull) >= 2:
+        (x1, y1, _), (x2, y2, _) = hull[-2], hull[-1]
+        r1, r2, r3 = 10 ** x1, 10 ** x2, 10 ** x
+        if (y2 - y1) * (r3 - r1) <= (y - y1) * (r2 - r1):  # middle point on or below the chord
+            hull.pop()
+        else:
+            break
+    hull.append((x, y, res))
+s.polyline([(ax.px(x), ax.py(y)) for x, y, _ in hull], INK, 1.5, dash=True)
+for k, res in enumerate(reversed(list(LADDER_COLOURS))):
+    s.line(620, 44 + k * 28, 650, 44 + k * 28, LADDER_COLOURS[res], 2.5)
+    s.text(658, 49 + k * 28, res, 'small')
+s.line(620, 44 + 4 * 28, 650, 44 + 4 * 28, INK, 1.5, dash=True)
+s.text(658, 49 + 4 * 28, 'convex hull (best of all)', 'small')
+# where each resolution first reaches the hull; above ~5 Mbit/s 540p and 720p are practically equal and alternate
+starts = []
+for x, _, res in hull:
+    if res not in [r for _, r in starts]:
+        starts.append((x, res))
+s.text(620, 196, 'FIRST ON THE HULL', 'label')
+for k, (x, res) in enumerate(starts):
+    s.text(620, 222 + k * 20, f'{res}', 'small bold')
+    s.text(870, 222 + k * 20, f'from {10 ** x:,.0f} kbit/s'.replace(',', ' '), 'small', 'end')
+s.text(440, 322, 'park_joy, H.264 medium, CRF 18–42. Lower resolutions are upscaled (bicubic) to 1280 × 720 before VMAF.',
+       'small', 'middle')
+s.save()
+
+# --- Temporal pooling of a per-frame score ---------------------------------------------------------------
+loss = VIDEO_DATA['loss']
+lossy, clean = loss['vmaf'], loss['vmaf_clean']
+pool = {'arithmetic mean': sum(lossy) / len(lossy),
+        'harmonic mean': len(lossy) / sum(1 / (1 + v) for v in lossy) - 1,
+        '5th percentile': sorted(lossy)[int(0.05 * len(lossy))],
+        'minimum': min(lossy)}
+s = SVG(DECK, 'temporal-pooling', 320, 'Per-frame VMAF of a clip with one transmission error, and four ways to pool it',
+        'Per-frame VMAF of park_joy encoded with H.264, one I-frame per second, without errors and with a burst of '
+        f'lost transport-stream packets in frame {loss["frame"]}. From that frame until the next I-frame at frame 50 '
+        'the damaged clip scores clearly lower, then recovers. Pooled into one number the lossy clip gets: '
+        + ', '.join(f'{k} {v:.1f}' for k, v in pool.items()) + f'; the error-free clip averages {sum(clean) / len(clean):.1f}.')
+ax = Axes(s, 70, 20, 500, 230, (0, 100), (40, 100), xlabel='frame (50 frames/s)', ylabel='VMAF',
+          xticks=[(v, str(v)) for v in range(0, 101, 10)], yticks=[(v, str(v)) for v in (40, 60, 80, 100)])
+s.line(ax.px(loss['frame']), ax.py(40), ax.px(loss['frame']), ax.py(100), FMT, 1.5, dash=True)
+s.text(ax.px(loss['frame']) + 4, ax.py(44), 'packets lost', 'small')
+s.line(ax.px(50), ax.py(40), ax.px(50), ax.py(100), G, 1.5, dash=True)
+s.text(ax.px(50) + 4, ax.py(44), 'next I-frame', 'small')
+s.polyline([(ax.px(i), ax.py(v)) for i, v in enumerate(clean)], MUT, 2)
+s.polyline([(ax.px(i), ax.py(v)) for i, v in enumerate(lossy)], FMT, 2.5)
+s.line(610, 34, 640, 34, MUT, 2)
+s.text(648, 39, f'error-free · mean {sum(clean) / len(clean):.1f}', 'small')
+s.line(610, 62, 640, 62, FMT, 2.5)
+s.text(648, 67, 'one loss burst', 'small')
+s.text(610, 104, 'LOSSY CLIP, POOLED', 'label')
+for k, (name, v) in enumerate(pool.items()):
+    y = 132 + k * 28
+    s.text(610, y, name, '')
+    s.text(870, y, f'{v:.1f}', 'bold green', 'end')
+s.text(440, 312, f'The same frames give a score between {min(pool.values()):.0f} and {max(pool.values()):.0f} — '
+       'the pooling rule is part of the metric.', 'small', 'middle')
+s.save()
+
+# =============================================================================
+# 09 — Software-defined networking with OpenFlow, and VXLAN-EVPN for comparison
+# =============================================================================
+DECK = '09'
+
+
+def cell(x, y, w, h, label, sub='', fill=TINT, stroke=LINE, sw=1.5):
+    """A box with one centred bold label, or a label and a small second line."""
+    s.rect(x, y, w, h, fill, stroke, sw)
+    if sub:
+        s.text(x + w / 2, y + h / 2 - 3, label, 'bold', 'middle')
+        s.text(x + w / 2, y + h / 2 + 17, sub, 'small', 'middle')
+    else:
+        s.text(x + w / 2, y + h / 2 + 6, label, 'bold', 'middle')
+
+
+# --- Traditional (distributed) control vs SDN (logically centralized) --------------------
+s = SVG(DECK, 'planes', 300, 'Distributed control in a traditional network and logically centralized control in SDN',
+        'Left: three traditional devices, each containing its own control plane and data plane; the control planes '
+        'talk to each other through distributed routing protocols such as OSPF, BGP or spanning tree. Right: three '
+        'SDN switches that keep only the data plane; one logically centralized controller above them computes the '
+        'forwarding state and installs it into every switch over OpenFlow.')
+s.text(210, 22, 'TRADITIONAL — DISTRIBUTED CONTROL', 'label', 'middle')
+s.text(670, 22, 'SDN — LOGICALLY CENTRALIZED CONTROL', 'label', 'middle')
+s.line(440, 10, 440, 230, GRID, 1.5)
+for k in range(3):
+    x = 25 + k * 130
+    cell(x, 110, 110, 50, 'control', fill=TINT3)
+    cell(x, 160, 110, 50, 'data', fill=TINT)
+    if k < 2:
+        s.line(x + 110, 185, x + 130, 185, INK, 2)
+        s.path(f'M{x + 55},110 Q{x + 120},62 {x + 185},110', MUT, 1.5, dash=True)
+s.text(210, 66, 'routing protocols (OSPF, BGP, STP)', 'small', 'middle')
+cell(560, 40, 220, 55, 'Controller', 'network OS + applications', TINT3)
+for k in range(3):
+    x = 485 + k * 130
+    cell(x, 160, 110, 50, 'data', fill=TINT)
+    s.line(670, 95, x + 55, 158, G, 2, arrow='green')
+    if k < 2:
+        s.line(x + 110, 185, x + 130, 185, INK, 2)
+s.text(700, 135, 'OpenFlow', 'small green')
+s.text(440, 262, 'Traditional: every box decides for itself and the network state is the sum of many local views.',
+       'small', 'middle')
+s.text(440, 282, 'SDN: switches only forward; one program with a global view decides for all of them.', 'small', 'middle')
+s.save()
+
+# --- The layered SDN architecture and its interfaces --------------------------------------
+s = SVG(DECK, 'architecture', 340, 'The three planes of an SDN architecture and the interfaces between them',
+        'Top: the application plane with routing, traffic engineering and security or QoS policy applications. '
+        'They talk to the control plane through the northbound API, typically REST or gRPC, which is not '
+        'standardized. The control plane consists of two controller instances synchronized over an east-west '
+        'interface. It programs the data plane, five interconnected switches, through the southbound API such as '
+        'OpenFlow, P4Runtime, NETCONF or OVSDB.')
+for y, h in [(10, 70), (120, 70), (230, 70)]:
+    s.rect(190, y, 670, h, NEUTRAL, LINE)
+for k, name in enumerate(['Routing', 'Traffic engineering', 'Security / QoS policy']):
+    cell(210 + k * 215, 22, 200, 46, name, fill=PAPER)
+for x in (310, 525, 740):
+    s.line(x, 80, x, 118, G, 2, arrow='green')
+cell(230, 130, 220, 50, 'Controller instance 1', fill=TINT3)
+cell(590, 130, 220, 50, 'Controller instance 2', fill=TINT3)
+s.line(450, 155, 590, 155, MUT, 1.5, dash=True)
+s.text(520, 148, 'east–west', 'small', 'middle')
+for k in range(5):
+    x = 215 + k * 130
+    cell(x, 245, 90, 40, f's{k + 1}', fill=TINT)
+    s.line(x + 45, 190, x + 45, 243, G, 2, arrow='green')
+    if k < 4:
+        s.line(x + 90, 265, x + 130, 265, INK, 2)
+for y, lines, cls in [(40, ['APPLICATION', 'PLANE'], 'label'), (150, ['CONTROL', 'PLANE'], 'label'),
+                      (260, ['DATA', 'PLANE'], 'label'), (96, ['northbound API', 'REST, gRPC'], 'small'),
+                      (206, ['southbound API', 'OpenFlow, P4Runtime'], 'small')]:
+    for j, t in enumerate(lines):
+        s.text(20, y + j * 19, t, cls)
+s.text(440, 328, 'Only the southbound side has a widely adopted standard; each controller defines its own northbound API.',
+       'small', 'middle')
+s.save()
+
+# --- Components of an OpenFlow switch -------------------------------------------------------
+s = SVG(DECK, 'openflow-switch', 345, 'Main components of an OpenFlow logical switch',
+        'An external controller connects to the switch over the OpenFlow channel, a TCP connection optionally '
+        'secured with TLS. Inside the switch, the OpenFlow channel agent installs entries into a pipeline of flow '
+        'tables numbered 0 to n. A packet enters on an ingress port, passes through the tables, and leaves on an '
+        'egress port. Flow entries can refer to a group table, for multicast, load sharing and fast failover, and '
+        'to a meter table, for per-flow rate limiting.')
+cell(340, 10, 200, 50, 'Controller', fill=TINT3)
+s.line(440, 60, 440, 103, G, 2.5)
+s.text(452, 88, 'OpenFlow protocol · TCP 6653, optional TLS', 'small')
+s.rect(60, 103, 760, 200, PAPER, INK, 1.5)
+s.text(75, 126, 'OPENFLOW SWITCH', 'label')
+cell(340, 113, 200, 40, 'OpenFlow channel', fill=NEUTRAL)
+tables = [(110, 'Flow table 0'), (260, 'Flow table 1'), (450, 'Flow table n')]
+for x, name in tables:
+    cell(x, 175, 120, 50, name, fill=TINT)
+    s.line(440, 153, x + 60, 173, MUT, 1.2, dash=True)
+s.line(230, 200, 258, 200, G, 2, arrow='green')
+s.line(380, 200, 400, 200, G, 2)
+s.text(415, 206, '…', 'bold', 'middle')
+s.line(428, 200, 448, 200, G, 2, arrow='green')
+cell(260, 250, 150, 40, 'Group table', fill=CTINT)
+cell(450, 250, 150, 40, 'Meter table', fill=CTINT)
+s.line(335, 225, 335, 248, MUT, 1.5, arrow='muted')
+s.line(525, 225, 525, 248, MUT, 1.5, arrow='muted')
+s.line(15, 200, 108, 200, INK, 2, arrow='ink')
+s.text(20, 190, 'ingress port', 'small')
+s.line(570, 200, 865, 200, INK, 2, arrow='ink')
+s.text(860, 190, 'egress port', 'small', 'end')
+s.text(715, 240, 'filled by the', 'small', 'middle')
+s.text(715, 259, 'controller via Flow-Mod,', 'small', 'middle')
+s.text(715, 278, 'Group-Mod, Meter-Mod', 'small', 'middle')
+s.text(440, 333, 'The switch hardware stays closed; only the tables and the channel that fills them are standardized.',
+       'small', 'middle')
+s.save()
+
+# --- Anatomy of one flow entry --------------------------------------------------------------
+s = SVG(DECK, 'flow-entry', 210, 'The fields of one OpenFlow 1.3 flow entry, with an example',
+        'A flow entry has seven parts: match fields, priority, counters, instructions, timeouts, cookie and flags. '
+        'The example matches IPv4 packets from port 1 to 10.0.0.2 marked DSCP 46, has priority 100, counts packets, '
+        'bytes and duration, applies output to port 2 through meter 1, expires after 10 seconds without a match, '
+        'carries a controller cookie and asks the switch to report its removal.')
+fields = [(215, 'Match fields', TINT3, ['in_port=1, eth_type=0x0800,', 'ip_dst=10.0.0.2, ip_dscp=46']),
+          (85, 'Priority', TINT, ['100', 'highest wins']),
+          (105, 'Counters', TINT, ['packets, bytes,', 'duration']),
+          (140, 'Instructions', TINT3, ['meter:1,', 'apply: output:2']),
+          (115, 'Timeouts', TINT, ['idle 10 s,', 'hard 0 (none)']),
+          (100, 'Cookie', TINT, ['opaque tag', 'of controller']),
+          (80, 'Flags', TINT, ['notify on', 'removal'])]
+s.text(20, 25, 'ONE FLOW ENTRY — OPENFLOW 1.3', 'label')
+x = 20
+for w, name, fill, ex in fields:
+    cell(x, 40, w, 50, name, fill=fill)
+    for j, t in enumerate(ex):
+        s.text(x + w / 2, 115 + j * 20, t, 'small', 'middle')
+    x += w
+s.text(440, 180, 'Match fields and priority identify the entry; a packet is handled by the highest-priority entry it matches.',
+       'small', 'middle')
+s.text(440, 200, 'The table-miss entry wildcards every field at priority 0: send to controller, drop, or go to a later table.',
+       'small', 'middle')
+s.save()
+
+# --- Multi-table pipeline processing -----------------------------------------------------
+s = SVG(DECK, 'pipeline', 285, 'Pipeline processing across several flow tables',
+        'A packet enters table 0. Each matching entry executes instructions: Apply-Actions changes the packet at '
+        'once, Write-Actions adds actions to an action set that travels with the packet, and Goto-Table sends it '
+        'to a later table, never an earlier one, for example directly from table 0 to table n. When an entry has no '
+        'Goto-Table instruction, processing stops and the accumulated action set is executed, typically ending in '
+        'output to an egress port.')
+s.text(20, 121, 'packet in', 'small')
+s.line(20, 130, 98, 130, INK, 2, arrow='ink')
+for x, name in [(100, 'Table 0'), (250, 'Table 1'), (430, 'Table n')]:
+    s.box(x, 95, 120, 70, name, 'match → instr.')
+s.line(220, 130, 248, 130, G, 2, arrow='green')
+s.line(370, 130, 388, 130, G, 2)
+s.text(405, 136, '…', 'bold', 'middle')
+s.line(412, 130, 428, 130, G, 2, arrow='green')
+cell(600, 95, 160, 70, 'Execute', 'action set', TINT3)
+s.line(550, 130, 598, 130, G, 2, arrow='green')
+s.line(760, 130, 862, 130, INK, 2, arrow='ink')
+s.text(860, 121, 'packet out', 'small', 'end')
+s.path('M160,95 Q325,20 490,93', G, 2, dash=True, arrow='green')
+s.text(325, 42, 'Goto-Table: forward only, tables may be skipped', 'small', 'middle')
+s.rect(100, 190, 660, 36, NEUTRAL, LINE)
+s.text(430, 213, 'action set + metadata travel with the packet from table to table', 'small', 'middle')
+for x in (160, 310, 490, 680):
+    s.line(x, 165, x, 190, MUT, 1.2, dash=True)
+s.text(440, 255, 'Apply-Actions modifies the packet immediately; Write-Actions and Clear-Actions edit the action set,',
+       'small', 'middle')
+s.text(440, 275, 'which is executed once, when an entry without Goto-Table ends the pipeline.', 'small', 'middle')
+s.save()
+
+# --- Reactive flow set-up: the first packet visits the controller ----------------------------
+s = SVG(DECK, 'reactive-setup', 330, 'Reactive flow installation: the first packet of a flow visits the controller',
+        'A sequence diagram with four participants: host h1, switch s1, the controller and host h2. Packet 1 from h1 '
+        'misses in the flow table, so s1 sends a Packet-In to the controller. The controller answers with a Flow-Mod '
+        'that installs a forwarding entry and a Packet-Out that releases packet 1, which s1 forwards to h2. Packet 2 '
+        'matches the new entry and is forwarded directly by the switch without involving the controller.')
+cols = {'h1': 110, 's1': 340, 'ctl': 570, 'h2': 790}
+for key, name in [('h1', 'Host h1'), ('s1', 'Switch s1'), ('ctl', 'Controller'), ('h2', 'Host h2')]:
+    cell(cols[key] - 70, 8, 140, 36, name, fill=TINT3 if key in ('s1', 'ctl') else NEUTRAL)
+    s.line(cols[key], 44, cols[key], 300, LINE, 1.5, dash=True)
+
+
+def msg(a, b, y, label, color=G, marker='green'):
+    s.line(cols[a], y, cols[b] + (-2 if cols[b] > cols[a] else 2), y, color, 2, arrow=marker)
+    s.text((cols[a] + cols[b]) / 2, y - 7, label, 'small', 'middle')
+
+
+msg('h1', 's1', 80, 'packet 1', INK, 'ink')
+s.text(352, 102, 'table miss', 'small bold')
+msg('s1', 'ctl', 128, 'Packet-In (headers, buffer id)')
+msg('ctl', 's1', 165, 'Flow-Mod (match → output:2)')
+msg('ctl', 's1', 200, 'Packet-Out (packet 1)')
+msg('s1', 'h2', 235, 'packet 1', INK, 'ink')
+msg('h1', 's1', 275, 'packet 2', INK, 'ink')
+s.line(340, 285, 788, 285, INK, 2, arrow='ink')
+s.text(565, 280, 'packet 2 — matches the new entry', 'small', 'middle')
+s.line(600, 128, 600, 200, FMT, 1.5)
+s.line(594, 128, 606, 128, FMT, 1.5)
+s.line(594, 200, 606, 200, FMT, 1.5)
+s.text(612, 169, 'flow set-up delay', 'small')
+s.text(440, 322, 'Only the first packet of a flow pays for the controller round trip; the rest stay in the data plane.',
+       'small', 'middle')
+s.save()
+
+# --- VXLAN encapsulation ----------------------------------------------------------------------
+s = SVG(DECK, 'vxlan-frame', 255, 'VXLAN encapsulation of an Ethernet frame',
+        'The ingress VTEP prepends 50 bytes to the tenant Ethernet frame: an outer Ethernet header of 14 bytes, an '
+        'outer IPv4 header of 20 bytes, an outer UDP header of 8 bytes with destination port 4789, and an 8-byte '
+        'VXLAN header. The VXLAN header holds 8 bits of flags, 24 reserved bits, a 24-bit VXLAN network identifier '
+        'and 8 reserved bits.')
+row = [(105, 'Outer Eth', '14 B', TINT), (110, 'Outer IPv4', '20 B', TINT), (105, 'Outer UDP', '8 B', TINT),
+       (90, 'VXLAN', '8 B', TINT3), (330, 'Inner Ethernet frame', 'tenant MAC, VLAN, IP, payload', PAPER),
+       (50, 'FCS', '', NEUTRAL)]
+x = 45
+for w, name, sub, fill in row:
+    cell(x, 50, w, 50, name, sub, fill)
+    x += w
+s.line(45, 38, 455, 38, MUT, 1.5)
+s.line(45, 38, 45, 30, MUT, 1.5)
+s.line(455, 38, 455, 30, MUT, 1.5)
+s.text(250, 24, 'added by the ingress VTEP — 50 B for IPv4', 'bold', 'middle')
+s.line(365, 100, 240, 140, MUT, 1.2, dash=True)
+s.line(455, 100, 640, 140, MUT, 1.2, dash=True)
+x = 240
+for w, name in [(50, 'Flags'), (150, 'Reserved (24)'), (150, 'VNI (24 bit)'), (50, 'Rsvd')]:
+    cell(x, 140, w, 40, name, fill=TINT3 if 'VNI' in name else PAPER)
+    x += w
+s.text(440, 218, 'Outer UDP destination port 4789; the source port is a hash of the inner headers, so underlay ECMP',
+       'small', 'middle')
+s.text(440, 238, 'spreads tenant flows. A 24-bit VNI gives about 16.7 million segments, against 4094 usable VLAN IDs.',
+       'small', 'middle')
+s.save()
+
+# --- Where the control plane lives: OpenFlow vs VXLAN-EVPN ----------------------------------
+s = SVG(DECK, 'control-placement', 355, 'Centralized control with OpenFlow and distributed control with BGP EVPN',
+        'Left: one logically centralized controller cluster pushes flow entries into four switches. Right: a '
+        'leaf-spine fabric; two spine switches act as BGP route reflectors and four leaf switches act as VXLAN '
+        'tunnel endpoints. Every leaf runs BGP and learns MAC and IP routes from the others through the route '
+        'reflectors; tenant traffic between two leaves is carried in a VXLAN tunnel across the IP underlay.')
+s.text(220, 22, 'OPENFLOW — CENTRAL CONTROLLER', 'label', 'middle')
+s.text(660, 22, 'VXLAN-EVPN — DISTRIBUTED BGP', 'label', 'middle')
+s.line(440, 10, 440, 290, GRID, 1.5)
+cell(110, 45, 220, 55, 'SDN controller', 'cluster, global view', TINT3)
+for k in range(4):
+    x = 30 + k * 100
+    cell(x, 200, 80, 40, f's{k + 1}', fill=TINT)
+    s.line(220, 100, x + 40, 198, G, 2, arrow='green')
+    if k < 3:
+        s.line(x + 80, 220, x + 100, 220, INK, 2)
+s.text(220, 270, 'flow entries pushed into each switch', 'small', 'middle')
+spines = [(545, 'Spine 1'), (675, 'Spine 2')]
+leaves = [470 + k * 100 for k in range(4)]
+for lx in leaves:
+    for sx, _ in spines:
+        s.line(lx + 40, 200, sx + 60, 100, LINE, 1.5)
+for sx, name in spines:
+    cell(sx, 55, 120, 45, name, 'BGP route refl.', TINT3)
+for k, lx in enumerate(leaves):
+    cell(lx, 200, 80, 40, f'Leaf {k + 1}', fill=TINT)
+s.path(f'M{leaves[0] + 40},240 Q{(leaves[0] + leaves[3]) / 2 + 40},305 {leaves[3] + 40},240', C, 3, dash=True)
+s.text(660, 292, 'VXLAN tunnel between VTEPs', 'small', 'middle')
+s.rect(582, 136, 156, 22, PAPER, 'none')
+s.text(660, 152, 'EVPN routes over iBGP', 'small', 'middle')
+s.text(440, 322, 'OpenFlow: one program computes state for every switch. EVPN: every leaf computes its own state from',
+       'small', 'middle')
+s.text(440, 340, 'routes its peers advertise — the control plane is standardized and distributed, as in any IP network.',
        'small', 'middle')
 s.save()
 

@@ -11,8 +11,10 @@ Markdown file at the project root.
 | `03-qos-mechanisms.md` | QoS vs QoE definitions, the end-to-end delay budget, congestion management (CAC, queuing, RED), and link efficiency and marking (compression, LFI, DSCP) | `qos-03` |
 | `04-network-traffic-modelling.md` | Time-domain traffic distributions (exponential, Weibull, jitter), Markov-chain packet-loss models (Bernoulli through the four-state model), and self-similarity / long-range dependence | none — extends `qos-02`'s `simpy` pipeline |
 | `05-speech-quality.md` | Subjective listening tests and MOS (P.800), intrusive and non-intrusive objective models (PESQ, POLQA, ViSQOL, P.563), and the E-model (G.107) | `qos-03` |
+| `06-video-quality.md` | Where video quality is lost (hybrid coding, GOPs, codec generations, artefacts), subjective video tests (P.910, BT.500: SI/TI, ACR/ACR-HR/DCR/PC/DSCQS, scales), and objective metrics (PSNR, SSIM, VMAF, no-reference and P.1203 parametric models) | `qos-04` |
+| `09-sdn-openflow.md` | The three planes and the road to SDN, the SDN architecture and its interfaces, SDN vs NFV, the OpenFlow switch model (flow entries, pipeline, groups, meters, ports, channel, messages, reactive vs proactive set-up, QoS use), and a comparison of OpenFlow with VXLAN-EVPN | `qos-05` |
 
-Decks are numbered like the lessons; add `06-…md`, … alongside.
+Decks are numbered like the lectures; add `07-…md`, … alongside.
 
 ## Run a deck
 
@@ -71,6 +73,20 @@ references → `end`. Conventions that keep the decks consistent:
   python3 scripts/generate-codec-samples.py
   ```
 
+- **Video samples** for deck 06 live in `public/video/06/` (H.264 clips with `.jpg` posters) and
+  `public/images/06/` (artefact crops, the explorer image). Clips are shown with
+  `<VideoClip src="/video/06/…mp4" poster="/video/06/…jpg" caption="…" :width="205" />`: click to play, loops
+  silently, starting one pauses the others; the PDF export shows the poster. Everything, together with the
+  measured data behind deck 06's rate–quality, convex-hull and pooling figures
+  (`scripts/data/06-video-metrics.json`, read by `generate-figures.py`), is produced by
+  `scripts/generate-video-samples.py` from two SVT test sequences (Xiph.Org, no copyright). It downloads only
+  the first 2 s of each into `~/.cache/qos-slides/` and needs ffmpeg with libx264, libx265, libsvtav1 and
+  libvmaf (about 2 min):
+
+  ```bash
+  python3 scripts/generate-video-samples.py    # then: python3 scripts/generate-figures.py
+  ```
+
 - **Browser-only slides** (live animations) carry `class: export-skip` in their slide frontmatter; a rule in
   `style.css` hides them in the print view, so `npm run export` leaves the page out and the rest of the deck
   keeps its order. (Slidev 52's `--range` would be the obvious tool, but its print view ignores the range.)
@@ -81,6 +97,10 @@ references → `end`. Conventions that keep the decks consistent:
   With `diagram` it draws only the state diagram (no current state, no animation, no controls), so the static
   model slides show exactly the drawing the live slides animate; it is plain SVG and prints in the PDF:
   `<GilbertSim model="gilbert" diagram alt="…" />`.
+  Deck 06's `QualityExplorer` works the other way round: it stays in the export and draws a static layout
+  there (Slidev's `isPrintMode`). Live, it shows six distortions of one grayscale image scaled to the same
+  MSE (so equal PSNR), with SSIM, the SSIM map, a ranking table and an explanation per distortion; in the
+  PDF, all six side by side at MSE 200 with their maps and one line of explanation each.
 - **Units in prose** must be escaped, `\[Hz\]`, because MDC syntax treats `[...]` as a span. Inside `$…$` KaTeX
   they are fine as they are.
 - **Math** — KaTeX, `$…$` inline and `$$…$$` blocks. The closing `$` may not be preceded by a space.
