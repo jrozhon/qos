@@ -17,6 +17,7 @@ import base64
 import json
 import math
 import random
+import re
 import subprocess
 import sys
 from html import escape
@@ -62,16 +63,21 @@ FONTS = ''.join(
     for name, weight in [('Regular', 400), ('Bold', 700)])
 
 
+ARROW_TRIM = 7  # px — how far the stroke stops short of an arrow's tip (see SVG.path)
+
+
 class SVG:
     """Minimal SVG writer with the deck's type scale: 18 px labels, 15 px notes, 24 px callouts."""
 
     def __init__(self, deck: str, name: str, h: int, title: str, desc: str, w: int = 880):
         self.deck, self.name, self.w, self.h = deck, name, w, h
+        # The arrowhead's tip sits on the path's end point; path() pulls the stroke back by ARROW_TRIM so that it
+        # ends inside the head, where the head is wider than the stroke and hides its square end.
         markers = ''.join(
-            f'<marker id="{n}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" '
+            f'<marker id="{n}" viewBox="0 0 10 10" refX="{10 - ARROW_TRIM / 1.4:g}" refY="5" markerUnits="userSpaceOnUse" '
             f'markerWidth="14" markerHeight="14" orient="auto-start-reverse">'
             f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{c}"/></marker>'
-            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT), ('red', FMT)])
+            for n, c in [('green', G), ('ink', INK), ('cyan', C), ('muted', MUT), ('red', FMT), ('blue', EKF)])
         self.parts = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
             f'role="img" aria-labelledby="title desc">',
@@ -99,6 +105,13 @@ class SVG:
         self.path(f'M{x1:.1f},{y1:.1f} L{x2:.1f},{y2:.1f}', color, sw, dash, arrow)
 
     def path(self, d, color=G, sw=2, dash=False, arrow=None):
+        if arrow:  # shorten the last segment along its end tangent; the marker's refX puts the tip back in place
+            pairs = list(re.finditer(r'(-?[\d.]+),(-?[\d.]+)', d))
+            (px, py), (ex, ey) = [(float(m[1]), float(m[2])) for m in pairs[-2:]]
+            n = math.hypot(ex - px, ey - py)
+            if n > ARROW_TRIM + 1:
+                ex, ey = ex - (ex - px) / n * ARROW_TRIM, ey - (ey - py) / n * ARROW_TRIM
+                d = d[:pairs[-1].start()] + f'{ex:.1f},{ey:.1f}' + d[pairs[-1].end():]
         self.parts.append(
             f'<path d="{d}" fill="none" stroke="{color}" stroke-width="{sw}" stroke-linejoin="round"'
             + (' stroke-dasharray="6 5"' if dash else '') + (f' marker-end="url(#{arrow})"' if arrow else '') + '/>')
@@ -1871,40 +1884,67 @@ def rate_steps(ax, res, color, sw=2.5, dash=False):
 
 
 # --- HAS architecture ---------------------------------------------------------------------
-s = SVG(DECK, 'has-architecture', 300, 'HTTP adaptive streaming: encoding ladder, segments, CDN and a client-driven player',
-        'The encoder produces the same content at several bit rates, the ladder, and cuts each version into segments of a few '
-        'seconds. The segments and a manifest describing them are stored on an origin server and cached by a CDN. The player '
-        'first downloads the manifest, then requests one segment at a time over plain HTTP, choosing the bit rate of each '
-        'request with its adaptive bit rate logic from the measured throughput and its buffer level.')
-cell(10, 115, 110, 60, 'Encoder', 'packager', TINT3)
-s.line(120, 145, 148, 145, INK, 2, arrow='ink')
-s.text(150, 40, 'LADDER × SEGMENTS', 'label')
+s = SVG(DECK, 'has-architecture', 340, 'HTTP adaptive streaming: manifest and bit-rate ladder on the origin, a client-driven player',
+        'The encoder and packager store a manifest and a bit-rate ladder on the origin server, cached by a CDN: four '
+        'renditions from 240p at 0.375 Mbit/s to 1080p at 5.8 Mbit/s, each cut into 4-second segments. The player\'s ABR '
+        'logic, informed by the buffer level, first requests the manifest, then one segment at a time at a chosen rate; the '
+        'segment goes into the buffer and on to the decoder. Highlighted cells show one possible choice: 240p, 480p, 720p, '
+        '1080p, 720p for segments 1 to 5, so the player switches rung at segment boundaries.')
+cell(4, 130, 98, 60, 'Encoder', 'packager', TINT3)
+s.line(110, 160, 142, 160, INK, 2, arrow='ink')
+ARROW_Y = (62, 121, 181)  # the HTTP messages: GET manifest, GET segment, segment
+
+
+def frame(x, y, w, h, gap_x, gap_ys=ARROW_Y):
+    """A container border that leaves a gap on its side at gap_x wherever an arrow passes through (at gap_ys)."""
+    s.rect(x, y, w, h, PAPER, 'none')
+    ys = [y] + [v for a in gap_ys for v in (a - 8, a + 8)] + [y + h]
+    other = x + w if gap_x == x else x
+    s.path(f'M{gap_x},{y} L{other},{y} L{other},{y + h} L{gap_x},{y + h}', INK, 1.5)
+    for y0, y1 in zip(ys[::2], ys[1::2]):
+        s.line(gap_x, y0, gap_x, y1, INK, 1.5)
+
+
+# Origin / CDN: what the packager stored — one manifest plus every rendition cut into segments
+frame(150, 10, 440, 290, 590)
+s.text(162, 32, 'ORIGIN SERVER / CDN CACHE', 'label')
+s.rect(165, 44, 410, 36, NEUTRAL, LINE)
+s.text(177, 68, 'manifest', 'bold')
+s.text(260, 68, '(.mpd / .m3u8): renditions, segment URLs', 'small')
+s.text(165, 108, 'bit-rate ladder', 'small bold')
+X0, CW, RH = 320, 52, 38
+chosen = [3, 2, 1, 0, 1]  # rung index per segment that the player in this example fetched
+for i in range(5):
+    s.text(X0 + i * CW + 24, 108, f'seg {i + 1}', 'small', 'middle')
 for j, (res, br) in enumerate([('1080p', '5.8'), ('720p', '3.0'), ('480p', '1.75'), ('240p', '0.375')]):
-    y = 60 + j * 42
-    s.text(150, y + 21, f'{res} · {br}', 'small')
+    y = 118 + j * RH
+    s.text(165, y + 21, f'{res} · {br} Mbit/s', 'small')
     for i in range(5):
-        s.rect(250 + i * 30, y, 26, 30, TINT3 if j == 0 else TINT2 if j == 1 else TINT, LINE)
-s.text(325, 240, 'segments of 2–6 s', 'small', 'middle')
-s.line(405, 145, 433, 145, INK, 2, arrow='ink')
-cell(435, 105, 120, 80, 'Origin', 'and CDN', NEUTRAL)
-s.rect(680, 30, 190, 230, PAPER, INK, 1.5)
-s.text(692, 52, 'PLAYER', 'label')
-cell(695, 65, 160, 50, 'ABR logic', fill=TINT3)
-s.rect(695, 130, 160, 50, TINT, LINE)
+        s.rect(X0 + i * CW, y, 48, 32, G if chosen[i] == j else TINT, LINE)
+for i in range(6):
+    s.text(X0 + i * CW - 2, 286, f'{i * 4}', 'small', 'middle')
+s.text(165, 286, 'playback time (s)', 'small')
+# Player
+frame(700, 10, 170, 290, 700)
+s.text(712, 32, 'PLAYER', 'label')
+cell(715, 44, 140, 80, 'ABR logic', 'picks next rung', TINT3)
+s.rect(715, 156, 140, 50, TINT, LINE)
 for i in range(3):
-    s.rect(700 + i * 30, 138, 26, 34, G, 'none')
-s.text(848, 161, 'buffer', 'bold', 'end')
-cell(695, 195, 160, 50, 'Decoder, screen', fill=NEUTRAL)
-s.line(775, 115, 775, 128, MUT, 1.5, arrow='muted')
-s.line(775, 180, 775, 193, MUT, 1.5, arrow='muted')
-s.line(678, 90, 557, 90, EKF, 2, arrow='ink')
-s.text(618, 83, 'GET manifest', 'small', 'middle')
-s.line(678, 128, 557, 128, EKF, 2, arrow='ink')
-s.text(618, 121, 'GET seg k @ R', 'small', 'middle')
-s.line(557, 160, 678, 160, G, 2.5, arrow='green')
-s.text(618, 180, 'segment k', 'small', 'middle')
-s.text(440, 285, 'The server is a plain web server; every adaptation decision is made by the client, one segment at a time.',
-       'small', 'middle')
+    s.rect(720 + i * 26, 163, 22, 36, G, 'none')
+s.text(848, 187, 'buffer', 'bold', 'end')
+cell(715, 238, 140, 52, 'Decoder', 'screen', NEUTRAL)
+s.line(785, 151, 785, 129, MUT, 1.5, arrow='muted')  # buffer level informs the ABR
+s.line(785, 211, 785, 233, MUT, 1.5, arrow='muted')
+# HTTP exchange box to box: ABR logic → manifest, ABR logic → ladder, ladder → buffer; each arrow starts and stops
+# 6 px clear of its boxes and passes through gaps in the two frames
+s.line(709, ARROW_Y[0], 581, ARROW_Y[0], EKF, 2, arrow='blue')
+s.text(645, 55, 'GET manifest', 'small', 'middle')
+s.line(709, ARROW_Y[1], 582, ARROW_Y[1], EKF, 2, arrow='blue')
+s.text(645, 114, 'GET seg k @ R', 'small', 'middle')
+s.line(582, ARROW_Y[2], 709, ARROW_Y[2], G, 2.5, arrow='green')
+s.text(645, 202, 'segment k', 'small', 'middle')
+s.text(440, 324, 'Each column is one segment of playback time: the player fetches exactly one rendition of it (green), '
+       'so it can switch rung every 4 s.', 'small', 'middle')
 s.save()
 
 # --- Buffer dynamics of a fixed-bit-rate player ---------------------------------------------
@@ -2002,6 +2042,38 @@ s.text(440, 382, 'Same link, same ladder: the rule that picks the next segment d
        'small', 'middle')
 s.save()
 
+# --- Live demo: dash.js over an emulated link (slides/demo/07-abr) ------------------------------
+s = SVG(DECK, 'demo-setup', 262, 'The live demo: a browser on the host and a web server in a network namespace, joined by a shaped veth link',
+        'Left, the teacher\'s laptop: a browser runs the dash.js player with one of three ABR modes and collects each '
+        'session for P.1203 and the linear QoE. Right, the network namespace qos07: a web server holds the DASH ladder, '
+        'and the namespace end of a veth pair carries a tc netem and tbf shaper. The browser\'s segment requests cross the '
+        'veth link, and the segments come back through the shaper, whose rate a trace-replay thread rewrites every '
+        'second from the lecture\'s throughput trace, shown as a small curve between the two sides.')
+LINK_Y = (70, 112)  # GET and segment arrows crossing both frames
+frame(10, 10, 290, 240, 300, LINK_Y)
+s.text(22, 32, 'LAPTOP (HOST)', 'label')
+cell(25, 45, 260, 90, 'Browser', 'dash.js · 3 ABR modes', TINT3)
+cell(25, 175, 260, 60, 'Results', 'P.1203 · linear QoE', NEUTRAL)
+s.line(155, 141, 155, 169, MUT, 1.5, arrow='muted')
+frame(520, 10, 350, 240, 520, LINK_Y)
+s.text(532, 32, 'NAMESPACE qos07', 'label')
+cell(535, 45, 120, 90, 'veth', 'netem + tbf', TINT)
+cell(715, 45, 140, 90, 'Web server', 'DASH ladder', TINT3)
+cell(535, 175, 320, 60, 'Trace replay', 'tbf rate ← trace, every 1 s', NEUTRAL)
+s.line(709, 112, 661, 112, G, 2.5, arrow='green')
+s.line(595, 169, 595, 141, MUT, 1.5, arrow='muted')
+s.line(291, LINK_Y[0], 529, LINK_Y[0], EKF, 2, arrow='blue')
+s.text(410, 63, 'GET seg k @ R', 'small', 'middle')
+s.line(529, LINK_Y[1], 291, LINK_Y[1], G, 2.5, arrow='green')
+s.text(410, 133, 'segment k', 'small', 'middle')
+s.text(410, 166, 'veth pair · RTT 40 ms', 'small bold', 'middle')
+tx = lambda t: 330 + 160 * t / 130
+ty = lambda r: 236 - 46 * r / 8
+s.line(tx(0), ty(0), tx(130), ty(0), LINE, 1)
+s.polyline([(tx(t), ty(TRACE[t])) for t in range(131)], MUT, 1.5)
+s.text(410, 184, 'throughput trace', 'small', 'middle')
+s.save()
+
 # --- Stalling and MOS: the exponential model of Hossfeld et al. --------------------------------
 s = SVG(DECK, 'stall-mos', 312, 'Mean opinion score of a short video clip against the number of stalls',
         'The exponential model of Hossfeld et al. (2011) for 30-second clips, MOS = 3.5 exp(−(0.15 L + 0.19) N) + 1.5, where '
@@ -2016,7 +2088,7 @@ for L, color in [(1, G), (3, EKF), (5, FMT)]:
 s.text(640, 150, 'MOS = 3.5·exp(−(0.15 L + 0.19) N)', 'small bold')
 s.text(640, 170, '        + 1.5', 'small bold')
 s.text(640, 196, '30 s clips, crowdsourced', 'small')
-s.text(640, 216, '(Hoßfeld et al., QoMEX 2011)', 'small')
+s.text(640, 216, '(Hoßfeld et al., IEEE ISM 2011)', 'small')
 s.text(440, 302, 'Number of stalls matters more than their length: a single 1 s stall already costs about one MOS point.',
        'small', 'middle')
 s.save()

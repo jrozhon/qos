@@ -23,6 +23,7 @@ Decks are numbered like the lectures; add `07-…md`, … alongside.
 cd slides
 npm install                                    # once
 npm run dev -- 01-information-theory.md        # opens http://localhost:3030
+./run.sh 01                                    # same, by lecture number (or file name); no argument lists decks
 ```
 
 Press `d` for dark mode, `o` for the slide overview, `p` for presenter mode (speaker notes are in the `<!-- -->`
@@ -121,6 +122,13 @@ hard-edged — no rounded corners or shadows.
 
 Fonts and logos are self-hosted in `public/`, so the built site and PDF export don't depend on what's installed on
 the presenting machine.
+
+## Live demos
+
+`demo/07-abr/` is the live demo of Lecture 07: dash.js over an emulated link (network namespace, veth pair,
+`tc` netem + tbf replaying a throughput trace), with three ABR modes and P.1203 scoring of every run. It is a
+teacher-run tool, not student material; `demo/07-abr/README.md` has the setup and a reference run. Its generated
+content (`content/`, `sessions/`, `.venv/`) is git-ignored.
 
 ## Pinning the Slidev version
 
