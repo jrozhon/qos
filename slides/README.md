@@ -11,7 +11,7 @@ Markdown file at the project root.
 | `03-qos-mechanisms.md` | QoS vs QoE definitions, the end-to-end delay budget, congestion management (CAC, queuing, RED), and link efficiency and marking (compression, LFI, DSCP) | `qos-03` |
 | `04-network-traffic-modelling.md` | Time-domain traffic distributions (exponential, Weibull, jitter), Markov-chain packet-loss models (Bernoulli through the four-state model), and self-similarity / long-range dependence | none — extends `qos-02`'s `simpy` pipeline |
 | `05-speech-quality.md` | Subjective listening tests and MOS (P.800), intrusive and non-intrusive objective models (PESQ, POLQA, ViSQOL, P.563), and the E-model (G.107) | `qos-03` |
-| `06-video-quality.md` | Where video quality is lost (hybrid coding, GOPs, codec generations, artefacts), subjective video tests (P.910, BT.500: SI/TI, ACR/ACR-HR/DCR/PC/DSCQS, scales), and objective metrics (PSNR, SSIM, VMAF, no-reference and P.1203 parametric models) | `qos-04` |
+| `06-video-quality.md` | Digital video basics (pixels, resolutions, RGB vs Y′CbCr, chroma subsampling, raw vs compressed size, codec vs container), where video quality is lost (hybrid coding, GOPs, codec generations, artefacts), subjective video tests (P.910, BT.500: SI/TI, ACR/ACR-HR/DCR/PC/DSCQS, scales), and objective metrics (PSNR, SSIM, VMAF, no-reference and P.1203 parametric models) | `qos-04` |
 | `07-streaming-qoe.md` | HTTP adaptive streaming (DASH, HLS, CMAF), the playout buffer and stalling, ABR algorithms (throughput-based, buffer-based/BBA, MPC, learned) compared on a simulated trace, streaming QoE factors and models, the QoS → QoE mapping over TCP, and network assistance (CMCD, SAND, SDN) | none yet — uses tools of `qos-02`–`qos-05` |
 | `09-sdn-openflow.md` | The three planes and the road to SDN, the SDN architecture and its interfaces, SDN vs NFV, the OpenFlow switch model (flow entries, pipeline, groups, meters, ports, channel, messages, reactive vs proactive set-up, QoS use), and a comparison of OpenFlow with VXLAN-EVPN | `qos-05` |
 
@@ -76,7 +76,8 @@ references → `end`. Conventions that keep the decks consistent:
   ```
 
 - **Video samples** for deck 06 live in `public/video/06/` (H.264 clips with `.jpg` posters) and
-  `public/images/06/` (artefact crops, the explorer image). Clips are shown with
+  `public/images/06/` (artefact crops, the explorer image, and the pixel and colour-plane stills of the
+  introduction — `python3 scripts/generate-video-samples.py planes` regenerates only those, in seconds). Clips are shown with
   `<VideoClip src="/video/06/…mp4" poster="/video/06/…jpg" caption="…" :width="205" />`: click to play, loops
   silently, starting one pauses the others; the PDF export shows the poster. Everything, together with the
   measured data behind deck 06's rate–quality, convex-hull and pooling figures

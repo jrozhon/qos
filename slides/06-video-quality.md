@@ -26,8 +26,9 @@ Jan Rozhon &middot; Department of Telecommunications, FEECS
 </div>
 
 <!--
-Ninety minutes including checkpoints: 5 min framing, 20 min video coding and artefacts, 25 min subjective
-assessment, 30 min objective metrics (PSNR, SSIM, VMAF, NR and parametric models), 10 min summary/exit questions.
+Ninety minutes including checkpoints: 5 min framing, 15 min digital video basics (pixels, colour, raw vs
+compressed size, codec vs container), 20 min video coding and artefacts, 20 min subjective assessment, 25 min
+objective metrics (PSNR, SSIM, VMAF, NR and parametric models), 5 min summary/exit questions.
 This is part II of "Methods for evaluating the quality of multimedia services": Lecture 05 did speech, this one
 transfers the same three ideas — subjective reference, signal-based model, parametric model — to video.
 -->
@@ -41,9 +42,9 @@ transfers the same three ideas — subjective reference, signal-based model, par
 <div class="border border-gray-400 p-3">
 <div class="text-xs opacity-60">Part 1</div>
 
-### Where quality is lost
+### Digital video and where quality is lost
 
-The delivery chain, hybrid video coding, codec generations, artefacts
+Pixels, RGB and YCbCr, raw vs compressed size, codecs and containers, hybrid coding, artefacts
 
 <div class="text-xs opacity-60 pt-2">↔ what the metrics have to detect</div>
 </div>
@@ -86,10 +87,11 @@ parts (spatial structure, motion, content dependence) are new.
 
 # What you should be able to do
 
-1. Explain where in the delivery chain video quality is lost, why lossy compression is unavoidable, and how a single packet loss propagates through a group of pictures.
-2. Design a subjective video test according to ITU-T P.910 / ITU-R BT.500: viewers, content selection by SI/TI, method (ACR, ACR-HR, DCR, PC, DSCQS) and rating scale.
-3. Compute MSE and PSNR, explain the luminance, contrast and structure terms of SSIM, and explain why the two can disagree.
-4. Describe how VMAF fuses elementary features, how metrics are validated against subjective scores, and when a no-reference or parametric model is the right tool.
+1. Describe how a digital video is represented — resolution, frame rate, bit depth, RGB vs Y′CbCr, chroma subsampling — compute its raw bit rate, and tell a codec from a container.
+2. Explain where in the delivery chain video quality is lost, why lossy compression is unavoidable, and how a single packet loss propagates through a group of pictures.
+3. Design a subjective video test according to ITU-T P.910 / ITU-R BT.500: viewers, content selection by SI/TI, method (ACR, ACR-HR, DCR, PC, DSCQS) and rating scale.
+4. Compute MSE and PSNR, explain the luminance, contrast and structure terms of SSIM, and explain why the two can disagree.
+5. Describe how VMAF fuses elementary features, how metrics are validated against subjective scores, and when a no-reference or parametric model is the right tool.
 
 <div class="pt-6 vsb-muted">
 
@@ -98,8 +100,9 @@ Keep asking: **full reference, reduced reference, no reference or no pixels at a
 </div>
 
 <!--
-Outcome 3 is exercised directly in Lab 04 (students implement MSE and PSNR and use the supplied SSIM).
-Outcomes 1 and 2 are typical exam questions; outcome 4 is the context for the lab's final question on VMAF.
+Outcome 4 is exercised directly in Lab 04 (students implement MSE and PSNR and use the supplied SSIM).
+Outcomes 1–3 are typical exam questions (outcome 1 includes a raw-bit-rate calculation); outcome 5 is the
+context for the lab's final question on VMAF.
 -->
 
 ---
@@ -121,7 +124,236 @@ layout: section
 ---
 
 # Part 1
-## Where video quality is lost
+## Digital video and where its quality is lost
+
+---
+
+# What a digital video is
+
+<div class="grid grid-cols-2 gap-8 pt-2">
+<div class="text-sm">
+
+A **frame** is a two-dimensional array of **pixels** (picture elements); a video is a sequence of frames. Four numbers describe its raw form:
+
+- **resolution** $W \times H$ — pixels per frame, e.g. 1920 × 1080
+- **frame rate** $f$ — frames per second: 24 (cinema), 25 / 50 (Europe), 30 / 60 (Americas, games)
+- **bit depth** $b$ — bits per sample: 8 bit = 256 levels (SDR), 10 bit = 1024 levels (HDR); too few levels show as banding
+- **colour format** — every pixel needs **three samples**, one per colour component (next slides)
+
+<div class="pt-2 vsb-muted">
+
+The *p* in 1080p means **progressive**: every frame holds all lines. The older *i* (1080i) is **interlaced**: odd and even lines are sent as alternate half-frames (fields), a legacy of analogue television.
+
+</div>
+
+</div>
+<div>
+
+<figure class="artefact"><img src="/images/06/pixels-frame.png" alt="Runners with red umbrellas walking along a fence in front of trees; a small white rectangle marks the edge of one umbrella." /></figure>
+<div class="grid grid-cols-5 gap-3 pt-2">
+<figure class="artefact col-span-3"><img src="/images/06/pixels-zoom.png" alt="The marked area enlarged sixteen times: a grid of flat coloured squares in greens, greys and pinks, each square one pixel." /></figure>
+<div class="col-span-2 text-xs vsb-muted flex flex-col justify-between">
+<p class="!m-0" style="line-height: 1.3">The marked 24 × 14 px area, enlarged 16 ×: each square is one pixel.</p>
+<p class="!m-0" style="line-height: 1.3">Pink square, bottom centre: (R, G, B) = (159, 107, 128).</p>
+</div>
+</div>
+
+</div>
+</div>
+
+<!--
+Start from what students already know from their phones and TVs, then make the four parameters explicit,
+because together they give the raw bit rate two slides later. Frame from the SVT test sequence park_joy
+(720p50, no copyright), generated by scripts/generate-video-samples.py (`planes` step). Interlacing is only
+mentioned: it survives in DVB broadcasting (1080i50), and de-interlacing artefacts are one more thing a
+service-level test can see. Bit depth links forward to banding (typical impairments) and to the HDR extra.
+-->
+
+---
+
+# Resolutions — from SD to 4K
+
+<Figure src="/figures/06/resolutions.svg" alt="Five nested rectangles drawn to scale: SD 720 by 576, HD 1280 by 720, Full HD 1920 by 1080, QHD 2560 by 1440 marketed as 2K, and 4K UHD 3840 by 2160. A table gives 0.41, 0.92, 2.07, 3.69 and 8.29 megapixels, that is 0.2, 0.44, 1, 1.8 and 4 times Full HD. Cinema DCI formats are 2048 by 1080 and 4096 by 2160." />
+
+<div class="pt-1 text-sm">
+
+The names mix two conventions: **1080p** counts lines, **4K** counts (roughly) columns. More pixels do not mean more quality by themselves — a 720p stream upscaled on a 4K television has 4K pixels and 720p detail, and the viewing distance decides whether the extra pixels are visible at all (Part 2).
+
+</div>
+
+<!--
+The point students most often get wrong: 4K is four times Full HD, not twice, because both dimensions double.
+"2K" is ambiguous — in cinema (DCI) it is 2048 × 1080, almost Full HD; on consumer monitors it is used for
+2560 × 1440 (QHD). This lecture uses the consumer meaning, as the comparison of raw sizes does. SD is the
+European 576-line format (PAL/DVB); the American SD format has 480 lines.
+-->
+
+---
+
+# Colour models — RGB and Y′CbCr
+
+<div class="grid grid-cols-2 gap-8 pt-2 text-sm">
+<div class="border border-gray-400 p-4">
+
+**RGB** — how cameras and displays work
+
+- additive mixing of red, green and blue primaries, matching the eye's three types of cones
+- 3 × 8 bit = **24 bit/pixel**, 16.7 million colours
+- the three components are **strongly correlated**: each repeats the full detail of the picture (next slide), so coding them separately wastes bits
+
+</div>
+<div class="border border-gray-400 p-4">
+
+**Y′CbCr** — how video is stored and coded
+
+- **luma** $Y'$ (brightness) separated from two **chroma** colour differences (ITU-R BT.709):
+
+$$
+Y' = 0.2126\,R' + 0.7152\,G' + 0.0722\,B'
+$$
+
+$$
+C_B = \frac{B' - Y'}{1.8556}, \qquad C_R = \frac{R' - Y'}{1.5748}
+$$
+
+- green dominates luma: the eye is most sensitive to it
+- a 3 × 3 matrix — reversible up to rounding
+
+</div>
+</div>
+
+<div class="pt-3 text-sm vsb-muted">
+
+**YUV** is the analogue-TV name of the same idea; digital video uses Y′CbCr, but software says YUV for both (ffmpeg's `yuv420p`). The prime marks gamma-corrected values. Separating brightness from colour is what let colour television stay compatible with black-and-white receivers in the 1950s.
+
+</div>
+
+<!--
+Every video course starts its compression story here (Wang–Ostermann–Zhang ch. 1, Richardson ch. 2,
+Poynton's "Digital Video and HD"). Two practical details for the curious: SD video uses the BT.601 weights
+(0.299, 0.587, 0.114), UHD uses BT.2020 — decoding with the wrong matrix gives slightly wrong colours, a
+classic player bug. 8-bit video uses "limited range": Y in 16–235, Cb and Cr in 16–240 centred on 128.
+Cb is positive for bluish, Cr for reddish colours; a grey pixel has Cb = Cr = 128.
+-->
+
+---
+
+# The same picture in RGB and in Y′CbCr
+
+<div class="grid grid-cols-4 gap-3 pt-2">
+<figure class="artefact"><img src="/images/06/planes-rgb.png" alt="The colour crop of runners with red umbrellas." /><figcaption><b>Original</b> · colour</figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-r.png" alt="The red component as a grayscale image: the full scene with all its detail, umbrellas bright." /><figcaption><b>R</b></figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-g.png" alt="The green component: the same full-detail scene, foliage bright." /><figcaption><b>G</b></figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-b.png" alt="The blue component: the same full-detail scene, darker overall." /><figcaption><b>B</b></figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-y.png" alt="The luma component Y: a sharp black-and-white version of the scene with all the detail." /><figcaption><b>Y′</b> · luma, full size</figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-cb.png" alt="The blue-difference chroma Cb at half width and half height: a flat grey image with only faint outlines of the runners and umbrellas." style="width: 50%" /><figcaption><b>Cb</b> · ¼ of the samples</figcaption></figure>
+<figure class="artefact"><img src="/images/06/planes-cr.png" alt="The red-difference chroma Cr at half width and half height: mostly flat grey, the red umbrellas stand out bright." style="width: 50%" /><figcaption><b>Cr</b> · ¼ of the samples</figcaption></figure>
+<div class="text-sm">
+
+R, G and B look almost the same. In Y′CbCr the detail sits in **Y′**; the chroma planes carry little detail and little contrast (stretched 3 × here) — shown at their **true 4:2:0 size**.
+
+</div>
+</div>
+
+<!--
+Generated by scripts/generate-video-samples.py (`planes` step): park_joy frame 50, crop 384 × 216. The chroma
+planes come straight from the 4:2:0 source, i.e. 192 × 108, and are displayed at half the width of the luma
+plane so their real size is visible. Without the contrast stretch they would look almost uniformly grey.
+Ask: "which of these could you blur without anybody noticing?" — that is chroma subsampling, next slide.
+-->
+
+---
+
+# Chroma subsampling
+
+<Figure src="/figures/06/chroma-subsampling.svg" alt="Three panels of four by two pixels. Luma Y always keeps eight samples. Chroma Cb and Cr keep eight samples each in 4:4:4, four each in 4:2:2 and two each in 4:2:0. With 8-bit samples: 24, 16 and 12 bits per pixel. 4:4:4 is used in production and for screen content, 4:2:2 in studios and contribution links, 4:2:0 for streaming, Blu-ray and DVB." />
+
+<div class="grid grid-cols-2 gap-6 pt-1 text-sm">
+<div>
+
+**J:a:b** — in a block $J$ pixels wide and two rows high, $a$ chroma samples in the first row and $b$ new ones in the second. Average bits per pixel with chroma subsampled by $s_x \times s_y$: $b_\text{px} = b\,(1 + 2/(s_x s_y))$, i.e. $8 \cdot 1.5 = 12$ bit for 4:2:0.
+
+</div>
+<div class="vsb-muted">
+
+4:2:0 halves the raw data with practically no visible loss in natural video. It shows on sharp coloured edges — red text, graphics, game HUDs — as **colour bleeding**, which is why screen sharing and desktop streaming prefer 4:4:4.
+
+</div>
+</div>
+
+<!--
+This is the first lossy step of the chain, before any codec runs ("pre-processing" in the delivery-chain
+figure). Practically every distribution format — DVB, Blu-ray, Netflix, YouTube — is 4:2:0. 4:2:2 survives
+in professional contribution (e.g. SDI links, news gathering) because repeated re-encoding would accumulate
+chroma loss. Note that the J:a:b notation is historical and not fully logical: 4:2:0 does not mean "no
+chroma in the second row" but "no new chroma in the second row".
+-->
+
+---
+
+# How big is raw video?
+
+$$
+R_\text{raw} = W \cdot H \cdot f \cdot b_\text{px}
+\qquad\text{e.g.}\qquad
+1920 \cdot 1080 \cdot 30 \cdot 12 \approx 746\ \mathrm{Mbit/s}
+$$
+
+<div class="text-sm pt-1">
+
+| Format | Resolution | Raw · 30 fps, 8-bit 4:2:0 | 1 h raw | Typical stream | 1 h streamed | Ratio |
+|---|---|---|---|---|---|---|
+| **Full HD** | 1920 × 1080 | 746 Mbit/s | 336 GB | 5 Mbit/s · H.264 | 2.3 GB | **≈ 150 : 1** |
+| **QHD "2K"** | 2560 × 1440 | 1.33 Gbit/s | 597 GB | ≈ 9 Mbit/s · HEVC, VP9 | 4.1 GB | **≈ 150 : 1** |
+| **4K UHD** | 3840 × 2160 | 2.99 Gbit/s | 1.34 TB | 15 Mbit/s · HEVC, AV1 | 6.8 GB | **≈ 200 : 1** |
+
+</div>
+
+<div class="grid grid-cols-2 gap-6 pt-3 text-sm">
+<div>
+
+A two-hour 4K film: **2.7 TB** raw, at most 100 GB on a UHD Blu-ray, **13.5 GB** streamed.
+
+</div>
+<div class="vsb-muted">
+
+4K at 60 fps with 10-bit HDR: $3840 \cdot 2160 \cdot 60 \cdot 15 \approx 7.5$ Gbit/s raw — about a hundred times a typical home connection.
+
+</div>
+</div>
+
+<!--
+Typical stream rates: Netflix recommends 5 Mbit/s for Full HD and 15 Mbit/s for 4K UHD (help.netflix.com,
+"Internet connection speed recommendations"); there is no Netflix 1440p tier, so the QHD row is an indicative
+value between the two for a VP9/HEVC ladder (YouTube serves 1440p). Units: GB = 10^9 bytes. Even
+uncompressed, the raw rate here is already 4:2:0 — 4:4:4 RGB would be 1.5–2 × more; this is why 4K60 HDR
+over HDMI 2.0 (14.4 Gbit/s of data) falls back to 4:2:2 or 4:2:0. The ratios are what the codec has to
+achieve, and they explain why every bit it keeps must be chosen carefully — the subject of the next slides.
+-->
+
+---
+
+# Checkpoint — a video call
+
+<div class="checkpoint-question">
+
+A video call sends 720p at 30 frames/s, 8-bit 4:2:0, in 1.5 Mbit/s. What compression ratio does the encoder achieve? And what happens to the ratio if the camera image switches to 4:4:4 at the same bit rate?
+
+</div>
+
+<p class="vsb-muted">Predict first · discuss with a neighbour · then reveal</p>
+
+<div class="checkpoint-answer" v-click>
+
+$1280 \cdot 720 \cdot 30 \cdot 12 \approx 332$ Mbit/s raw, so about **220 : 1**. With 4:4:4 the raw rate doubles to 24 bit/pixel (≈ 664 Mbit/s) and the encoder must compress **≈ 440 : 1** in the same 1.5 Mbit/s — it can only do so by quantising more coarsely, so the picture gets worse even though it carries "more colour".
+
+</div>
+
+<!--
+Thirty seconds to compute, thirty to discuss. The second part prepares the thesis of Part 3: a format
+parameter that looks like a quality improvement (more pixels, more chroma) can lower quality when the bit
+rate is fixed. The same argument applies to resolution — the convex-hull extra slide shows it measured.
+-->
 
 ---
 
@@ -149,17 +381,20 @@ why VMAF has separate models for TV, 4K and phone viewing (Part 3).
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div>
 
-Raw 1080p video, 30 frames/s, 8-bit 4:2:0 (12 bit/pixel on average):
+Raw 1080p30 needs 746 Mbit/s, a typical stream 5 Mbit/s: **about 150 : 1**. A codec gets there by removing four kinds of redundancy — and by discarding what viewers are unlikely to miss:
 
-$$
-1920 \cdot 1080 \cdot 12 \cdot 30 \approx 746\ \mathrm{Mbit/s}
-$$
+<div class="text-sm pt-1">
 
-A typical 1080p stream carries 4–6 Mbit/s — a compression ratio of **about 150 : 1**. That is only possible by discarding information viewers are unlikely to miss.
+- **spatial** — neighbouring pixels are similar → intra prediction, transform
+- **temporal** — consecutive frames are similar → inter prediction
+- **psychovisual** — the eye misses fine detail and colour detail → quantisation, 4:2:0
+- **statistical** — some values are far more frequent → entropy coding
+
+</div>
 
 <div class="pt-2 text-sm vsb-muted">
 
-4:2:0 already halves the raw data: the eye resolves colour more coarsely than brightness, so both chroma planes are stored at half resolution in each direction.
+Only the psychovisual part loses information — and it is exactly where quality is lost.
 
 </div>
 
@@ -178,7 +413,8 @@ A typical 1080p stream carries 4–6 Mbit/s — a compression ratio of **about 1
 
 <!--
 Speech had the same trade-off (64 kbit/s PCM vs 8 kbit/s G.729), but the factor here is two orders of
-magnitude larger. The encoder's rate control varies QP to hit a target bit rate; content that is hard to
+magnitude larger. The four redundancies map one-to-one onto the four steps on the right — the classic way
+video coding courses (e.g. Wang–Ostermann–Zhang, Richardson) introduce the hybrid coder. The encoder's rate control varies QP to hit a target bit rate; content that is hard to
 predict (motion, fine texture) needs a coarser QP at the same bit rate — which is why quality depends on
 content, the subject of the first checkpoint.
 -->
@@ -238,6 +474,69 @@ three live on only inside AV1. The "half the bit rate" figure is measured with s
 PSNR — HEVC vs AVC ≈ 50 % (Ohm et al., IEEE TCSVT 2012; verification tests 2016), VVC vs HEVC ≈ 50 % (JVET
 verification tests 2020–21), with the reference encoders tuned for quality. The measured curves in Part 3
 ("Comparing codecs") show how much the saving varies from clip to clip.
+-->
+
+---
+
+# Codec vs container
+
+<Figure src="/figures/06/container.svg" alt="Three encoders each produce one elementary stream: a video codec such as H.264, HEVC or AV1, an audio codec such as AAC or Opus, and subtitles. They feed an MP4 container: a header with codec parameters, resolution, frame rate, timestamps, sample index and metadata, followed by video, audio and subtitle chunks interleaved in time. Below, the same streams for IPTV as an MPEG transport stream: 188-byte packets, seven per UDP datagram of 1316 bytes." />
+
+<div class="pt-1 text-sm">
+
+A **codec** (coder–decoder) compresses *one* stream — it decides the quality. A **container** packs several coded streams into one file or stream, with the timestamps that keep them in sync — it decides how the streams travel, not how they look.
+
+</div>
+
+<!--
+The most common confusion in student reports: "the video is in MP4 format" says nothing about the codec.
+The lower row returns twice in this lecture and the next: the packet-loss clip in "Impairments in motion" is
+an MPEG-TS stream with three such datagrams removed, and Lecture 07's DASH and HLS segments are fragmented
+MP4 (CMAF) files fetched over HTTP, where loss turns into delay and stalling instead of damaged pixels.
+-->
+
+---
+
+# Containers in practice
+
+<div class="grid grid-cols-2 gap-6 pt-1">
+<div class="text-sm">
+
+| Container | Typical content | Used for |
+|---|---|---|
+| **MP4** (ISO BMFF), .mp4 / .m4s | H.264, HEVC, AV1 · AAC | files; DASH/HLS segments (CMAF) — Lecture 07 |
+| **Matroska / WebM**, .mkv / .webm | anything · WebM: VP9, AV1, Opus | files, browser video |
+| **MPEG-TS**, .ts | H.264, HEVC · AAC, AC-3 | DVB broadcast, IPTV, older HLS |
+| **RTP** — a protocol, not a file | one stream per RTP session | video calls, WebRTC — Lecture 05 |
+
+</div>
+<div class="text-sm">
+
+The file name tells you the **container only** — ask the file itself:
+
+```bash {lines:false}
+$ ffprobe reference.mp4
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, ...
+  Duration: 00:00:02.00, bitrate: 9919 kb/s
+  Stream #0:0: Video: h264 (High),
+    yuv420p(progressive), 854x480, 50 fps
+```
+
+<div class="vsb-muted pt-1">
+
+Container *mp4*, codec *H.264*, Y′CbCr 4:2:0, progressive — everything from this part in four lines.
+
+</div>
+</div>
+</div>
+
+<!--
+Output trimmed from `ffprobe -hide_banner public/video/06/reference.mp4` (the clip played later in this part;
+metadata lines and stream tags removed). A player that "supports MP4" can still fail on an HEVC or AV1 stream
+inside it — playback compatibility is a property of the codec, profile and level, not of the container.
+For QoS the container matters through its packetisation: MPEG-TS has fixed 188-byte packets with a
+continuity counter (a lost datagram is detectable at the receiver), RTP has sequence numbers and timestamps,
+MP4 over HTTP relies on TCP to recover losses.
 -->
 
 ---
@@ -1130,7 +1429,21 @@ good as its agreement with viewers, and that agreement was measured on unsharpen
 
 # Common mix-ups
 
-<div class="grid grid-cols-3 gap-4 pt-2 text-sm">
+<div class="grid grid-cols-4 gap-3 pt-2 text-sm">
+<div class="border border-orange-400 p-3">
+
+**Codec = container**
+
+MP4, MKV and TS are containers; H.264, HEVC and AV1 are codecs. The file name names only the container.
+
+</div>
+<div class="border border-orange-400 p-3">
+
+**4K = twice Full HD**
+
+Both dimensions double: four times the pixels, four times the raw bit rate.
+
+</div>
 <div class="border border-orange-400 p-3">
 
 **Bit rate = quality**
@@ -1176,7 +1489,7 @@ ACR gives MOS; ACR-HR and DCR give DMOS. Different scales, not interchangeable.
 </div>
 
 <!--
-Six confusions seen most often in Lab 04 reports and exam answers.
+Eight confusions seen most often in Lab 04 reports and exam answers.
 -->
 
 ---
@@ -1186,6 +1499,9 @@ Six confusions seen most often in Lab 04 reports and exam answers.
 <div class="grid grid-cols-2 gap-x-10 gap-y-2 pt-2 text-sm">
 
 <div>
+
+**Raw video is huge**
+$W \cdot H \cdot f \cdot b_\text{px}$: 746 Mbit/s for 1080p30 in Y′CbCr 4:2:0. Codecs compress it 150–200 : 1; containers only carry the result.
 
 **Quality is lost along the whole chain**
 Hybrid coding trades bits for artefacts through quantisation; inter prediction makes a single loss propagate to the next I-frame.
@@ -1218,6 +1534,7 @@ Read them aloud, one sentence each. Then the exit questions.
 2. Why must a subjective test state the viewing distance, and what would you expect to change if viewers moved from 3 H to 6 H?
 3. Two degraded frames have the same PSNR. Construct a distortion for which SSIM stays close to 1, and one for which it drops sharply.
 4. A network operator wants to monitor video quality on live IPTV traffic. Which families of models can it use, and which can it not?
+5. What is the raw bit rate of 4K at 50 frames/s, 10-bit 4:2:0 — and what compression ratio does a 20 Mbit/s stream of it need?
 
 <div v-click class="pt-5 vsb-muted">
 
@@ -1232,7 +1549,8 @@ visibility depends on the angle a pixel subtends; at 6 H fine artefacts fall bel
 ratings rise and differences between conditions shrink. (3) A uniform brightness shift or a small contrast
 change keeps structure (SSIM ≈ 1); blur or blocking at the same MSE destroys it — the equal-MSE figure.
 (4) No-reference and parametric/bitstream models; not full-reference ones, since the source is not available
-at the monitoring point (reduced-reference only if features are transmitted alongside).
+at the monitoring point (reduced-reference only if features are transmitted alongside). (5) 3840 · 2160 · 50 ·
+15 bit ≈ 6.2 Gbit/s; 6.2 Gbit/s / 20 Mbit/s ≈ 310 : 1.
 -->
 
 ---
@@ -1285,10 +1603,14 @@ SSIM) is answered by the VMAF and correlation slides.
 - ITU-R BT.1788, *Methodology for the subjective assessment of video quality in multimedia applications* (SAMVIQ), 2007.
 - ITU-T P.913, *Methods for the subjective assessment of video quality, audio quality and audiovisual quality of Internet video and distribution quality television in any environment*, 2021.
 - ITU-T P.1203, *Parametric bitstream-based quality assessment of progressive download and adaptive audiovisual streaming services over reliable transport*, 2017. ITU-T P.1204, 2020.
+- ITU-R BT.601-7 (SDTV), 2011; BT.709-6 (HDTV), 2015; BT.2020-2 (UHDTV), 2015 — colour spaces and sampling. ISO/IEC 14496-12 (ISO BMFF), ISO/IEC 13818-1 (MPEG-TS).
 - ITU-T H.264 (AVC), 2003; H.265 (HEVC), 2013; H.266 (VVC), 2020. AOMedia, *AV1 Bitstream & Decoding Process Specification*, 2019.
 
 <!--
-P.910 and P.913 are freely downloadable from itu.int, as are BT.500 and BT.1788. The P.910 details on the
+P.910 and P.913 are freely downloadable from itu.int, as are BT.500, BT.1788, BT.601, BT.709 and BT.2020.
+Full titles: BT.601 "Studio encoding parameters of digital television for standard 4:3 and wide-screen 16:9
+aspect ratios"; BT.709 "Parameter values for the HDTV standards for production and international programme
+exchange"; ISO/IEC 14496-12 "ISO base media file format"; ISO/IEC 13818-1 "MPEG-2 Systems". The P.910 details on the
 slides (viewers, viewing conditions, timing, SI/TI, scales) were checked against the 1999 text; they are
 unchanged in principle in later editions, which add ACR-HR, crowdsourcing guidance and the P.913 rules.
 -->
@@ -1308,6 +1630,11 @@ unchanged in principle in later editions, which add ACR-HR, crowdsourcing guidan
 <!--
 MS-SSIM: Z. Wang, E. P. Simoncelli, A. C. Bovik, "Multiscale structural similarity for image quality
 assessment," Proc. 37th Asilomar Conf. Signals, Systems and Computers, 2003.
+Digital video basics (Part 1 introduction), as taught in university video courses: Y. Wang, J. Ostermann,
+Y.-Q. Zhang, "Video Processing and Communications," Prentice Hall, 2002 (ch. 1); I. E. Richardson, "The H.264
+Advanced Video Compression Standard," 2nd ed., Wiley, 2010 (ch. 2–3); C. Poynton, "Digital Video and HD:
+Algorithms and Interfaces," 2nd ed., Morgan Kaufmann, 2012. Stream rates: Netflix Help Center, "Internet
+connection speed recommendations".
 Further reading for interested students: the Qualinet White Paper on Definitions of Quality of Experience
 (2013); T. Hoßfeld et al., "Initial delay vs. interruptions: between the devil and the deep blue sea," QoMEX
 2012; S. Li, F. Zhang, L. Ma, K. N. Ngan, "Image quality assessment by separately evaluating detail losses and
