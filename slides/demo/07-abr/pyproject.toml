@@ -1,0 +1,12 @@
+[project]
+name = "qos-07-abr-demo"
+version = "0.1.0"
+description = "Lecture 07 live demo: dash.js over an emulated link, scored with ITU-T P.1203"
+requires-python = ">=3.10"
+dependencies = [
+    # reference implementation of ITU-T P.1203 (non-commercial licence, see its repository); not on PyPI
+    "itu-p1203 @ git+https://github.com/itu-p1203/itu-p1203@v1.11.0",
+]
+
+[tool.uv]
+package = false

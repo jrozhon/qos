@@ -56,6 +56,9 @@ npm run dev -- 01-information-theory.md        # live preview
 npm run export -- 01-information-theory.md     # PDF (needs: npx playwright install chromium)
 python3 scripts/generate-figures.py            # regenerate SVG figures (light + dark) after editing the script
 python3 scripts/generate-codec-samples.py      # deck 05 codec audio samples (ffmpeg + bcg729)
+python3 scripts/generate-video-samples.py      # deck 06 video clips, crops and measured data (ffmpeg + x264/x265/SVT-AV1/libvmaf), then regenerate figures
+cd demo/07-abr && uv run demo.py prepare      # deck 07 live demo: DASH content, dash.js, P.1203 (own uv project, see its README)
+sudo python3 demo.py run                       # emulated link (netns + veth + tc) and player page at http://10.77.0.2:8000/
 ```
 
 ## Structure conventions

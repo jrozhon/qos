@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABR live demo</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --g: #00A499; --d: #00736B; --ink: #1A1A1A; --mut: #5A6664; --line: #BCCFCD; --grid: #E6ECEB;
+    --paper: #FFFFFF; --tint: #EBF8F7; --red: #E4002B; --rtint: #FBD9DF; --blue: #0047BB; --orange: #FF8200;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --d: #4DD8CE; --ink: #E8ECEB; --mut: #9BA8A6; --line: #3C5552; --grid: #223432;
+      --paper: #0E1A19; --tint: #143633; --red: #FF4D6D; --rtint: #3E1E25; --blue: #6E9BFF;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 24px; background: var(--paper); color: var(--ink);
+         font: 18px/1.35 Carlito, Calibri, 'Segoe UI', sans-serif; }
+  h1 { margin: 0 0 12px; font-size: 26px; color: var(--d); }
+  .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
+  select, button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); background: var(--tint);
+                   color: var(--ink); border-radius: 0; }
+  button.primary { background: var(--g); color: #fff; border-color: var(--g); font-weight: 700; }
+  button:disabled { opacity: .5; }
+  .muted { color: var(--mut); font-size: 15px; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; }
+  video { width: 100%; background: #000; aspect-ratio: 16 / 9; }
+  .live { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .live div { background: var(--tint); padding: 6px 10px; }
+  .live b { display: block; font-size: 22px; white-space: nowrap; }
+  canvas { width: 100%; height: 170px; display: block; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px; font-size: 17px; }
+  th, td { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--d); font-size: 15px; letter-spacing: .5px; }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>ABR live demo — dash.js on an emulated link</h1>
+<div class="bar">
+  <label>ABR rule
+    <select id="abr">
+      <option value="tput">throughput rule only</option>
+      <option value="bola">buffer rule only (BOLA)</option>
+      <option value="dashjs">dash.js default</option>
+    </select>
+  </label>
+  <label>Trace <select id="trace"></select></label>
+  <button id="run" class="primary">Start run</button>
+  <button id="abort" disabled>Abort</button>
+  <span id="link" class="muted"></span>
+</div>
+<div class="main">
+  <div>
+    <video id="video" muted playsinline></video>
+    <div class="live">
+      <div><span class="muted">link now</span><b id="lRate">–</b></div>
+      <div><span class="muted">requested</span><b id="lReq">–</b></div>
+      <div><span class="muted">buffer</span><b id="lBuf">–</b></div>
+      <div><span class="muted">stalls</span><b id="lStall">–</b></div>
+    </div>
+  </div>
+  <div>
+    <canvas id="rateChart"></canvas>
+    <canvas id="bufChart"></canvas>
+    <div class="muted">Top: link throughput (grey) and requested bit rate. Bottom: buffer level; red = stall.</div>
+  </div>
+</div>
+<table>
+  <thead><tr><th>run</th><th>startup s</th><th>stalls</th><th>stall s</th><th>switches</th>
+    <th>mean Mbit/s</th><th>linear QoE</th><th>P.1203 MOS</th></tr></thead>
+  <tbody id="results"></tbody>
+</table>
+
+<script src="content/dash.all.min.js"></script>
+<script>
+const $ = id => document.getElementById(id)
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+// The two textbook rules run alone; "dash.js default" is the hybrid DYNAMIC rule plus the player's safeguards
+// (abandon a download that will not finish in time, insufficient-buffer guard, switch history, dropped frames).
+const MODES = {
+  tput:   { name: 'throughput', strategy: 'abrThroughput', safeguards: false, color: '--blue' },
+  bola:   { name: 'BOLA',       strategy: 'abrBola',       safeguards: false, color: '--g' },
+  dashjs: { name: 'dash.js',    strategy: 'abrDynamic',    safeguards: true,  color: '--orange' },
+}
+const MU = 5.8  // linear-QoE stall weight = top rung in Mbit/s, as in the lecture figures
+let config, player, run = null
+
+const params = new URLSearchParams(location.search)
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
+  return r.json()
+}
+
+async function init() {
+  config = await api('/api/config')
+  for (const name of Object.keys(config.traces)) $('trace').add(new Option(name, name))
+  $('link').textContent = `RTT ${config.rtt} ms · loss ${config.loss} % · ${config.segment} s segments`
+  if (params.get('abr')) $('abr').value = params.get('abr')
+  if (params.get('trace')) $('trace').value = params.get('trace')
+  $('run').onclick = startRun
+  $('abort').onclick = () => finish(false)
+  const v = $('video')
+  v.addEventListener('playing', () => {
+    if (!run) return
+    const now = (performance.now() - run.t0) / 1000
+    if (run.startup === null) run.startup = now
+    if (run.stallStart !== null) {
+      run.stalls.push({ t: run.stallStart, media: run.stallMedia, duration: now - run.stallStart })
+      run.stallStart = null
+    }
+  })
+  v.addEventListener('waiting', () => {
+    if (!run || run.startup === null || v.ended) return
+    run.stallStart = (performance.now() - run.t0) / 1000
+    run.stallMedia = v.currentTime
+  })
+  v.addEventListener('ended', () => run && finish(true))
+  if (params.get('autostart')) startRun()
+}
+
+async function startRun() {
+  if (player) player.reset()
+  const abr = $('abr').value, trace = $('trace').value
+  run = { abr, trace, t0: 0, startup: null, stalls: [], stallStart: null, stallMedia: 0,
+          requests: [], video: new Map(), audio: new Map(), samples: [], timer: null }
+  $('run').disabled = true; $('abort').disabled = false
+  await api('/api/start', { trace })  // the link starts replaying the trace now
+  run.t0 = performance.now()
+  player = dashjs.MediaPlayer().create()
+  const mode = MODES[abr], on = mode.safeguards
+  player.updateSettings({ streaming: {
+    abr: { ABRStrategy: mode.strategy, autoSwitchBitrate: { video: true },
+           additionalAbrRules: { insufficientBufferRule: on, switchHistoryRule: on, droppedFramesRule: on,
+                                 abandonRequestsRule: on } },
+    buffer: { fastSwitchEnabled: false, stableBufferTime: 30, bufferTimeAtTopQuality: 30,
+              bufferTimeAtTopQualityLongForm: 30 } } })
+  const E = dashjs.MediaPlayer.events
+  player.on(E.FRAGMENT_LOADING_STARTED, e => {
+    const q = e.request
+    if (q.mediaType === 'video' && q.type === 'MediaSegment')
+      run.requests.push({ t: (performance.now() - run.t0) / 1000, kbps: rung(q.quality).kbps })
+  })
+  player.on(E.FRAGMENT_LOADING_COMPLETED, e => {
+    const q = e.request
+    if (q.type !== 'MediaSegment' || !run[q.mediaType]) return
+    run[q.mediaType].set(q.index, { index: q.index, start: q.startTime, duration: q.duration, quality: q.quality })
+  })
+  player.initialize($('video'), 'content/manifest.mpd', true)
+  run.timer = setInterval(sample, 250)
+}
+
+function rung(q) {
+  const info = player.getBitrateInfoListFor('video')[q]
+  return { kbps: Math.round(info.bitrate / 1000), w: info.width, h: info.height }
+}
+
+function sample() {
+  const t = (performance.now() - run.t0) / 1000
+  const buf = player.getDashMetrics().getCurrentBufferLevel('video') || 0
+  run.samples.push({ t, buf, stalled: run.stallStart !== null })
+  const link = config.traces[run.trace][Math.min(Math.floor(t), config.traces[run.trace].length - 1)]
+  const req = run.requests.at(-1)
+  $('lRate').textContent = `${link.toFixed(1)} Mbit/s`
+  $('lReq').textContent = req ? `${(req.kbps / 1000).toFixed(2)} Mbit/s` : '–'
+  $('lBuf').textContent = `${buf.toFixed(1)} s`
+  $('lStall').textContent = run.stalls.length + (run.stallStart !== null ? ' + now' : '')
+  draw()
+}
+
+function metrics(run) {
+  const segs = [...run.video.values()].sort((a, b) => a.start - b.start)
+  const rates = segs.map(s => rung(s.quality).kbps / 1000)
+  let switches = 0, swSum = 0
+  for (let k = 1; k < rates.length; k++) if (rates[k] !== rates[k - 1]) { switches++; swSum += Math.abs(rates[k] - rates[k - 1]) }
+  const stallTime = run.stalls.reduce((a, s) => a + s.duration, 0)
+  const sum = rates.reduce((a, r) => a + r, 0)
+  return { segs, m: { startup: run.startup ?? 0, stalls: run.stalls.length, stallTime, switches,
+           meanBitrate: rates.length ? sum / rates.length : 0,
+           linearQoE: sum - swSum - MU * (stallTime + (run.startup ?? 0)) } }
+}
+
+function p1203Input(run, segs) {
+  // ITU-T P.1203 mode 0: per-segment metadata, stalls in media time; the initial loading is a stall at t = 0
+  const id = 1
+  return {
+    IGen: { device: 'pc', displaySize: '1920x1080' },
+    I11: { streamId: id, segments: [...run.audio.values()].sort((a, b) => a.start - b.start)
+      .map(s => ({ codec: 'aaclc', start: s.start, duration: s.duration, bitrate: config.audioKbps })) },
+    I13: { streamId: id, segments: segs.map(s => {
+      const r = rung(s.quality)
+      return { codec: 'h264', start: s.start, duration: s.duration, resolution: `${r.w}x${r.h}`, bitrate: r.kbps,
+               fps: 25, representation: s.quality + 1 }
+    }) },
+    I23: { streamId: id, stalling: [[0, run.startup ?? 0], ...run.stalls.map(s => [s.media, s.duration])] },
+  }
+}
+
+async function finish(complete) {
+  if (!run) return
+  clearInterval(run.timer)
+  sample()
+  const done = run
+  run = null
+  await api('/api/stop', {})
+  $('run').disabled = false; $('abort').disabled = true
+  if (!complete) { player.reset(); return }
+  const { segs, m } = metrics(done)
+  const session = { meta: { abr: MODES[done.abr].name, trace: done.trace, rtt: config.rtt, loss: config.loss },
+                    metrics: m, ...p1203Input(done, segs), requests: done.requests, stallsWallClock: done.stalls }
+  const row = document.createElement('tr')
+  const cells = [`${MODES[done.abr].name} · ${done.trace}`, m.startup.toFixed(2), m.stalls, m.stallTime.toFixed(1),
+                 m.switches, m.meanBitrate.toFixed(2), m.linearQoE.toFixed(1), '…']
+  row.innerHTML = cells.map(c => `<td>${c}</td>`).join('')
+  $('results').append(row)
+  const score = await api('/api/session', session)
+  row.lastChild.textContent = score.O46 !== undefined ? score.O46.toFixed(2) : 'n/a'
+  if (score.error) row.lastChild.title = score.error
+  window.demoResult = { ...session.metrics, p1203: score.O46 ?? null, file: score.file }  // for automated checks
+}
+
+// --- charts --------------------------------------------------------------------------------------------------
+function axes(canvas, ymax, yticks, unit) {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight
+  canvas.width = w * dpr; canvas.height = h * dpr
+  const c = canvas.getContext('2d'); c.scale(dpr, dpr)
+  const L = 44, R = 8, T = 8, B = 22, tmax = Math.max(130, Math.ceil((run?.samples.at(-1)?.t ?? 0) / 10) * 10)
+  const X = t => L + (w - L - R) * t / tmax, Y = v => h - B - (h - T - B) * Math.min(v, ymax) / ymax
+  c.font = '13px Carlito, Calibri, sans-serif'; c.fillStyle = css('--mut'); c.strokeStyle = css('--grid')
+  for (const v of yticks) { c.beginPath(); c.moveTo(L, Y(v)); c.lineTo(w - R, Y(v)); c.stroke(); c.fillText(v, 8, Y(v) + 4) }
+  c.textAlign = 'center'
+  for (let t = 0; t <= tmax; t += 20) if (X(t) < w - 12) c.fillText(t, X(t), h - 6)
+  c.textAlign = 'start'
+  c.fillText(unit, L + 4, T + 12)
+  return { c, X, Y }
+}
+
+function draw() {
+  if (!run) return
+  const { c, X, Y } = axes($('rateChart'), 8, [0, 2, 4, 6, 8], 'Mbit/s')
+  const trace = config.traces[run.trace], tEnd = run.samples.at(-1)?.t ?? 0
+  c.strokeStyle = css('--line'); c.lineWidth = 2; c.beginPath()
+  for (let t = 0; t <= Math.max(130, tEnd); t++) c.lineTo(X(t), Y(trace[Math.min(t, trace.length - 1)]))
+  c.stroke()
+  c.strokeStyle = css(MODES[run.abr].color); c.lineWidth = 3; c.beginPath()
+  run.requests.forEach((r, k) => {
+    const next = run.requests[k + 1]?.t ?? tEnd
+    c.lineTo(X(r.t), Y(r.kbps / 1000)); c.lineTo(X(next), Y(r.kbps / 1000))
+  })
+  c.stroke()
+  const b = axes($('bufChart'), 32, [0, 10, 20, 30], 'buffer s')
+  b.c.fillStyle = css('--rtint')
+  for (const s of run.samples) if (s.stalled) b.c.fillRect(b.X(s.t), b.Y(32), b.X(s.t + 0.25) - b.X(s.t) + 1, b.Y(0) - b.Y(32))
+  b.c.strokeStyle = css(MODES[run.abr].color); b.c.lineWidth = 2.5; b.c.beginPath()
+  for (const s of run.samples) b.c.lineTo(b.X(s.t), b.Y(s.buf))
+  b.c.stroke()
+}
+
+init()
+</script>
+</body>
+</html>

@@ -126,3 +126,5 @@ Repeat the SSIM computation with the Gaussian window and with window sizes of 7 
 2. Q. Huynh-Thu and M. Ghanbari, "Scope of validity of PSNR in image/video quality assessment," *Electronics Letters*, vol. 44, no. 13, pp. 800–801, 2008.
 3. Z. Li, A. Aaron, I. Katsavounidis, A. Moorthy, and M. Manohara, "Toward A Practical Perceptual Video Quality Metric," Netflix Technology Blog, 2016. Source: https://github.com/Netflix/vmaf.
 4. ITU-R Recommendation BT.500, *Methodologies for the subjective assessment of the quality of television images*, 2023.
+5. ITU-T Recommendation P.910, *Subjective video quality assessment methods for multimedia applications*, 2026.
+6. Z. Wang and A. C. Bovik, "Mean squared error: Love it or leave it? A new look at signal fidelity measures," *IEEE Signal Processing Magazine*, vol. 26, no. 1, pp. 98–117, 2009.

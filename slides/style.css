@@ -334,3 +334,9 @@ html.print .print-slide-container:has(.export-skip) { display: none; }
 .sim-controls .readout { margin-left: auto; font-variant-numeric: tabular-nums; }
 /* One-line definition under a live simulation (e.g. what a "slot" is). */
 .slidev-layout .sim-note { margin: 0.35rem 0 0; font-size: 13px; line-height: 1.3; color: var(--vsb-muted); }
+
+/* Deck 06: enlarged crops of real frames. Photos are content, identical in both themes; pixelated so the
+   2x enlargement shows the codec's blocks instead of smoothing them away. */
+.slidev-layout figure.artefact { margin: 0; }
+.slidev-layout figure.artefact img { display: block; width: 100%; image-rendering: pixelated; border: 1px solid var(--vsb-hairline); }
+.slidev-layout figure.artefact figcaption { margin-top: 0.3rem; font-size: 15px; line-height: 1.3; color: var(--vsb-muted); }
