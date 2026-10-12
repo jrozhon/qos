@@ -12,6 +12,9 @@ Writes:
 * ``public/images/06/artefact-*.png`` — one zoomed crop of old_town_cross: the reference and the three
   classic compression artefacts (blocking: MPEG-2; blurring: H.264; ringing: HEVC, all at very low bit rates)
 * ``public/images/06/explorer.png`` — the grayscale crop used by ``components/QualityExplorer.vue``
+* ``public/images/06/pixels-*.png``, ``planes-*.png`` — one crop of park_joy for the introduction: the crop
+  with a marked area and that area enlarged until single pixels show, and the crop unmarked and split into its R, G, B
+  planes and its Y, Cb, Cr planes (chroma at its native 4:2:0 size, contrast stretched 3x around 128)
 * ``public/video/06/*.mp4`` (+ ``*.jpg`` posters for the PDF export) — park_joy clips: reference,
   low-bit-rate MPEG-2, a transmission error propagating through a GOP, and a stall
 * ``scripts/data/06-video-metrics.json`` — measured rate–quality points (three codecs, two contents),
@@ -20,7 +23,8 @@ Writes:
 
 Needs curl and ffmpeg built with libx264, libx265, libsvtav1, mpeg2video and libvmaf. Run from anywhere::
 
-    python3 scripts/generate-video-samples.py
+    python3 scripts/generate-video-samples.py           # everything (about 2 min)
+    python3 scripts/generate-video-samples.py planes    # only the pixel and colour-plane stills (seconds)
 """
 from __future__ import annotations
 
@@ -28,6 +32,7 @@ import json
 import os
 import random
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -61,6 +66,8 @@ ARTEFACTS = {  # name: encoder options (old_town_cross, 2 s)
     'ringing': ['-c:v', 'libx265', '-b:v', '150k', '-x265-params', 'log-level=error'],
 }
 EXPLORER_CROP = (556, 190, 192, 192)
+PLANES_CROP = (276, 250, 384, 216)   # park_joy: runners with red umbrellas in front of the trees
+PIXELS_ZOOM = (74, 52, 24, 14)       # inside PLANES_CROP: the edge of a red umbrella, shown 16x enlarged
 STILL_FRAME = 50
 
 LOSS_FRAME = 12      # the transmission error hits the P-frame decoded around here (GOP 50: I-frames at 0, 50)
@@ -130,6 +137,28 @@ def drop_ts_packets(src: Path, dst: Path, frame: int) -> None:
     dst.write_bytes(b''.join(kept))
 
 
+def planes(video: Path) -> None:
+    """The pixel and colour-plane stills of the introduction (see the module docstring)."""
+    x, y, w, h = PLANES_CROP
+    zx, zy, zw, zh = PIXELS_ZOOM
+    pick = f'select=eq(n\\,{STILL_FRAME}),crop={w}:{h}:{x}:{y}'
+    ffmpeg('-i', str(video), '-vf', f'{pick},drawbox={zx - 2}:{zy - 2}:{zw + 4}:{zh + 4}:color=white:t=2',
+           '-frames:v', '1', str(IMAGES / 'pixels-frame.png'))
+    ffmpeg('-i', str(video), '-vf', f'{pick},crop={zw}:{zh}:{zx}:{zy},scale={zw * 16}:{zh * 16}:flags=neighbor',
+           '-frames:v', '1', str(IMAGES / 'pixels-zoom.png'))
+    stretch = "lut=c0='clip(128+(val-128)*3\\,0\\,255)'"   # chroma varies little around 128: make it visible
+    outputs = {'planes-rgb.png': 'null', 'planes-r.png': 'format=gbrp,extractplanes=r', 'planes-g.png': 'format=gbrp,extractplanes=g',
+               'planes-b.png': 'format=gbrp,extractplanes=b', 'planes-y.png': 'extractplanes=y',
+               'planes-cb.png': f'extractplanes=u,{stretch}', 'planes-cr.png': f'extractplanes=v,{stretch}'}
+    for name, vf in outputs.items():
+        ffmpeg('-i', str(video), '-vf', f'{pick},{vf}', '-frames:v', '1', str(IMAGES / name))
+    # one pixel of the zoom, for the slide's caption
+    raw = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', str(video), '-vf',
+                          f'{pick},format=rgb24,crop=1:1:{zx + zw // 2}:{zy + zh - 3}', '-frames:v', '1',
+                          '-f', 'rawvideo', '-'], check=True, capture_output=True).stdout
+    print(f'pixel at zoom ({zw // 2}, {zh - 3}): RGB {tuple(raw[:3])}')
+
+
 def main() -> None:
     IMAGES.mkdir(parents=True, exist_ok=True)
     VIDEO.mkdir(parents=True, exist_ok=True)
@@ -147,6 +176,7 @@ def main() -> None:
             ffmpeg('-i', str(otc), *opts, str(coded))
             still(coded, ARTEFACT_CROP, IMAGES / f'artefact-{name}.png')
         still(otc, EXPLORER_CROP, IMAGES / 'explorer.png', scale=1, gray=True)
+        planes(pj)
 
         # --- clips ------------------------------------------------------------------------------------
         web(pj, 'reference')
@@ -202,4 +232,8 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    if sys.argv[1:] == ['planes']:
+        IMAGES.mkdir(parents=True, exist_ok=True)
+        planes(source('park_joy'))
+    else:
+        main()

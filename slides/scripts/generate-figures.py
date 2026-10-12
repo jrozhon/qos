@@ -1253,6 +1253,119 @@ s.save()
 # =============================================================================
 DECK = '06'
 
+# --- Common resolutions, drawn to scale -----------------------------------------
+s = SVG(DECK, 'resolutions', 350, 'Common video resolutions drawn to scale',
+        'Five nested rectangles sharing their top-left corner, drawn to scale: SD 720 by 576, HD 1280 by 720, '
+        'Full HD 1920 by 1080, QHD 2560 by 1440 (marketed as 2K) and 4K UHD 3840 by 2160. A table beside them '
+        'gives the pixel count of each: 0.41, 0.92, 2.07, 3.69 and 8.29 megapixels, that is 0.2, 0.44, 1, 1.78 '
+        'and 4 times Full HD. 4K UHD has four times the pixels of Full HD, not twice.')
+RES = [('4K UHD', '2160p', 3840, 2160, TINT), ('QHD · "2K"', '1440p', 2560, 1440, TINT2),
+       ('Full HD', '1080p', 1920, 1080, TINT3), ('HD', '720p', 1280, 720, TINT4), ('SD', '576p', 720, 576, PAPER)]
+K, X0, Y0 = 0.1354, 20, 24   # 3840 px → 520 px
+for name, p, w, h, fill in RES:
+    s.rect(X0, Y0, w * K, h * K, fill, G if name == 'Full HD' else LINE, 2 if name == 'Full HD' else 1)
+for name, p, w, h, fill in RES:
+    s.text(X0 + w * K - 8, Y0 + h * K - 26, name, 'bold', 'end')
+    s.text(X0 + w * K - 8, Y0 + h * K - 8, f'{w} × {h}', 'small', 'end')
+s.text(X0, 16, 'TO SCALE', 'label')
+tx = 560
+s.text(tx, 16, 'PIXELS PER FRAME', 'label')
+for k, (name, p, w, h, fill) in enumerate(reversed(RES)):
+    y = 56 + k * 34
+    s.text(tx, y, f'{p}', 'bold')
+    s.text(tx + 62, y, name, 'small')
+    s.text(tx + 222, y, f'{w * h / 1e6:.2f} M', '', 'end')
+    s.text(tx + 300, y, f'{w * h / (1920 * 1080):.2g} ×', 'bold green' if p == '2160p' else '', 'end')
+s.line(tx, 66 + 4 * 34 - 4, tx + 300, 66 + 4 * 34 - 4, LINE, 1)
+s.text(tx, 66 + 4 * 34 + 20, 'last column: relative to Full HD', 'small')
+s.text(tx, 262, 'Cinema (DCI) uses wider frames:', 'small')
+s.text(tx, 284, '2K = 2048 × 1080, 4K = 4096 × 2160.', 'small')
+s.text(tx, 306, 'Consumer "2K" usually means 1440p.', 'small')
+s.text(440, 340, 'Doubling the resolution in each direction quadruples the pixels — and the raw bit rate.', 'small',
+       'middle')
+s.save()
+
+# --- Chroma subsampling: 4:4:4, 4:2:2, 4:2:0 ------------------------------------
+s = SVG(DECK, 'chroma-subsampling', 330, 'Chroma subsampling patterns 4:4:4, 4:2:2 and 4:2:0',
+        'Three panels, each a block of four by two pixels. The luma plane Y always keeps all eight samples. '
+        'The two chroma planes Cb and Cr keep eight samples each in 4:4:4, four each in 4:2:2 (one per two '
+        'horizontal neighbours) and two each in 4:2:0 (one per two by two block). With 8-bit samples this is '
+        '24, 16 and 12 bits per pixel on average.')
+C0 = 40  # cell size
+PATTERNS = [('4:4:4', 1, 1, '24 bit/pixel', 'production, screen content'),
+            ('4:2:2', 2, 1, '16 bit/pixel', 'studio, contribution links'),
+            ('4:2:0', 2, 2, '12 bit/pixel', 'streaming, Blu-ray, DVB')]
+for k, (name, sx, sy, bpp, use) in enumerate(PATTERNS):
+    x0 = 20 + k * 286
+    s.text(x0, 22, name, 'big')
+    s.text(x0 + 268, 22, bpp, 'bold green', 'end')
+    for (lab, oy) in (('Y', 40), ('Cb, Cr', 150)):
+        s.text(x0, oy + 52, lab, 'small bold')
+        gx = x0 + 60
+        if lab == 'Y':
+            for i in range(4):
+                for j in range(2):
+                    s.rect(gx + i * C0, oy + j * C0, C0, C0, TINT, LINE)
+                    s.dot(gx + i * C0 + C0 / 2, oy + j * C0 + C0 / 2, 5, D)
+            s.text(gx + 4 * C0 + 8, oy + C0 + 6, '8', 'small')
+        else:
+            for i in range(4):
+                for j in range(2):
+                    s.rect(gx + i * C0, oy + j * C0, C0, C0, PAPER, LINE)
+            for i in range(0, 4, sx):
+                for j in range(0, 2, sy):
+                    s.rect(gx + i * C0, oy + j * C0, sx * C0, sy * C0, CTINT, C, 2)
+                    s.dot(gx + (i + sx / 2) * C0, oy + (j + sy / 2) * C0, 5, EKF)
+            s.text(gx + 4 * C0 + 8, oy + C0 + 6, f'{8 // (sx * sy)} + {8 // (sx * sy)}', 'small')
+    s.text(x0, 280, use, 'small')
+s.text(440, 318, 'Each coloured block shares one Cb and one Cr value; luma keeps full resolution because '
+       'the eye resolves detail mainly in brightness.', 'small', 'middle')
+s.save()
+
+# --- Codec vs container ------------------------------------------------------------
+s = SVG(DECK, 'container', 380, 'Codecs produce elementary streams, a container multiplexes them',
+        'On the left, three encoders each produce one elementary stream: a video codec such as H.264, HEVC or '
+        'AV1, an audio codec such as AAC or Opus, and subtitles. Arrows lead into a container file, here MP4: a '
+        'header box holds the codec parameters, timestamps and an index of where every sample lies, followed by '
+        'the video, audio and subtitle chunks interleaved in time. Below, the same streams carried for IPTV in an '
+        'MPEG transport stream: 188-byte packets tagged with a stream identifier, seven of them per UDP datagram.')
+encs = [('Video codec', 'H.264 · HEVC · AV1', TINT3), ('Audio codec', 'AAC · Opus', YTINT),
+        ('Subtitles', 'WebVTT · TTML', GREYTINT)]
+s.text(20, 22, 'CODECS — ONE STREAM EACH', 'label')
+for k, (t, sub, fill) in enumerate(encs):
+    y = 40 + k * 70
+    s.box(20, y, 200, 58, t, sub, fill)
+    s.line(220, y + 29, 284, y + 29, INK, 2, arrow='ink')
+s.text(290, 22, 'CONTAINER — MP4 (ISO BMFF) · ALSO MKV/WEBM, MOV', 'label')
+s.rect(290, 34, 570, 194, PAPER, G, 2)
+s.rect(304, 52, 150, 160, NEUTRAL, LINE)
+s.text(379, 80, 'header', 'bold', 'middle')
+for j, l in enumerate(['codec + parameters', 'resolution, frame rate', 'timestamps', 'sample index', 'metadata']):
+    s.text(379, 108 + j * 22, l, 'small', 'middle')
+seq = 'VVAVSVAVVAVVAS'
+cw = (846 - 468) / len(seq)
+fills = {'V': TINT3, 'A': YTINT, 'S': GREYTINT}
+for i, ch in enumerate(seq):
+    x = 468 + i * cw
+    s.rect(x, 96, cw - 3, 70, fills[ch], LINE)
+    s.text(x + (cw - 3) / 2, 137, ch, 'bold', 'middle')
+s.text(468, 84, 'interleaved chunks (V video · A audio · S subtitles)', 'small')
+s.line(468, 186, 846, 186, MUT, 1.5, arrow='muted')
+s.text(846, 206, 'time', 'small', 'end')
+s.text(20, 268, 'FOR IPTV: MPEG-TS OVER UDP/RTP', 'label')
+px0, pw = 20, 60
+pids = ['V', 'V', 'A', 'V', 'V', 'V', 'A', 'V', 'V', 'V', 'V', 'A', 'V', 'V']
+for i, ch in enumerate(pids):
+    x = px0 + i * pw
+    s.rect(x, 282, pw - 4, 40, fills[ch], LINE)
+    s.text(x + (pw - 4) / 2, 308, ch, 'small bold', 'middle')
+for g in range(2):
+    xa, xb = px0 + g * 7 * pw, px0 + (g + 1) * 7 * pw - 4
+    s.line(xa, 334, xb, 334, D, 2)
+    s.line(xa, 328, xa, 340, D, 2); s.line(xb, 328, xb, 340, D, 2)
+    s.text((xa + xb) / 2, 358, f'UDP datagram {g + 1}: 7 × 188 B = 1316 B', 'small', 'middle')
+s.save()
+
 # --- The video delivery chain and where quality is lost ------------------------
 s = SVG(DECK, 'video-chain', 300, 'The video delivery chain and the impairments each stage adds',
         'Five stages from left to right: capture, pre-processing, encoding, transmission, and decoding with '
