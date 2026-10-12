@@ -372,7 +372,7 @@ onMounted(() => {
 .quality-explorer-print { margin-top: 0.2rem; font-size: 14px; line-height: 1.35; color: var(--vsb-ink); }
 .strip { display: grid; grid-template-columns: repeat(7, 112px); gap: 10px; }
 .strip canvas { width: 112px; height: 112px; }
-.strip canvas.map { width: 112px; height: 106px; margin-top: 4px; }
+.strip canvas.map { width: 106px; height: 106px; margin: 4px auto 0; }  /* 182/192 of the image: valid region, centred */
 .strip figcaption { font-size: 12px; min-height: 30px; }
 .maps-label { margin-top: 4px; height: 106px; display: flex; align-items: center; font-size: 12px; line-height: 1.3; color: var(--vsb-muted); }
 .lead { margin: 0.5rem 0 0.3rem !important; font-size: 14px !important; line-height: 1.4 !important; }
@@ -391,7 +391,7 @@ onMounted(() => {
 .panels { display: grid; grid-template-columns: repeat(3, 150px); gap: 10px; }
 figure { margin: 0; }
 canvas { display: block; width: 150px; height: 150px; image-rendering: pixelated; border: 1px solid var(--vsb-hairline); }
-canvas.map { width: 150px; height: 142px; }
+canvas.map { width: 142px; height: 142px; margin: 4px; }  /* 182/192 of the image, inset by the 5 px window radius */
 figcaption { font-size: 12px; line-height: 1.2; color: var(--vsb-muted); margin-top: 3px; }
 .howto p, .explain p { margin: 0 0 0.35rem !important; font-size: 13.5px !important; line-height: 1.35 !important; }
 .howto .try { color: var(--vsb-muted); }
