@@ -120,6 +120,26 @@ $$
 
 where $A$ is the amplitude (peak value) [V] and $P$ the mean power [W] across a 1 Ω load. A square wave stays at $\pm A$ all the time, whereas a sine is below its peak most of the time; the root-mean-square value $\sqrt{P}$ is $A/\sqrt{2}$ for the sine and $A$ for the square wave.
 
+The same definition gives the power of Gaussian noise. For $n$ noise samples $w_1, \dots, w_n$ with mean $\mu$ and standard deviation $\sigma$, the mean of the squares tends, for large $n$, to its expected value, which is the variance plus the square of the mean:
+
+$$
+N = \frac{1}{n} \sum_{i=1}^{n} w_i^2 \approx \mathrm{E}[w^2] = \sigma^2 + \mu^2
+$$
+
+where $N$ is the noise power [W], $w_i$ the noise samples [V], $\mathrm{E}[w^2]$ the expected value of the squared sample [V²], $\sigma$ the standard deviation [V], and $\mu$ the mean [V]. The mean is a constant (DC) component; for zero-mean noise it vanishes and
+
+$$
+N = \sigma^2, \qquad \sigma = \sqrt{N}
+$$
+
+where $N$ is the noise power [W] and $\sigma$ the standard deviation [V]. The standard deviation of zero-mean noise is therefore its RMS value. For example, $\sigma = 0.1\ \mathrm{V}$ gives $N = 0.01\ \mathrm{W}$, i.e. $10\ \mathrm{dBm}$. The measured power of a finite record fluctuates around $\sigma^2$; the relative deviation is about $\sqrt{2/n}$, so 10 000 samples give $\sigma^2$ within roughly 1.4 %. Conversely, the standard deviation that yields a required SNR for a signal of power $S$ is
+
+$$
+\sigma = \sqrt{\frac{S}{10^{\mathrm{SNR}_{\mathrm{dB}}/10}}}
+$$
+
+where $\sigma$ is the standard deviation of the noise [V], $S$ the signal power [W], and $\mathrm{SNR}_{\mathrm{dB}}$ the required signal-to-noise ratio [dB] defined below.
+
 The signal-to-noise ratio (SNR) is the ratio of signal power to noise power,
 
 $$

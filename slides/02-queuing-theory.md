@@ -733,7 +733,7 @@ A link runs at $\rho=0.9$. The server is busy only 90% of the time — it is not
 
 <div class="checkpoint-answer" v-click>
 
-**Because $W=1/(\mu-\lambda)$ has $\rho$ in its denominator through $1-\rho$, not in a bounded ratio.**
+**Because $W = \frac{1}{\mu}\cdot\frac{1}{1-\rho}$: the factor $1/(1-\rho)$ grows without bound as $\rho \to 1$.**
 
 At $\rho=0.9$, $W$ is already $10\times$ the mean service time $1/\mu$; at $\rho=0.99$ it is $100\times$. The server being idle 10% of the time is enough for a long queue to build up during the busy stretches and only slowly drain — occasional idleness does not undo an accumulated backlog.
 
