@@ -176,6 +176,7 @@ Environment, commands, credentials pointer (never the credentials themselves).
 
 - Display equations as a block with each `$$` delimiter on its own line and a blank line before and after — Typora ignores single-line `$$ … $$`; GitHub accepts both. Inline math in `$ … $` (Typora needs *Inline Math* enabled in its preferences). GitHub's renderer is fragile: no `\begin{align}` without `$$` around it, no `\text{}` with special characters, escape underscores outside math.
 - GitHub runs Markdown before the math renderer, so a backslash before punctuation is eaten as a Markdown escape: `\,` and `\;` render as a literal comma or semicolon. Write multiplication as `\cdot` (`R = b \cdot f_s`), and spaces before units or in thousands as a backslash-space (`1\ \mathrm{mW}`, `12\ 000`). GitHub's renderer also rejects `\operatorname`; use `\mathrm{Var}`.
+- For the same reason, `_` and `*` inside inline math can be read as emphasis. A subscript after a closing brace (`}_`) can open italics and a later subscript after a letter (`S_`) in the same paragraph can close them; the span between turns italic, the braces vanish and the `$…$` shows as plain text. Example: `$\mathrm{SNR}_{\mathrm{dB}} = S_{\mathrm{dBm}} - N_{\mathrm{dBm}}$` breaks. Subscripts between letters (`f_s`, `N_0`) are safe. Fix by moving such an equation into a display block, or rephrasing so only one brace-adjacent subscript remains in the paragraph. Do not use GitHub's `` $`…`$ `` syntax or `\_` inside math — Typora renders neither. `python3 scripts/check_readme_math.py` finds these cases in all lesson READMEs.
 - Every display equation is followed by a "where" list defining each symbol with its unit in square brackets:
 
   ```markdown
@@ -388,7 +389,7 @@ Cards use the neutral tints, not ad-hoc greys:
 1. Colours come from §2 only; series order unchanged.
 2. Fonts: Carlito stack in any rc/CSS you touched.
 3. README follows the §4.2 skeleton; H1 is `# Lab NN – Title`.
-4. Every equation has a "where" list with units; renders on GitHub.
+4. Every equation has a "where" list with units; renders on GitHub; `python3 scripts/check_readme_math.py` reports no emphasis clashes (§4.3).
 5. Every figure has unit-bearing axis labels, a sentence-case title, the logo, and any legend placed with `add_legend(ax)` rather than inside the axes.
 6. `lib/params.py` still identical across lessons (`md5sum qos-0*/qos_0*/lib/params.py`).
 7. No emoji, no shortcode icons, no exclamation marks in prose.
