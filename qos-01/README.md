@@ -162,7 +162,13 @@ $$
 P_{\mathrm{dBm}} = 10 \log_{10} \frac{P}{1\ \mathrm{mW}}
 $$
 
-where $P_{\mathrm{dBm}}$ is the power level [dBm] and $P$ the power [mW]; 0 dBm is 1 mW and 30 dBm is 1 W. The logarithm turns ratios into differences, so the SNR in decibels is the difference of two levels, $\mathrm{SNR}_{\mathrm{dB}} = S_{\mathrm{dBm}} - N_{\mathrm{dBm}}$. Powers of independent signals add in linear units, never in decibels.
+where $P_{\mathrm{dBm}}$ is the power level [dBm] and $P$ the power [mW]; 0 dBm is 1 mW and 30 dBm is 1 W. The logarithm turns ratios into differences, so the SNR in decibels is the difference of two levels:
+
+$$
+\mathrm{SNR}_{\mathrm{dB}} = S_{\mathrm{dBm}} - N_{\mathrm{dBm}}
+$$
+
+where both power levels are in [dBm]. Powers of independent signals add in linear units, never in decibels.
 
 Power spread over a frequency band is described by its *power spectral density* (PSD), the power per hertz, in [W/Hz] or [dBm/Hz]. White noise has a constant PSD $N_0$, and its power in a band of width $B$ is
 
