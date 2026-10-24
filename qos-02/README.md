@@ -8,6 +8,7 @@ This lab introduces the probabilistic tools used to describe network traffic. It
 - Generate samples from the uniform, exponential, and normal distributions and interpret their histograms.
 - State the assumptions of the Poisson arrival model and relate it to exponential inter-arrival times.
 - Read Kendall notation and state the assumptions of the M/M/1 model.
+- Compute the blocking probability of a loss system with Erlang B and the waiting probability and mean wait of a delay system with Erlang C.
 - Compute offered traffic, utilization, mean occupancy, and mean delay of an M/M/1 system and verify them by simulation.
 - Explain why the mean delay of a queue grows without bound as utilization approaches one, and demonstrate it by sweeping the arrival rate.
 - Distinguish the mean of a delay distribution from its tail, and say why the tail is what a quality requirement constrains.
@@ -97,7 +98,16 @@ A *queueing system* serves incoming *requests* (customers, calls, packets) using
 - the service – the number of channels and the distribution of service times, and
 - the queueing discipline – how waiting requests are managed (queue length, service order).
 
-*Kendall notation* $A/B/n$ summarizes these: $A$ is the arrival process, $B$ the service-time distribution, and $n$ the number of channels. The symbol M (*Markovian*) denotes a Poisson process for $A$ and an exponential distribution for $B$; D denotes deterministic times and G a general distribution.
+*Kendall notation* $A/B/C/K/N/D$ summarizes these:
+
+- $A$ – the inter-arrival time distribution,
+- $B$ – the service-time distribution,
+- $C$ – the number of channels (servers),
+- $K$ – the system capacity, counting the requests waiting **and** those in service; default infinite,
+- $N$ – the population size, the number of sources that can generate requests; default infinite,
+- $D$ – the queueing discipline, such as FIFO or LIFO; default FIFO.
+
+The distribution codes for $A$ and $B$ are M (*Markovian*: a Poisson process for $A$, an exponential distribution for $B$), D (deterministic, constant times), E<sub>k</sub> (Erlang of order $k$, the sum of $k$ independent exponential stages with the same mean), and G (general, any distribution). Trailing fields that take their default value are omitted, so M/M/1 means M/M/1/∞/∞/FIFO. A field can only be omitted together with every field after it: a LIFO queue with two servers is M/M/2/∞/∞/LIFO, not M/M/2. Because $K$ includes the requests in service, M/D/1/20 holds one packet in transmission and at most 19 waiting, and M/M/$C$/$C$ has no waiting positions at all: a request that finds every channel busy is lost.
 
 ### The M/M/1 system
 
@@ -167,6 +177,40 @@ L = \lambda W, \qquad L_q = \lambda W_q
 $$
 
 where $L$ is the mean number of requests in the system [–], $\lambda$ the rate of requests admitted to that system [s⁻¹], and $W$ their mean time in the system [s]; the second form applies to the queue alone. If requests are rejected, use the admitted rate rather than the offered rate. A measured rate is the number of requests counted during an observation divided by its duration, $\lambda = n / T$. Keep the units consistent: with $\lambda$ in packets per second, $W$ must be in seconds, not milliseconds. The law allows one of the three quantities to be obtained from measurements of the other two; in the simulation, the mean occupancy reported by a network tap and the mean delay reported by a sink should satisfy it.
+
+When a log lists the arrival and departure time of every request handled during an observation window of length $T$ that starts and ends with the system empty, $\lambda = n / T$ and $W$ is the mean of the $n$ individual times in the system, so the mean occupancy is the sum of those times divided by the window:
+
+$$
+L = \lambda W = \frac{1}{T} \sum_{i=1}^{n} \left(t_{\mathrm{dep},i} - t_{\mathrm{arr},i}\right)
+$$
+
+where $L$ is the mean number of requests in the system [–], $T$ the length of the observation window [s], $n$ the number of requests in the log [–], and $t_{\mathrm{arr},i}$, $t_{\mathrm{dep},i}$ the arrival and departure time of request $i$ [s]. The window, not the span between the first and the last arrival, sets the rate.
+
+### Traffic engineering: the Erlang formulas
+
+Telephone networks measure load in *erlangs*. One erlang is one channel occupied all the time, for example one call continuously in progress. The offered traffic $A = \lambda S$ from the M/M/1 section is computed the same way for a group of lines: the call arrival rate times the *average holding time* (AHT), the mean duration of a call. Networks are dimensioned for the *busy hour*, the hour of the day with the most traffic, using the number of *busy hour call attempts* (BHCA):
+
+$$
+A = \frac{\mathrm{BHCA} \cdot \mathrm{AHT}}{3600}
+$$
+
+where $A$ is the offered traffic in the busy hour [erl], BHCA the number of call attempts in the busy hour [–], and AHT the average holding time [s]. Both factors must use the same time unit: with 120 calls per hour and AHT = 3 min, $A = 2/\mathrm{min} \cdot 3\ \mathrm{min} = 6$ erl.
+
+A group of $N$ lines without waiting positions, where a call that finds all lines busy is lost, is the M/M/$N$/$N$ system. Its blocking probability is given by the *Erlang B* formula
+
+$$
+E_B(A, N) = \frac{\dfrac{A^N}{N!}}{\displaystyle\sum_{i=0}^{N} \dfrac{A^i}{i!}}
+$$
+
+where $E_B$ is the probability that an arriving call is blocked [–], $A$ the offered traffic [erl], and $N$ the number of lines [–]. For example, $N = 3$ lines offered $A = 1.5$ erl give the terms $1,\ 1.5,\ 1.125,\ 0.5625$ for $i = 0 \dots 3$, so $E_B = 0.5625 / 4.1875 \approx 0.134$, or 13.4 %.
+
+If a call that finds all $N$ servers busy waits instead, with unlimited waiting room and nobody hanging up, the system is M/M/$N$ and stable only for $A < N$. The probability that a call has to wait is given by the *Erlang C* formula, and the mean wait follows from it:
+
+$$
+E_C(A, N) = \frac{\dfrac{A^N}{N!} \cdot \dfrac{N}{N - A}}{\displaystyle\sum_{i=0}^{N-1} \dfrac{A^i}{i!} + \dfrac{A^N}{N!} \cdot \dfrac{N}{N - A}}, \qquad t_c = \frac{E_C \cdot \mathrm{AHT}}{N - A}
+$$
+
+where $E_C$ is the probability that an arriving call waits [–], $A$ the offered traffic [erl], $N$ the number of servers [–], AHT the average holding time [s], and $t_c$ the mean waiting time averaged over all calls, including those served at once [s]. With $N = 3$, $A = 1.5$ erl, and AHT = 3 min, $E_C = 1.125 / 4.75 \approx 0.237$ and $t_c = 3 \cdot 0.237 / 1.5 \approx 0.47$ min $\approx 28$ s. For $N = 1$ Erlang C reduces to M/M/1: $E_C = \rho$ and $t_c = W_q$.
 
 ## Tasks
 
