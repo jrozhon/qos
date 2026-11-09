@@ -943,7 +943,18 @@ def roundtrip_view(block, encoding: str = "alaw"):
         Original and decoded samples with their difference, and a card with
         the sizes and the signal-to-quantization-noise ratio.
     """
+    if isinstance(block, pd.DataFrame):
+        raise TypeError(
+            "roundtrip_view takes the samples of one block, not a table; for a "
+            "pause from find_silences:\n"
+            "    start = silences.loc[np.isfinite(silences['level']), 'start'].iloc[0]\n"
+            "    roundtrip_view(samples[start : start + SAMPLES_PER_PACKET])"
+        )
     block = np.asarray(block, dtype=np.int16)
+    if block.ndim != 1:
+        raise ValueError(
+            f"expected one block of samples (1-D), got shape {block.shape}"
+        )
     _, encode, decode = G711[encoding]
     codes = encode(block)
     decoded = decode(codes)
