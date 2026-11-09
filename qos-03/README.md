@@ -233,7 +233,23 @@ $$
 \mathrm{MOS} = 1 + 0.035 \cdot R + 7 \cdot 10^{-6} \cdot R \cdot (R - 60) \cdot (100 - R)
 $$
 
-where $\mathrm{MOS}$ is the estimated mean opinion score [–] and $R$ the transmission rating factor [–], for $0 < R < 100$ (MOS is 1 at $R \le 0$ and 4.5 at $R \ge 100$). Ranges of $R$ are labelled with user-satisfaction categories, which the mapping turns into MOS ranges. A MOS from a listening test or an objective model can be placed in the same categories, keeping in mind that they were defined for the E-model:
+where $\mathrm{MOS}$ is the estimated mean opinion score [–] and $R$ the transmission rating factor [–], for $0 < R < 100$ (MOS is 1 at $R \le 0$ and 4.5 at $R \ge 100$).
+
+Packet loss enters the rating through the *effective equipment impairment factor*. With all other parameters at their G.107 default values and delay neglected, the rating reduces to
+
+$$
+R = 93.2 - I_{e,\mathrm{eff}}, \qquad I_{e,\mathrm{eff}} = I_e + (95 - I_e) \cdot \frac{P_{\mathrm{pl}}}{P_{\mathrm{pl}} / \mathrm{BurstR} + B_{\mathrm{pl}}}
+$$
+
+where $I_{e,\mathrm{eff}}$ is the effective equipment impairment factor [–], $I_e$ the equipment impairment factor of the codec without loss [–], $P_{\mathrm{pl}}$ the packet loss probability [%], $\mathrm{BurstR}$ the burst ratio [–], and $B_{\mathrm{pl}}$ the packet-loss robustness factor of the codec and its concealment [–]. ITU-T G.113 tabulates $I_e$ and $B_{\mathrm{pl}}$: G.711 has $I_e = 0$, with $B_{\mathrm{pl}} = 25.1$ when packet-loss concealment is used and $4.3$ without it; G.729A has $I_e = 11$ and $B_{\mathrm{pl}} = 19$. Random loss has $\mathrm{BurstR} = 1$. For the Gilbert model of the previous section, the burst ratio and the loss follow from the two transition probabilities, as fractions:
+
+$$
+\mathrm{BurstR} = \frac{1}{P + R}, \qquad P_{\mathrm{pl}} = 100 \cdot \pi_B = 100 \cdot \frac{P}{P + R}
+$$
+
+where $P$ and $R$ are the good-to-bad and bad-to-good transition probabilities [–] (this $R$ is not the rating factor) and $\pi_B$ the share of packets sent in the bad state [–]. Bursty loss ($\mathrm{BurstR} > 1$) lowers the rating more than random loss with the same $P_{\mathrm{pl}}$, and the effect grows with the loss.
+
+Ranges of $R$ are labelled with user-satisfaction categories, which the mapping turns into MOS ranges. A MOS from a listening test or an objective model can be placed in the same categories, keeping in mind that they were defined for the E-model:
 
 | R [–] | MOS [–] | User satisfaction |
 |---|---|---|
@@ -441,6 +457,7 @@ Save the completed notebook, clean and received captures, reconstructed WAV file
 11. ITU-T Recommendation G.107, *The E-model: a computational model for use in transmission planning*, 2015.
 12. E. N. Gilbert, "Capacity of a Burst-Noise Channel," *Bell System Technical Journal*, vol. 39, no. 5, pp. 1253–1265, 1960.
 13. E. O. Elliott, "Estimates of Error Rates for Codes on Burst-Noise Channels," *Bell System Technical Journal*, vol. 42, no. 5, pp. 1977–1997, 1963.
+14. ITU-T Recommendation G.113, *Transmission impairments due to speech processing*, 2007.
 
 ## Task solutions
 
