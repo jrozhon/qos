@@ -5,7 +5,8 @@ The G.711 functions convert between 16-bit linear PCM and the 8-bit A-law and
 μ-law codes carried in RTP payload types 8 (PCMA) and 0 (PCMU). The reference
 implementations of the RTP header and the packet stream are what the notebook
 asks students to write themselves first. The Markov chain functions simulate
-packet loss, independent or bursty as in the Gilbert–Elliott model of netem.
+packet loss, independent or bursty as in netem's Gilbert–Elliott model and its
+simpler variants, the Gilbert and the simple Gilbert model.
 The scoring wrappers at the end call the external PESQ and ViSQOL executables.
 """
 
@@ -471,7 +472,7 @@ def netem_state_dict(
     (a good period), 2 packet received within a burst, 3 packet lost within
     a burst, and 4 isolated loss within a gap. A packet is lost when the
     chain enters state 3 or 4. With only p13 and p31 non-zero, the model is
-    the Gilbert–Elliott chain with P = p13 and R = p31.
+    the simple Gilbert model with P = p13 and R = p31.
 
     Parameters
     ----------
@@ -510,11 +511,15 @@ def gilbert_elliott(
     """
     Draw a packet loss pattern from the Gilbert–Elliott model.
 
+    With the defaults, all packets lost in the bad state and none in the good
+    state, it is the simple Gilbert model; `loss_bad` below 1 makes it the
+    Gilbert model, and `loss_good` above 0 the full Gilbert–Elliott model.
     The chain starts in the good state, as in netem, and takes one step per
     packet; ``gilbert_elliott(n, P, R)`` with P and R as fractions has the
     statistics of ``tc qdisc add dev DEVICE root netem loss gemodel P% R% 100% 0%``.
-    Independent loss with probability q is the special case p = q, r = 1 − q:
-    then the next state no longer depends on the current one.
+    Independent loss with probability q (the Bernoulli model) is the special
+    case p = q, r = 1 − q: then the next state no longer depends on the current
+    one.
 
     Parameters
     ----------
@@ -571,29 +576,56 @@ def netem_state_loss(
     return np.isin(chain.run(count), ["3", "4"])
 
 
-def gilbert_elliott_params(loss: float, burst: float) -> tuple[float, float]:
+def gilbert_elliott_params(
+    loss: float, burst: float, loss_bad: float = 1.0
+) -> tuple[float, float]:
     """
     Transition probabilities for a given mean loss and mean burst length.
 
-    With all packets lost in the bad state and none in the good state, the
-    bad state lasts 1/r packets on average, and the chain spends the share
-    p / (p + r) of the packets in it.
+    The Gilbert–Elliott model has four parameters, P, R, 1 − h, and 1 − k; two
+    targets fix only two of them. This solves the Gilbert model: no packet is
+    lost in the good state (1 − k = 0) and the loss probability in the bad
+    state, 1 − h, is given. After a lost
+    packet, the next one is lost when the chain stays in the bad state and
+    the packet is dropped there, with probability (1 − r)(1 − h), so
+
+        burst = 1 / (1 − (1 − r)(1 − h)),   loss = (1 − h) · p / (p + r).
+
+    With 1 − h = 1, the simple Gilbert model of netem ``gemodel P R 100% 0%``,
+    these reduce to burst = 1/r and loss = p / (p + r).
 
     Parameters
     ----------
     loss : float
-        Long-run loss fraction, 0 < loss < 1 [–].
+        Long-run loss fraction, 0 < loss < loss_bad [–].
     burst : float
         Mean length of a loss burst, at least 1 [packets].
+    loss_bad : float, optional
+        Loss probability in the bad state, netem's 1 − h, by default 1 [–].
 
     Returns
     -------
     tuple of float
         ``(p, r)``, the good-to-bad and bad-to-good probabilities [–]; multiply
         by 100 for netem's P and R in percent.
+
+    Raises
+    ------
+    ValueError
+        If no chain reaches the targets: the loss must stay below `loss_bad`,
+        and the burst below 1 / (1 − loss_bad), the length reached when the
+        chain never leaves the bad state.
     """
-    r = 1 / burst
-    return r * loss / (1 - loss), r
+    if not 0 < loss < loss_bad:
+        raise ValueError(f"the mean loss must lie between 0 and loss_bad = {loss_bad}")
+    if burst < 1 or 1 - 1 / burst >= loss_bad:
+        raise ValueError(
+            f"with loss_bad = {loss_bad} the mean burst must lie between 1 and "
+            f"{1 / (1 - loss_bad) if loss_bad < 1 else float('inf'):g} packets"
+        )
+    r = 1 - (1 - 1 / burst) / loss_bad
+    bad = loss / loss_bad  # share of packets sent in the bad state, p / (p + r)
+    return r * bad / (1 - bad), r
 
 
 def loss_bursts(lost) -> np.ndarray:

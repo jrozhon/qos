@@ -508,7 +508,8 @@ def burst_view(stats, R: float | None = None, title: str = "Lengths of loss burs
     """
     Compare the lengths of loss bursts with the geometric distribution.
 
-    In the Gilbert–Elliott model with 100 % loss in the bad state, the chain
+    In the simple Gilbert model (100 % loss in the bad state, none in the
+    good state), the chain
     leaves the bad state after each packet with probability R, so a burst has
     length k with probability (1 − R)^(k−1) · R and mean 1/R. Independent
     loss with probability p is the special case R = 1 − p: almost all bursts
@@ -649,7 +650,7 @@ def analyze_capture(
         Packets sent and the first sequence number, as for
         :func:`stream_stats`.
     R : float, optional
-        Gilbert–Elliott R [%] for the burst plot, as for :func:`burst_view`.
+        R of the simple Gilbert model [%] for the burst plot, as for :func:`burst_view`.
     title : str, optional
         Heading of the result card.
     nominal_ms : float, optional

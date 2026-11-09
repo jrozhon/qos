@@ -10,7 +10,7 @@ This lab connects the network layer to the perceived quality of a real-time serv
 - Identify the signaling (SIP) and media (RTP) components of a VoIP call in a packet capture and relate them to the TCP/IP layers.
 - Explain how a PCM speech signal is companded with G.711 and packetized into RTP, and compute the resulting packet rate and bit rate.
 - Build an RTP header field by field, craft and send IP, UDP, and RTP packets with Scapy, observe them on the wire, and compare them with the RTP stream of a real call.
-- Model bursty packet loss with a two-state Markov chain (the Gilbert–Elliott model), derive its mean loss and burst length, and simulate it.
+- Model bursty packet loss with two-state Markov chains (the simple Gilbert, Gilbert, and Gilbert–Elliott models), derive their mean loss and burst length, and simulate them.
 - Emulate delay, jitter, and random or bursty packet loss with `tc netem`, and measure packet loss, loss-burst lengths, and interarrival jitter from a capture.
 - Assess speech quality with the ACR and DCR subjective methods and with the PESQ and ViSQOL objective models, and relate the scores to the measured network impairments and to each other.
 
@@ -117,9 +117,32 @@ $$
 \pi_B = \frac{P}{P + R}, \qquad \pi_G = \frac{R}{P + R}, \qquad \bar{p} = \pi_G (1 - k) + \pi_B (1 - h)
 $$
 
-where $\pi_B$ and $\pi_G$ are the shares of packets sent in the bad and the good state [–], $P$ and $R$ the good-to-bad and bad-to-good transition probabilities [–], $1 - k$ and $1 - h$ the loss probabilities in the good and the bad state [–], and $\bar{p}$ the long-run loss probability [–]. In the variant used in this lab, every packet is lost in the bad state and none in the good state ($1 - h = 1$, $1 - k = 0$): a loss burst is then one visit to the bad state, its length is geometric with mean $1/R$, and $\bar{p} = P/(P + R)$. Independent loss with probability $\bar{p}$ is the special case $P = \bar{p}$, $R = 1 - \bar{p}$, in which the next state no longer depends on the current one.
+where $\pi_B$ and $\pi_G$ are the shares of packets sent in the bad and the good state [–], $P$ and $R$ the good-to-bad and bad-to-good transition probabilities [–], $1 - k$ and $1 - h$ the loss probabilities in the good and the bad state [–], and $\bar{p}$ the long-run loss probability [–]. Fixing some of the four parameters gives a family of simpler models, named as in the netem documentation:
 
-How long the chain remembers its state is measured by $\lambda = 1 - P - R$, the second eigenvalue of $T$: the correlation between the states of two packets $m$ apart is $\lambda^m$. The memory also makes measurements noisier. In the variant above, the loss measured over $N$ packets varies around $\bar{p}$ with
+| Model | Free parameters | Loss in the good state, $1 - k$ | Loss in the bad state, $1 - h$ |
+|---|---|---|---|
+| Bernoulli (independent loss) | $P$, with $R = 1 - P$ | 0 | 1 |
+| Simple Gilbert | $P$, $R$ | 0 | 1 |
+| Gilbert (1960) | $P$, $R$, $1 - h$ | 0 | any |
+| Gilbert–Elliott (1963) | $P$, $R$, $1 - h$, $1 - k$ | any | any |
+
+The trials of this lab use the simple Gilbert model: every packet is lost in the bad state and none in the good state, so a loss burst is one visit to the bad state, its length is geometric with mean $1/R$, and $\bar{p} = P/(P + R)$. The Bernoulli model is its special case $P = \bar{p}$, $R = 1 - \bar{p}$, in which the next state no longer depends on the current one: independent loss with probability $\bar{p}$.
+
+Measurements describe a lossy link by its mean loss and its mean burst length, while netem expects $P$, $R$, $1 - h$, and $1 - k$. Two targets fix only two of the four parameters, so the other two must be chosen. In the Gilbert model, with no loss in the good state but only some packets lost in the bad state ($1 - h < 1$), a burst no longer equals a visit to the bad state: it ends either when the chain returns to the good state or when a packet in the bad state gets through. After a lost packet, the next one is lost with probability $(1 - R)(1 - h)$, which gives
+
+$$
+\bar{b} = \frac{1}{1 - (1 - R)(1 - h)}, \qquad \bar{p} = \pi_B (1 - h)
+$$
+
+where $\bar{b}$ is the mean burst length [packets]. For given $\bar{p}$, $\bar{b}$, and $1 - h$, the chain follows by inverting both:
+
+$$
+R = 1 - \frac{1 - 1/\bar{b}}{1 - h}, \qquad \pi_B = \frac{\bar{p}}{1 - h}, \qquad P = \frac{R \cdot \pi_B}{1 - \pi_B}
+$$
+
+A solution exists only for $\bar{p} < 1 - h$ and $\bar{b} < 1/h$: when the bad state drops just a share of its packets, long bursts become impossible. For $1 - h = 1$ the equations reduce to $\bar{b} = 1/R$ and $\bar{p} = P/(P + R)$ of the simple Gilbert model. In the full Gilbert–Elliott model ($1 - k > 0$), isolated losses in the good state also form bursts, and bursts can span a change of state; the burst-length distribution is then no longer geometric and is most easily obtained by simulation.
+
+How long the chain remembers its state is measured by $\lambda = 1 - P - R$, the second eigenvalue of $T$: the correlation between the states of two packets $m$ apart is $\lambda^m$. The memory also makes measurements noisier. In the simple Gilbert model, the loss measured over $N$ packets varies around $\bar{p}$ with
 
 $$
 \mathrm{Var}(\hat{p}) \approx \frac{\bar{p} (1 - \bar{p})}{N} \cdot \frac{1 + \lambda}{1 - \lambda}
@@ -143,7 +166,7 @@ chain.run(3000)  # the state after each of 3000 steps, one per packet
 chain.stationary_distribution()  # {"good": R / (P + R), "bad": P / (P + R)}
 ```
 
-`check_state` and `set_state` read and set the state. `gilbert_elliott_dict(p, r)` builds the dictionary above, and `gilbert_elliott(count, p, r, rng)` returns the loss pattern of the Gilbert–Elliott model (with optional `loss_bad` and `loss_good`, netem's $1 - h$ and $1 - k$). `gilbert_elliott_params(loss, burst)` returns $P$ and $R$ for a mean loss and a mean burst length, and `loss_bursts(lost)` the lengths of the loss bursts of a pattern. All probabilities are fractions, not percent. Dropping packets from a list with bursty loss:
+`check_state` and `set_state` read and set the state. `gilbert_elliott_dict(p, r)` builds the dictionary above, and `gilbert_elliott(count, p, r, rng)` returns the loss pattern of the simple Gilbert model, or, with the optional `loss_bad` and `loss_good` (netem's $1 - h$ and $1 - k$), of the Gilbert and the Gilbert–Elliott model. `gilbert_elliott_params(loss, burst, loss_bad=1)` returns $P$ and $R$ for a mean loss and a mean burst length (and $1 - h$ given as `loss_bad`), and `loss_bursts(lost)` the lengths of the loss bursts of a pattern. All probabilities are fractions, not percent. Dropping packets from a list with bursty loss:
 
 ```python
 p, r = gilbert_elliott_params(loss=0.03, burst=3)  # P ≈ 0.0103, R ≈ 0.333
@@ -151,7 +174,7 @@ lost = gilbert_elliott(len(packets), p, r, rng)  # True for every lost packet
 kept = [pkt for pkt, gone in zip(packets, lost) if not gone]
 ```
 
-netem also offers a four-state model, `loss state p13 p31 p32 p23 p14`. Its states are 1, a packet received in a gap (a good period); 2, a packet received within a burst; 3, a packet lost within a burst; and 4, an isolated loss within a gap. A packet is lost when the chain enters state 3 or 4. The probability $p_{ij}$ moves the chain from state $i$ to state $j$; state 4 always returns to 1. Losses within a burst are thus interleaved with received packets ($p_{32}$, $p_{23}$), and single losses occur in good periods ($p_{14}$). With only $p_{13}$ and $p_{31}$ non-zero, the model is the Gilbert–Elliott chain with $P = p_{13}$ and $R = p_{31}$. `netem_state_dict(p13, p31, p32, p23, p14)` builds its state dictionary and `netem_state_loss(count, p13, p31, ...)` draws its loss pattern.
+netem also offers a four-state model, `loss state p13 p31 p32 p23 p14`. Its states are 1, a packet received in a gap (a good period); 2, a packet received within a burst; 3, a packet lost within a burst; and 4, an isolated loss within a gap. A packet is lost when the chain enters state 3 or 4. The probability $p_{ij}$ moves the chain from state $i$ to state $j$; state 4 always returns to 1. Losses within a burst are thus interleaved with received packets ($p_{32}$, $p_{23}$), and single losses occur in good periods ($p_{14}$). With only $p_{13}$ and $p_{31}$ non-zero, the model is the simple Gilbert model with $P = p_{13}$ and $R = p_{31}$. `netem_state_dict(p13, p31, p32, p23, p14)` builds its state dictionary and `netem_state_loss(count, p13, p31, ...)` draws its loss pattern.
 
 ### Traffic control in Linux
 
@@ -168,7 +191,7 @@ tc qdisc add dev DEVICE root netem delay TIME loss PERCENT%
 
 A plot of the one-way delay of each packet shows a netem configuration directly: the delays form a band centred on the configured delay, as wide as twice the jitter for the uniform distribution, and lost packets leave gaps in the sequence numbers. Delay and jitter are read from the band, loss from the gaps. See the [netem manual](https://github.com/iproute2/iproute2/blob/main/man/man8/tc-netem.8).
 
-Bursty loss is emulated with the Gilbert–Elliott model of the previous section:
+netem implements the Gilbert–Elliott model as `loss gemodel`. With the last two parameters set to 100 % and 0 %, it is the simple Gilbert model used for the bursty-loss trial:
 
 ```bash
 tc qdisc add dev DEVICE root netem loss gemodel P R 100% 0%
@@ -319,7 +342,7 @@ For every trial:
 3. Run the trial cell and record the measured loss, the mean jitter, and the number of reordered packets next to the prediction.
 4. Keep the capture with the complete `tc` command.
 
-For trial 3.4, choose the parameters for a mean loss of 3 % and a mean burst length of 3 packets: the mean burst length $1/R$ gives $R$, and the long-run loss fraction $P/(P+R)$ then gives $P$. With independent loss at probability $p$, a burst ends after each packet with probability $1-p$, so almost every burst is a single packet; under the Gilbert–Elliott model the burst lengths follow a geometric distribution with mean $1/R$. Compare the measured burst histogram with both.
+For trial 3.4, choose the parameters for a mean loss of 3 % and a mean burst length of 3 packets: the mean burst length $1/R$ gives $R$, and the long-run loss fraction $P/(P+R)$ then gives $P$. With independent loss at probability $p$, a burst ends after each packet with probability $1-p$, so almost every burst is a single packet; under the simple Gilbert model the burst lengths follow a geometric distribution with mean $1/R$. Compare the measured burst histogram with both.
 
 A receiver-only capture shows loss and variation in delay, not delay itself. Measuring absolute one-way delay requires corresponding sender and receiver observations with synchronized clocks; the round-trip time of `ping`, which netem delays in one direction only, is an indirect check of a fixed delay.
 

@@ -240,6 +240,18 @@ class MarkovTests(unittest.TestCase):
         self.assertAlmostEqual(r, 1 / 3)
         self.assertAlmostEqual(p / (p + r), 0.03)
 
+    def test_params_with_partial_loss_in_bad_state(self):
+        p, r = gilbert_elliott_params(loss=0.05, burst=2, loss_bad=0.7)
+        lost = gilbert_elliott(400_000, p, r, np.random.default_rng(5), loss_bad=0.7)
+        self.assertAlmostEqual(lost.mean(), 0.05, delta=0.004)
+        self.assertAlmostEqual(loss_bursts(lost).mean(), 2, delta=0.1)
+
+    def test_unreachable_targets_are_refused(self):
+        with self.assertRaises(ValueError):
+            gilbert_elliott_params(loss=0.05, burst=4, loss_bad=0.7)  # max 3.33
+        with self.assertRaises(ValueError):
+            gilbert_elliott_params(loss=0.8, burst=2, loss_bad=0.7)
+
     def test_simulated_loss_and_bursts_match_the_model(self):
         p, r = gilbert_elliott_params(loss=0.05, burst=4)
         lost = gilbert_elliott(200_000, p, r, np.random.default_rng(2))
