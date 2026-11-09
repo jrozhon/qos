@@ -472,7 +472,16 @@ Signal-to-quantization-noise ratio of a sine wave (1019 Hz) at several levels, c
 | −10 | 36.4 | 37.2 | 40.1 |
 | 0 | 39.0 | 38.3 | 49.8 |
 
-1. A loud block of speech gives roughly 35–39 dB with either law; a quiet block (pauses, breathing) gives a lower ratio, and μ-law is a few dB better than A-law at the very lowest levels, because its smallest step is finer (8 against 32 in 16-bit units).
+1. A loud block of speech gives roughly 35–39 dB with either law; a quiet block (pauses, breathing) gives a lower ratio, and μ-law is a few dB better than A-law at the very lowest levels, because its smallest step is finer (8 against 16 in 16-bit units). The blocks:
+
+```python
+silences = find_silences(samples, SAMPLES_PER_PACKET)
+quiet = silences.loc[np.isfinite(silences["level"]), "start"].iloc[0]
+loud = loudest_start(samples, SAMPLES_PER_PACKET)
+for start in (quiet, loud):
+    for encoding in ("alaw", "ulaw"):
+        display(roundtrip_view(samples[start : start + SAMPLES_PER_PACKET], encoding))
+```
 2. The uniform quantizer wins only above about −15 dBov, close to full scale. Speech spends most of its time 20–40 dB below full scale, and quiet passages are where uniform quantization noise is plainly audible; G.711 trades a little quality on the loudest peaks for a constant quality everywhere else.
 3. Silence: A-law codes of near-zero samples are `d5` / `55` (alternating bits), μ-law codes `ff` / `7f`. The receiver should not guess from the payload, though: the RTP payload type, 8 (PCMA) or 0 (PCMU), states the law.
 

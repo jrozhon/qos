@@ -19,6 +19,7 @@ here draw the same information so that the structure is visible at a glance:
 """
 
 import numpy as np
+import pandas as pd
 import panel as pn
 import scapy.all as sa
 from bokeh.core.properties import value
@@ -49,7 +50,9 @@ LAYER_COLORS = {
     "RTP": colors[0],  # teal
     "Raw": colors[3],  # yellow
 }
-TINT = "#E6F6F5"  # 10 % teal tint for background bands (STYLE.md §2.3)
+# Alternating background bands of consecutive blocks: 30 % teal and 20 % grey
+# tints (STYLE.md §2.3), distinct from each other and from the white plot area.
+BAND_COLORS = ("#B2E4E0", "#E6E6E7")
 
 
 def text_color_on(fill: str) -> str:
@@ -579,6 +582,68 @@ def loudest_start(samples, block: int, count: int = 1) -> int:
     return int(np.argmax(window)) * block
 
 
+def find_silences(
+    samples,
+    block: int = 160,
+    below_db: float = 30,
+    min_ms: float = 100,
+) -> pd.DataFrame:
+    """
+    Find the pauses in a recording, aligned to packet boundaries.
+
+    A block is quiet when its RMS level lies more than `below_db` under that of
+    the loudest block, so the threshold follows the gain of the recording. A
+    pause is a run of quiet blocks lasting at least `min_ms`. Blocks of digital
+    silence (all samples zero) count as quiet but have no defined SNR; pick a
+    pause with a finite level for a quantization test.
+
+    Parameters
+    ----------
+    samples : array_like of int16
+        The recording, sampled at 8 kHz [–].
+    block : int, optional
+        Samples per packet, by default 160 (20 ms).
+    below_db : float, optional
+        Distance of a quiet block below the loudest block, by default 30 [dB].
+    min_ms : float, optional
+        Shortest pause reported, by default 100 [ms].
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per pause: ``start`` (index of its first sample, a multiple of
+        `block`), ``time`` [s], ``duration`` [ms], ``blocks`` [–], and
+        ``level`` (mean RMS level [dBov], −inf for digital silence), ordered
+        by time.
+    """
+    samples = np.asarray(samples)
+    n = len(samples) // block
+    blocks = samples[: n * block].astype(float).reshape(n, block)
+    with np.errstate(divide="ignore"):
+        level = 20 * np.log10(np.sqrt((blocks**2).mean(axis=1)) / 32768)  # [dBov]
+    quiet = level < level.max() - below_db
+
+    # Runs of quiet blocks: +1 where a run starts, −1 just after it ends.
+    edges = np.diff(np.concatenate([[0], quiet.astype(int), [0]]))
+    first, after = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+    block_ms = block / SAMPLE_RATE * 1000
+    rows = []
+    for a, b in zip(first, after):
+        if (b - a) * block_ms < min_ms:
+            continue
+        power = (10 ** (level[a:b] / 10)).mean()  # mean power of the blocks
+        rows.append(
+            dict(
+                start=a * block,
+                time=a * block / SAMPLE_RATE,
+                duration=(b - a) * block_ms,
+                blocks=b - a,
+                level=10 * np.log10(power) if power > 0 else -np.inf,
+            )
+        )
+    return pd.DataFrame(rows, columns=["start", "time", "duration", "blocks", "level"])
+
+
 def packetization_view(
     samples,
     packets: int = 6,
@@ -630,40 +695,33 @@ def packetization_view(
         x_range=x_range,
     )
     peak = max(1, int(np.abs(samples[start:stop]).max()))
-    wave.y_range = Range1d(-1.35 * peak, 1.35 * peak)
-    for k in range(packets):
-        if k % 2 == 0:
-            wave.add_layout(
-                BoxAnnotation(
-                    left=t_ms[0] + k * block_ms,
-                    right=t_ms[0] + (k + 1) * block_ms,
-                    fill_color=TINT,
-                    fill_alpha=1,
-                    level="underlay",  # behind the grid and the waveform
-                )
-            )
-    wave.line(t_ms, samples[start:stop], line_width=2, line_alpha=0.8, color=colors[0])
+    wave.y_range = Range1d(-1.25 * peak, 1.75 * peak)  # headroom for the labels
+    edges = t_ms[0] + np.arange(packets + 1) * block_ms
+    wave.line(t_ms, samples[start:stop], line_width=2, color=colors[0])
+    # Two short lines per block instead of one long one, so that the label
+    # stays well inside its block even for five- and six-digit numbers.
     labels = ColumnDataSource(
         dict(
-            x=[t_ms[0] + (k + 0.5) * block_ms for k in range(packets)],
-            y=[1.18 * peak] * packets,
-            text=[
-                f"seq {first + k}  ·  ts {(first + k) * samples_per_packet}"
-                for k in range(packets)
-            ],
+            x=edges[:-1] + 0.5 * block_ms,
+            seq=[f"seq {first + k}" for k in range(packets)],
+            ts=[f"ts {(first + k) * samples_per_packet}" for k in range(packets)],
         )
     )
-    wave.text(
-        "x",
-        "y",
-        text="text",
+    label_style = dict(
         source=labels,
         text_align="center",
         text_baseline="middle",
         text_font=value(FONT),
         text_font_size="13px",
         text_color=TEXT_COLOR,
+        background_fill_color="#ffffff",
+        background_fill_alpha=0.85,
+        padding=3,
+        border_radius=3,
     )
+    wave.text("x", 1.52 * peak, text="seq", text_font_style="bold", **label_style)
+    wave.text("x", 1.27 * peak, text="ts", **label_style)
+    wave.xaxis.ticker = list(edges)
 
     strip = new_plot(
         "",
@@ -693,7 +751,36 @@ def packetization_view(
             legend_label=f"{name}, {size} B",
         )
         left = left + size * scale
+    strip.xaxis.ticker = list(edges)
+    for plot in (wave, strip):
+        _block_bands(plot, edges)
     return pn.Column(wave, legend_below(strip))
+
+
+def _block_bands(plot, edges) -> None:
+    """Shade alternate blocks in two tints and draw a line at every edge."""
+    for k, (left, right) in enumerate(zip(edges[:-1], edges[1:])):
+        plot.add_layout(
+            BoxAnnotation(
+                left=left,
+                right=right,
+                fill_color=BAND_COLORS[k % 2],
+                fill_alpha=1,
+                line_alpha=0,
+                level="underlay",  # behind the grid and the data
+            )
+        )
+    for edge in edges:
+        plot.add_layout(
+            Span(
+                location=edge,
+                dimension="height",
+                line_color=GREY,
+                line_width=1.5,
+                line_dash="dashed",
+            )
+        )
+    plot.xgrid.visible = False  # the edges take the place of the grid
 
 
 # ---------------------------------------------------------------------------
@@ -735,8 +822,12 @@ def companding_view():
     Draw the G.711 characteristics and their SNR over the input level.
 
     The left plot maps input amplitude to the 7-bit magnitude part of the
-    code: steep (fine steps) for quiet signals, flat (coarse steps) for loud
-    ones. The right plot shows the signal-to-quantization-noise ratio of a
+    code. The amplitude axis is logarithmic: G.711 is close to a logarithm,
+    so every segment takes about the same width, and the two laws, which
+    differ only below an amplitude of 4096, can be told apart. A-law is
+    linear in its two lowest segments (step 16) and μ-law has finer steps at
+    the bottom (step 8 at first), so μ-law gives quiet signals up to 9 code
+    steps more. The right plot shows the signal-to-quantization-noise ratio of a
     sine wave as its level falls: G.711 keeps it roughly constant over a wide
     range, while uniform 8-bit quantization loses 6 dB per halving of the
     amplitude.
@@ -746,13 +837,17 @@ def companding_view():
     panel.Row
         The characteristic and the SNR curves side by side.
     """
-    x = np.arange(0, 32768, 16)
+    # Every integer amplitude up to 32767 is too many points; a geometric
+    # grid that keeps every integer at the bottom resolves even the first steps.
+    x = np.unique(np.geomspace(1, 32767, 2000).astype(int))
     curve = new_plot(
         "G.711 characteristic",
         "Input amplitude [–]",
         "Code magnitude [–]",
         width=480,
         height=400,
+        x_axis_type="log",
+        x_range=(1, 32767),
     )
     for name, label, color, dash in (
         ("alaw", "A-law", colors[0], "solid"),
@@ -762,18 +857,20 @@ def companding_view():
         code = encode(x).astype(int)
         # Undo the bit inversions to get the plain segment/step index 0–127.
         index = (code ^ 0xD5) & 0x7F if name == "alaw" else (~code) & 0x7F
-        curve.line(
+        curve.step(
             x,
             index,
+            mode="after",
             line_width=3,
-            line_alpha=0.6,
+            line_alpha=0.8,
             color=color,
             line_dash=dash,
             legend_label=label,
         )
-    curve.line(
+    curve.step(
         x,
         x // 256,
+        mode="after",
         line_width=2,
         color=GREY,
         line_dash="dashed",

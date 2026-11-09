@@ -35,7 +35,7 @@ from lib.core import (  # noqa: E402
     rtp_packets,
     stationary_distribution,
 )
-from lib.packetviz import finalize, packet_fields  # noqa: E402
+from lib.packetviz import finalize, find_silences, packet_fields  # noqa: E402
 
 PCAP = (
     Path(__file__).resolve().parents[1]
@@ -168,6 +168,21 @@ class RtpTests(unittest.TestCase):
             rtp[:6],
             ["version", "padding", "extension", "numsync", "marker", "payload_type"],
         )
+
+
+class SilenceTests(unittest.TestCase):
+    def test_pauses_are_found_and_short_gaps_skipped(self):
+        rng = np.random.default_rng(0)
+        t = np.arange(4 * 8000) / 8000
+        samples = 8000 * np.sin(2 * np.pi * 200 * t)
+        samples[8000:12000] = rng.normal(0, 30, 4000)  # 500 ms pause with noise
+        samples[20000:20800] = 0  # 100 ms digital silence
+        samples[28000:28400] = rng.normal(0, 30, 400)  # 50 ms, too short
+        found = find_silences(samples.astype(np.int16))
+        self.assertEqual(found["start"].tolist(), [8000, 20000])
+        self.assertEqual(found["duration"].tolist(), [500.0, 100.0])
+        self.assertTrue(np.isfinite(found["level"].iloc[0]))
+        self.assertEqual(found["level"].iloc[1], -np.inf)
 
 
 class MarkovTests(unittest.TestCase):
