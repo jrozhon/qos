@@ -95,6 +95,14 @@ $$
 
 where $D_i$ is the change in transit time between packets $i-1$ and $i$ [s], $R_i$ the arrival time of packet $i$ [s], $S_i$ its RTP timestamp converted to seconds [s], and $J_i$ the jitter estimate after packet $i$ [s]. Wireshark reports the mean and the maximum of this estimate. A fixed delay adds the same amount to every arrival time and leaves the jitter unchanged.
 
+The RTP timestamp counts samples of the codec clock, not time, so it is divided by the clock rate before it is compared with arrival times:
+
+$$
+S_i = \frac{T_i}{f_c}
+$$
+
+where $T_i$ is the RTP timestamp of packet $i$ [samples] and $f_c$ the RTP clock rate of the payload type [Hz], 8000 Hz for G.711 and G.729. Only differences $S_i - S_{i-1}$ enter $D_i$, so the random initial timestamp cancels out. For G.711 one timestamp unit is 1/8000 s = 0.125 ms, and consecutive 20 ms packets differ by 160 units, so $S_i - S_{i-1} = 160 / 8000\ \mathrm{s} = 20\ \mathrm{ms}$. For example, packets with timestamps 48 000 and 48 160 that arrive at 512 ms and 535 ms give $D = (535 - 512) - 20 = 3\ \mathrm{ms}$, and starting from $J = 0$ the estimate becomes $J = 3/16 \approx 0.19\ \mathrm{ms}$. Arrival times and timestamps must be in the same unit; leaving the timestamps in samples makes every $D_i$ about 140 instead of a few milliseconds.
+
 ### Markov models of packet loss
 
 Whether a packet is lost often depends on what happened to the packets before it: a queue that overflowed for one packet is likely still full for the next. A *discrete-time Markov chain* captures this memory in its simplest form. The chain is in one of a finite number of states and moves once per packet; the probability of the next state depends only on the current state, not on the earlier history:
