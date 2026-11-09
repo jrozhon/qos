@@ -4,8 +4,9 @@ Speech coding, RTP packetization, and objective quality scoring for Lab 03.
 The G.711 functions convert between 16-bit linear PCM and the 8-bit A-law and
 μ-law codes carried in RTP payload types 8 (PCMA) and 0 (PCMU). The reference
 implementations of the RTP header and the packet stream are what the notebook
-asks students to write themselves first. The scoring wrappers at the end call
-the external PESQ and ViSQOL executables.
+asks students to write themselves first. The Markov chain functions simulate
+packet loss, independent or bursty as in the Gilbert–Elliott model of netem.
+The scoring wrappers at the end call the external PESQ and ViSQOL executables.
 """
 
 import re
@@ -272,6 +273,180 @@ def rtp_packets(
             / sa.Raw(load=encoder(block).tobytes())
         )
     return packets
+
+
+# ---------------------------------------------------------------------------
+# Packet loss models: Markov chains
+# ---------------------------------------------------------------------------
+#
+# A discrete-time Markov chain moves between a finite set of states once per
+# step, here once per packet. The next state depends only on the current one:
+# row i of the transition matrix T holds the probabilities of moving from
+# state i to every state, so each row sums to one. The Gilbert–Elliott model
+# of bursty loss is the chain with a good state 0 and a bad state 1,
+#
+#     T = | 1 − P    P   |
+#         |   R    1 − R |
+#
+# in which a packet is lost with one probability in the good state and with
+# another in the bad state. netem's `loss gemodel P R 1-h 1-k` is this chain:
+# P and R are the transition probabilities, 1 − h the loss probability in the
+# bad state, and 1 − k the loss probability in the good state.
+
+
+def markov_chain(transition, steps: int, rng=None, start: int = 0) -> np.ndarray:
+    """
+    Simulate a discrete-time Markov chain.
+
+    Parameters
+    ----------
+    transition : array_like of float, shape (n, n)
+        Transition matrix: ``transition[i, j]`` is the probability of moving
+        from state i to state j in one step [–]. Every row sums to 1.
+    steps : int
+        Number of states to return [–].
+    rng : numpy.random.Generator, optional
+        Random number generator, by default a new unseeded one.
+    start : int, optional
+        State of the first step, by default 0.
+
+    Returns
+    -------
+    numpy.ndarray of int
+        The state at every step; the first one is `start`.
+    """
+    transition = np.asarray(transition, dtype=float)
+    n = transition.shape[0]
+    if transition.shape != (n, n) or np.any(transition < 0):
+        raise ValueError("the transition matrix must be square and non-negative")
+    if not np.allclose(transition.sum(axis=1), 1):
+        raise ValueError("every row of the transition matrix must sum to 1")
+    rng = rng if rng is not None else np.random.default_rng()
+
+    # The next state is the first one whose cumulative probability exceeds a
+    # uniform random number: state j is chosen with probability transition[i, j].
+    cumulative = np.cumsum(transition, axis=1)
+    cumulative[:, -1] = 1.0  # guard against rounding just below 1
+    uniform = rng.random(steps)
+    states = np.empty(steps, dtype=int)
+    state = start
+    for i in range(steps):
+        states[i] = state
+        state = int(np.searchsorted(cumulative[state], uniform[i], side="right"))
+    return states
+
+
+def stationary_distribution(transition) -> np.ndarray:
+    """
+    Long-run share of steps the chain spends in each state.
+
+    The stationary distribution π solves π · T = π with the elements of π
+    summing to 1. For an irreducible chain, one in which every state can be
+    reached from every other, it is unique and does not depend on the start.
+
+    Parameters
+    ----------
+    transition : array_like of float, shape (n, n)
+        Transition matrix, as for :func:`markov_chain`.
+
+    Returns
+    -------
+    numpy.ndarray of float
+        Probability of each state [–].
+    """
+    transition = np.asarray(transition, dtype=float)
+    n = transition.shape[0]
+    # (T^T − I) · π = 0 has a one-dimensional solution space; the extra row
+    # of ones fixes the scale by requiring the probabilities to sum to 1.
+    a = np.vstack([transition.T - np.eye(n), np.ones(n)])
+    b = np.concatenate([np.zeros(n), [1.0]])
+    return np.linalg.lstsq(a, b, rcond=None)[0]
+
+
+def gilbert_elliott(
+    count: int,
+    p: float,
+    r: float,
+    rng=None,
+    loss_bad: float = 1.0,
+    loss_good: float = 0.0,
+) -> np.ndarray:
+    """
+    Draw a packet loss pattern from the Gilbert–Elliott model.
+
+    The chain starts in the good state, as in netem; ``gilbert_elliott(n, P, R)``
+    with P and R as fractions loses the packets that
+    ``tc qdisc add dev DEVICE root netem loss gemodel P% R% 100% 0%`` would.
+    Independent loss with probability q is the special case p = q, r = 1 − q:
+    then the next state no longer depends on the current one.
+
+    Parameters
+    ----------
+    count : int
+        Number of packets [–].
+    p : float
+        Probability of moving from the good to the bad state after a packet [–].
+    r : float
+        Probability of moving from the bad to the good state after a packet [–].
+    rng : numpy.random.Generator, optional
+        Random number generator, by default a new unseeded one.
+    loss_bad : float, optional
+        Loss probability in the bad state, netem's 1 − h, by default 1 [–].
+    loss_good : float, optional
+        Loss probability in the good state, netem's 1 − k, by default 0 [–].
+
+    Returns
+    -------
+    numpy.ndarray of bool
+        True for every lost packet.
+    """
+    rng = rng if rng is not None else np.random.default_rng()
+    states = markov_chain([[1 - p, p], [r, 1 - r]], count, rng)  # 0 good, 1 bad
+    return rng.random(count) < np.where(states == 1, loss_bad, loss_good)
+
+
+def gilbert_elliott_params(loss: float, burst: float) -> tuple[float, float]:
+    """
+    Transition probabilities for a given mean loss and mean burst length.
+
+    With all packets lost in the bad state and none in the good state, the
+    bad state lasts 1/r packets on average, and the chain spends the share
+    p / (p + r) of the packets in it.
+
+    Parameters
+    ----------
+    loss : float
+        Long-run loss fraction, 0 < loss < 1 [–].
+    burst : float
+        Mean length of a loss burst, at least 1 [packets].
+
+    Returns
+    -------
+    tuple of float
+        ``(p, r)``, the good-to-bad and bad-to-good probabilities [–]; multiply
+        by 100 for netem's P and R in percent.
+    """
+    r = 1 / burst
+    return r * loss / (1 - loss), r
+
+
+def loss_bursts(lost) -> np.ndarray:
+    """
+    Lengths of the runs of consecutive lost packets.
+
+    Parameters
+    ----------
+    lost : array_like of bool
+        True for every lost packet, in sending order.
+
+    Returns
+    -------
+    numpy.ndarray of int
+        One length per burst, in order of occurrence [packets].
+    """
+    padded = np.concatenate([[0], np.asarray(lost, dtype=int), [0]])
+    edges = np.diff(padded)  # +1 where a burst starts, −1 after it ends
+    return np.flatnonzero(edges == -1) - np.flatnonzero(edges == 1)
 
 
 # ---------------------------------------------------------------------------

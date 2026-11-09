@@ -1,4 +1,5 @@
-"""Checks for the G.711 codec, the RTP builders, and the capture analysis."""
+"""Checks for the G.711 codec, the RTP builders, the loss models, and the capture
+analysis."""
 
 import shutil
 import subprocess
@@ -24,7 +25,16 @@ from lib.capture import (  # noqa: E402
     stream_stats,
     stream_summary,
 )
-from lib.core import G711, rtp_header, rtp_packets  # noqa: E402
+from lib.core import (  # noqa: E402
+    G711,
+    gilbert_elliott,
+    gilbert_elliott_params,
+    loss_bursts,
+    markov_chain,
+    rtp_header,
+    rtp_packets,
+    stationary_distribution,
+)
 from lib.packetviz import finalize, packet_fields  # noqa: E402
 
 PCAP = (
@@ -158,6 +168,46 @@ class RtpTests(unittest.TestCase):
             rtp[:6],
             ["version", "padding", "extension", "numsync", "marker", "payload_type"],
         )
+
+
+class MarkovTests(unittest.TestCase):
+    def test_chain_follows_the_transition_matrix(self):
+        rng = np.random.default_rng(1)
+        transition = np.array([[0.5, 0.5, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
+        states = markov_chain(transition, 200, rng, start=2)
+        self.assertEqual(states[0], 2)
+        pairs = set(zip(states[:-1].tolist(), states[1:].tolist()))
+        self.assertTrue(all(transition[i, j] > 0 for i, j in pairs))
+
+    def test_invalid_matrix_is_refused(self):
+        with self.assertRaises(ValueError):
+            markov_chain([[0.5, 0.4], [0.5, 0.5]], 10)
+
+    def test_stationary_distribution_of_gilbert_elliott(self):
+        p, r = 0.02, 0.3
+        pi = stationary_distribution([[1 - p, p], [r, 1 - r]])
+        np.testing.assert_allclose(pi, [r / (p + r), p / (p + r)])
+
+    def test_params_give_mean_loss_and_burst(self):
+        p, r = gilbert_elliott_params(loss=0.03, burst=3)
+        self.assertAlmostEqual(r, 1 / 3)
+        self.assertAlmostEqual(p / (p + r), 0.03)
+
+    def test_simulated_loss_and_bursts_match_the_model(self):
+        p, r = gilbert_elliott_params(loss=0.05, burst=4)
+        lost = gilbert_elliott(200_000, p, r, np.random.default_rng(2))
+        self.assertAlmostEqual(lost.mean(), 0.05, delta=0.005)
+        self.assertAlmostEqual(loss_bursts(lost).mean(), 4, delta=0.2)
+
+    def test_loss_in_good_state_and_partial_loss_in_bad_state(self):
+        lost = gilbert_elliott(
+            200_000, 0.1, 0.4, np.random.default_rng(3), loss_bad=0.5, loss_good=0.01
+        )
+        self.assertAlmostEqual(lost.mean(), 0.8 * 0.01 + 0.2 * 0.5, delta=0.005)
+
+    def test_bursts_of_a_pattern(self):
+        self.assertEqual(loss_bursts([1, 1, 0, 1, 0, 0, 1, 1, 1]).tolist(), [2, 1, 3])
+        self.assertEqual(loss_bursts([0, 0, 0]).size, 0)
 
 
 class CaptureTests(unittest.TestCase):

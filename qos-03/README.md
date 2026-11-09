@@ -10,6 +10,7 @@ This lab connects the network layer to the perceived quality of a real-time serv
 - Identify the signaling (SIP) and media (RTP) components of a VoIP call in a packet capture and relate them to the TCP/IP layers.
 - Explain how a PCM speech signal is companded with G.711 and packetized into RTP, and compute the resulting packet rate and bit rate.
 - Build an RTP header field by field, craft and send IP, UDP, and RTP packets with Scapy, observe them on the wire, and compare them with the RTP stream of a real call.
+- Model bursty packet loss with a two-state Markov chain (the Gilbert–Elliott model), derive its mean loss and burst length, and simulate it.
 - Emulate delay, jitter, and random or bursty packet loss with `tc netem`, and measure packet loss, loss-burst lengths, and interarrival jitter from a capture.
 - Assess speech quality with the ACR and DCR subjective methods and with the PESQ and ViSQOL objective models, and relate the scores to the measured network impairments and to each other.
 
@@ -94,6 +95,48 @@ $$
 
 where $D_i$ is the change in transit time between packets $i-1$ and $i$ [s], $R_i$ the arrival time of packet $i$ [s], $S_i$ its RTP timestamp converted to seconds [s], and $J_i$ the jitter estimate after packet $i$ [s]. Wireshark reports the mean and the maximum of this estimate. A fixed delay adds the same amount to every arrival time and leaves the jitter unchanged.
 
+### Markov models of packet loss
+
+Whether a packet is lost often depends on what happened to the packets before it: a queue that overflowed for one packet is likely still full for the next. A *discrete-time Markov chain* captures this memory in its simplest form. The chain is in one of a finite number of states and moves once per packet; the probability of the next state depends only on the current state, not on the earlier history:
+
+$$
+t_{ij} = \Pr(X_{n+1} = j \mid X_n = i), \qquad \sum_j t_{ij} = 1
+$$
+
+where $X_n$ is the state at packet $n$ [–] and $t_{ij}$ the probability of moving from state $i$ to state $j$ [–]. The probabilities form the *transition matrix* $T$, one row per current state. A visit to state $i$ ends after each packet with probability $1 - t_{ii}$, so it lasts $k$ packets with probability $t_{ii}^{k-1} (1 - t_{ii})$: a geometric distribution with mean $1/(1 - t_{ii})$. In the long run, the chain spends a fixed share of the packets in each state, the *stationary distribution*:
+
+$$
+\pi = \pi T, \qquad \sum_i \pi_i = 1
+$$
+
+where $\pi$ is the row vector of the state probabilities and $\pi_i$ the long-run share of packets that find the chain in state $i$ [–].
+
+The *Gilbert–Elliott model* is the chain with two states, *good* (G) and *bad* (B). After each packet it moves from good to bad with probability $P$ and back from bad to good with probability $R$; it stays with probabilities $1 - P$ and $1 - R$. A packet is lost with probability $1 - k$ in the good state and $1 - h$ in the bad state. Solving the stationary equations gives the share of packets in each state and the long-run loss probability:
+
+$$
+\pi_B = \frac{P}{P + R}, \qquad \pi_G = \frac{R}{P + R}, \qquad \bar{p} = \pi_G (1 - k) + \pi_B (1 - h)
+$$
+
+where $\pi_B$ and $\pi_G$ are the shares of packets sent in the bad and the good state [–], $P$ and $R$ the good-to-bad and bad-to-good transition probabilities [–], $1 - k$ and $1 - h$ the loss probabilities in the good and the bad state [–], and $\bar{p}$ the long-run loss probability [–]. In the variant used in this lab, every packet is lost in the bad state and none in the good state ($1 - h = 1$, $1 - k = 0$): a loss burst is then one visit to the bad state, its length is geometric with mean $1/R$, and $\bar{p} = P/(P + R)$. Independent loss with probability $\bar{p}$ is the special case $P = \bar{p}$, $R = 1 - \bar{p}$, in which the next state no longer depends on the current one.
+
+How long the chain remembers its state is measured by $\lambda = 1 - P - R$, the second eigenvalue of $T$: the correlation between the states of two packets $m$ apart is $\lambda^m$. The memory also makes measurements noisier. In the variant above, the loss measured over $N$ packets varies around $\bar{p}$ with
+
+$$
+\mathrm{Var}(\hat{p}) \approx \frac{\bar{p} (1 - \bar{p})}{N} \cdot \frac{1 + \lambda}{1 - \lambda}
+$$
+
+where $\hat{p}$ is the loss measured over $N$ packets [–] and $\lambda$ the memory of the chain [–]. Independent loss has $\lambda = 0$ and the binomial variance; at 3 % mean loss and a mean burst of 3 packets, $\lambda \approx 0.66$ and the variance is almost five times larger.
+
+The reference implementation is in `lib/core.py`. `markov_chain(transition, steps, rng)` simulates any chain from its transition matrix, `stationary_distribution(transition)` solves the stationary equations, `gilbert_elliott(count, p, r, rng)` returns the loss pattern of the Gilbert–Elliott model (with optional `loss_bad` and `loss_good`, netem's $1 - h$ and $1 - k$), `gilbert_elliott_params(loss, burst)` returns $P$ and $R$ for a mean loss and a mean burst length, and `loss_bursts(lost)` the lengths of the loss bursts of a pattern. All probabilities are fractions, not percent. Dropping packets from a list with bursty loss:
+
+```python
+p, r = gilbert_elliott_params(loss=0.03, burst=3)  # P ≈ 0.0103, R ≈ 0.333
+lost = gilbert_elliott(len(packets), p, r, rng)  # True for every lost packet
+kept = [pkt for pkt, gone in zip(packets, lost) if not gone]
+```
+
+netem also offers a four-state model (`loss state`) that adds isolated losses within good periods; `markov_chain` simulates it with a 4 × 4 transition matrix.
+
 ### Traffic control in Linux
 
 The `tc` utility configures the kernel packet scheduler. Every interface has a root *queueing discipline* (qdisc) that decides when outgoing packets are transmitted. The `netem` qdisc emulates network impairments on an otherwise ideal link:
@@ -109,13 +152,13 @@ tc qdisc add dev DEVICE root netem delay TIME loss PERCENT%
 
 A plot of the one-way delay of each packet shows a netem configuration directly: the delays form a band centred on the configured delay, as wide as twice the jitter for the uniform distribution, and lost packets leave gaps in the sequence numbers. Delay and jitter are read from the band, loss from the gaps. See the [netem manual](https://github.com/iproute2/iproute2/blob/main/man/man8/tc-netem.8).
 
-Bursty loss is emulated with the Gilbert–Elliott model, a two-state Markov chain that alternates between a *good* state with no loss and a *bad* state in which packets are lost:
+Bursty loss is emulated with the Gilbert–Elliott model of the previous section:
 
 ```bash
 tc qdisc add dev DEVICE root netem loss gemodel P R 100% 0%
 ```
 
-where `P` is the probability of moving from the good to the bad state after a packet and `R` the probability of returning from bad to good, both in percent. The final two parameters specify 100 % loss in the bad state and 0 % in the good state. With `P` and `R` converted to probabilities, the long-run loss fraction is $P/(P+R)$ and the mean bad-state duration is $1/R$ packets. Thus `R` controls the mean burst length; `P` must also change to hold the mean loss fixed.
+where `P` is the probability of moving from the good to the bad state after a packet and `R` the probability of returning from bad to good, both in percent. The final two parameters are $1 - h$ and $1 - k$: 100 % loss in the bad state and 0 % in the good state. With `P` and `R` converted to probabilities, the long-run loss fraction is $P/(P+R)$ and the mean bad-state duration is $1/R$ packets. Thus `R` controls the mean burst length; `P` must also change to hold the mean loss fixed. `gilbert_elliott` in `lib/core.py` draws the same losses as this command and lets a configuration be tried out before it is applied.
 
 The current configuration is shown with `tc qdisc show dev DEVICE` and removed with `tc qdisc del dev DEVICE root`; the interface then returns to its default behavior.
 
@@ -357,6 +400,8 @@ Save the completed notebook, clean and received captures, reconstructed WAV file
 9. `tc-netem(8)` manual page; tcpreplay documentation, https://tcpreplay.appneta.com/.
 10. H. Schulzrinne and S. Casner, "RTP Profile for Audio and Video Conferences with Minimal Control," RFC 3551, 2003.
 11. ITU-T Recommendation G.107, *The E-model: a computational model for use in transmission planning*, 2015.
+12. E. N. Gilbert, "Capacity of a Burst-Noise Channel," *Bell System Technical Journal*, vol. 39, no. 5, pp. 1253–1265, 1960.
+13. E. O. Elliott, "Estimates of Error Rates for Codes on Burst-Noise Channels," *Bell System Technical Journal*, vol. 42, no. 5, pp. 1977–1997, 1963.
 
 ## Task solutions
 
@@ -528,6 +573,18 @@ def decode_with_repetition(received, encoding=ENCODING, block=SAMPLES_PER_PACKET
 
 With silence, 1 % loss gives occasional clicks, 5 % a clearly choppy voice, and 10 % is hard to follow. Repetition makes single losses nearly inaudible, so 1–5 % usually becomes tolerable; at 10 % bursts are frequent enough to be heard. A repeated 20 ms block is periodic; repeating it several times produces a buzzing, robotic tone. Practical concealment (for example ITU-T G.711 Appendix I) repeats pitch periods instead of whole blocks and fades the signal out after a few tens of milliseconds.
 
+Bursty loss before sending:
+
+```python
+from lib.core import gilbert_elliott, gilbert_elliott_params
+
+p, r = gilbert_elliott_params(loss=0.05, burst=3)  # P ≈ 1.75 %, R ≈ 33.3 %
+lost = gilbert_elliott(len(stream), p, r, rng)
+kept = [pkt for pkt, gone in zip(stream, lost) if not gone]
+```
+
+At the same 5 % the bursty pattern has about a third as many gaps, each 60 ms long on average and some longer than 100 ms. Repetition fills the first missing block well but stretches one 20 ms block over the whole gap, so the buzzing tone of the previous paragraph appears in every burst: concealment by repetition helps far less than with independent loss.
+
 ### Task 10 – Predict, run, compare
 
 Expected results of the 60 s, 3000-packet test stream:
@@ -547,7 +604,7 @@ For 3.2: the difference of two independent normal delays with σ = 20 ms has σ 
 
 1. Delay with jitter changed the spacing; random and bursty loss changed only the number of packets (plus the gap left by each loss); the bottleneck changed both. A fixed delay shifts every arrival by the same amount, so the differences D in the RFC 3550 estimate, and with them the jitter, stay unchanged.
 2. Independent loss also produces bursts by chance, with probability p for each further packet: at p = 0.03 about 3 % of the bursts have two packets or more, and the mean burst length is 1 / (1 − p) ≈ 1.03. The histogram is almost entirely at 1, matching the geometric distribution with R = 1 − p = 97 %.
-3. At 3 % mean loss and a mean burst of 3 packets, 3000 packets contain only about 30 bursts. The histogram follows the geometric shape roughly, but with so few bursts the relative frequencies scatter by several percentage points and the measured mean loss easily lies between 2 % and 4 %. A longer stream, or several trials pooled, is needed for a firm conclusion.
+3. At 3 % mean loss and a mean burst of 3 packets, 3000 packets contain only about 30 bursts. The histogram follows the geometric shape roughly, but with so few bursts the relative frequencies scatter by several percentage points and the measured mean loss easily lies between 2 % and 4 %. A longer stream, or several trials pooled, is needed for a firm conclusion. The simulation in 3.4 quantifies this: with $\lambda = 1 - P - R \approx 0.66$, the standard deviation of the loss of one 60 s trial is about 0.68 % against 0.31 % for independent loss (README, Markov models of packet loss).
 4. A packet that arrives later than its playout time (here, more than 40 ms after its nominal arrival) is discarded, so the receiver counts it as lost, although the network delivered it. Packets that are reordered but within the buffer are put back in order using their sequence numbers and timestamps and are played normally. Late loss therefore adds to network loss, and a larger buffer trades it for more delay.
 
 ### Task 12 – Compare the methods

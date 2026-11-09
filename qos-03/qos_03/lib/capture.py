@@ -14,7 +14,8 @@ here:
 - :func:`interarrival_view`, :func:`interarrival_histogram`,
   :func:`jitter_view`, and :func:`burst_view` draw them, and
   :func:`analyze_capture` (or :func:`stream_view` for a stream already read)
-  puts all of it on one dashboard.
+  puts all of it on one dashboard. :func:`loss_pattern_view` draws loss
+  patterns, simulated or measured, as a grid of packets.
 - :func:`sniff_during` captures the packets sent by a function running in the
   same notebook, :func:`skip_loopback_copies` removes the second copy of each
   packet that Scapy sees on the loopback interface, and :func:`decode_rtp`
@@ -35,7 +36,7 @@ import scapy.all as sa
 from bokeh.core.properties import value
 from bokeh.models import ColumnDataSource, HoverTool, Span
 
-from lib.core import G711, SAMPLE_RATE
+from lib.core import G711, SAMPLE_RATE, loss_bursts
 from lib.params import colors
 from lib.plots import FONT, GREY, card, histogram, legend_below, new_plot
 
@@ -503,7 +504,7 @@ def jitter_view(stream: pd.DataFrame, stats: dict):
     return pn.pane.Bokeh(plot)
 
 
-def burst_view(stats: dict, R: float | None = None):
+def burst_view(stats, R: float | None = None, title: str = "Lengths of loss bursts"):
     """
     Compare the lengths of loss bursts with the geometric distribution.
 
@@ -515,27 +516,30 @@ def burst_view(stats: dict, R: float | None = None):
 
     Parameters
     ----------
-    stats : dict
-        Output of :func:`stream_stats`.
+    stats : dict or array_like of int
+        Output of :func:`stream_stats`, or the burst lengths themselves, e.g.
+        from :func:`lib.core.loss_bursts` for a simulated loss pattern.
     R : float, optional
         Bad-to-good transition probability configured in netem [%]. Left out,
         the geometric distribution with the measured mean is drawn instead.
+    title : str, optional
+        Plot title, by default "Lengths of loss bursts".
 
     Returns
     -------
     panel.pane.Bokeh
         Relative frequency of each burst length with the model overlaid.
     """
-    bursts = stats["bursts"]
+    bursts = np.asarray(stats["bursts"] if isinstance(stats, dict) else stats)
     plot = new_plot(
-        "Lengths of loss bursts",
+        title,
         "Burst length [packets]",
         "Relative frequency [–]",
         width=500,
         height=400,
     )
     if bursts.size == 0:
-        plot.title.text = "Lengths of loss bursts: no losses"
+        plot.title.text = f"{title}: no losses"
         plot.text(
             [0],
             [0],
@@ -565,6 +569,61 @@ def burst_view(stats: dict, R: float | None = None):
     plot.xaxis.ticker = list(k)
     plot.y_range.start = 0
     return pn.pane.Bokeh(legend_below(plot))
+
+
+def loss_pattern_view(patterns: dict, columns: int = 100, nominal_ms: float = 20):
+    """
+    Draw loss patterns as grids of packets, one row per `columns` packets.
+
+    Independent and bursty loss at the same mean rate lose about as many
+    packets, but bursty loss gathers them into a few long runs. The grid
+    shows this at a glance: read each row from left to right.
+
+    Parameters
+    ----------
+    patterns : dict of str to array_like of bool
+        Loss patterns by name, True for every lost packet, e.g. from
+        :func:`lib.core.gilbert_elliott`.
+    columns : int, optional
+        Packets per row, by default 100, i.e. 2 s at 20 ms.
+    nominal_ms : float, optional
+        Packetization interval [ms], by default 20; labels the rows in seconds.
+
+    Returns
+    -------
+    panel.Column
+        One grid per pattern with the loss and the burst count in its title.
+    """
+    plots = []
+    for name, lost in patterns.items():
+        lost = np.asarray(lost, dtype=bool)
+        index = np.flatnonzero(lost)
+        rows = -(-lost.size // columns)
+        bursts = loss_bursts(lost)
+        plot = new_plot(
+            f"{name}: {100 * lost.mean():.2f} % lost in {bursts.size} bursts",
+            "Packet in row [–]",
+            "Start of row [s]",
+            width=700,
+            height=max(160, 40 + 9 * rows),
+            x_range=(-0.5, columns - 0.5),
+            y_range=(rows - 0.5, -0.5),
+        )
+        plot.rect(
+            x=index % columns,
+            y=index // columns,
+            width=0.9,
+            height=0.8,
+            color=RED,
+        )
+        step = max(1, rows // 6)
+        plot.yaxis.ticker = list(range(0, rows, step))
+        plot.yaxis.major_label_overrides = {
+            k: f"{k * columns * nominal_ms / 1000:g}" for k in range(0, rows, step)
+        }
+        plot.ygrid.grid_line_color = None
+        plots.append(pn.pane.Bokeh(plot))
+    return pn.Column(*plots)
 
 
 def analyze_capture(
