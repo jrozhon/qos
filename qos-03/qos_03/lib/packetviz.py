@@ -947,7 +947,8 @@ def roundtrip_view(block, encoding: str = "alaw"):
         raise TypeError(
             "roundtrip_view takes the samples of one block, not a table; for a "
             "pause from find_silences:\n"
-            "    start = silences.loc[np.isfinite(silences['level']), 'start'].iloc[0]\n"
+            "    quiet = silences[np.isfinite(silences['level'])]\n"
+            "    start = quiet['start'].iloc[0]\n"
             "    roundtrip_view(samples[start : start + SAMPLES_PER_PACKET])"
         )
     block = np.asarray(block, dtype=np.int16)

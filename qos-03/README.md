@@ -127,7 +127,23 @@ $$
 
 where $\hat{p}$ is the loss measured over $N$ packets [–] and $\lambda$ the memory of the chain [–]. Independent loss has $\lambda = 0$ and the binomial variance; at 3 % mean loss and a mean burst of 3 packets, $\lambda \approx 0.66$ and the variance is almost five times larger.
 
-The reference implementation is in `lib/core.py`. `markov_chain(transition, steps, rng)` simulates any chain from its transition matrix, `stationary_distribution(transition)` solves the stationary equations, `gilbert_elliott(count, p, r, rng)` returns the loss pattern of the Gilbert–Elliott model (with optional `loss_bad` and `loss_good`, netem's $1 - h$ and $1 - k$), `gilbert_elliott_params(loss, burst)` returns $P$ and $R$ for a mean loss and a mean burst length, and `loss_bursts(lost)` the lengths of the loss bursts of a pattern. All probabilities are fractions, not percent. Dropping packets from a list with bursty loss:
+The reference implementation is the `MarkovChain` class in `lib/core.py`. A chain is given by a *state dictionary* that lists, for every state, the states it can move to and the probabilities of doing so, that is, the non-zero elements of one row of $T$:
+
+```python
+chain = MarkovChain(
+    {
+        "good": (["good", "bad"], [1 - P, P]),
+        "bad": (["good", "bad"], [R, 1 - R]),
+    },
+    "good",  # initial state
+    rng,
+)
+chain.next_state()  # one random step; returns the new state
+chain.run(3000)  # the state after each of 3000 steps, one per packet
+chain.stationary_distribution()  # {"good": R / (P + R), "bad": P / (P + R)}
+```
+
+`check_state` and `set_state` read and set the state. `gilbert_elliott_dict(p, r)` builds the dictionary above, and `gilbert_elliott(count, p, r, rng)` returns the loss pattern of the Gilbert–Elliott model (with optional `loss_bad` and `loss_good`, netem's $1 - h$ and $1 - k$). `gilbert_elliott_params(loss, burst)` returns $P$ and $R$ for a mean loss and a mean burst length, and `loss_bursts(lost)` the lengths of the loss bursts of a pattern. All probabilities are fractions, not percent. Dropping packets from a list with bursty loss:
 
 ```python
 p, r = gilbert_elliott_params(loss=0.03, burst=3)  # P ≈ 0.0103, R ≈ 0.333
@@ -135,7 +151,7 @@ lost = gilbert_elliott(len(packets), p, r, rng)  # True for every lost packet
 kept = [pkt for pkt, gone in zip(packets, lost) if not gone]
 ```
 
-netem also offers a four-state model (`loss state`) that adds isolated losses within good periods; `markov_chain` simulates it with a 4 × 4 transition matrix.
+netem also offers a four-state model, `loss state p13 p31 p32 p23 p14`. Its states are 1, a packet received in a gap (a good period); 2, a packet received within a burst; 3, a packet lost within a burst; and 4, an isolated loss within a gap. A packet is lost when the chain enters state 3 or 4. The probability $p_{ij}$ moves the chain from state $i$ to state $j$; state 4 always returns to 1. Losses within a burst are thus interleaved with received packets ($p_{32}$, $p_{23}$), and single losses occur in good periods ($p_{14}$). With only $p_{13}$ and $p_{31}$ non-zero, the model is the Gilbert–Elliott chain with $P = p_{13}$ and $R = p_{31}$. `netem_state_dict(p13, p31, p32, p23, p14)` builds its state dictionary and `netem_state_loss(count, p13, p31, ...)` draws its loss pattern.
 
 ### Traffic control in Linux
 

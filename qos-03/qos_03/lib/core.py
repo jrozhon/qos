@@ -280,87 +280,223 @@ def rtp_packets(
 # ---------------------------------------------------------------------------
 #
 # A discrete-time Markov chain moves between a finite set of states once per
-# step, here once per packet. The next state depends only on the current one:
-# row i of the transition matrix T holds the probabilities of moving from
-# state i to every state, so each row sums to one. The Gilbert–Elliott model
-# of bursty loss is the chain with a good state 0 and a bad state 1,
+# step, here once per packet. The next state depends only on the current one.
+# The chain is described by a state dictionary: for every state, the states
+# it can move to and the probabilities of doing so, which sum to one,
 #
-#     T = | 1 − P    P   |
-#         |   R    1 − R |
+#     {"good": (["good", "bad"], [1 - P, P]),
+#      "bad":  (["good", "bad"], [R, 1 - R])}
 #
-# in which a packet is lost with one probability in the good state and with
-# another in the bad state. netem's `loss gemodel P R 1-h 1-k` is this chain:
-# P and R are the transition probabilities, 1 − h the loss probability in the
-# bad state, and 1 − k the loss probability in the good state.
+# This is the Gilbert–Elliott model of bursty loss: a packet is lost with one
+# probability in the good state and with another in the bad state. netem's
+# `loss gemodel P R 1-h 1-k` is this chain, and `loss state p13 p31 p32 p23
+# p14` is the four-state chain built by netem_state_dict().
 
 
-def markov_chain(transition, steps: int, rng=None, start: int = 0) -> np.ndarray:
+class MarkovChain:
     """
-    Simulate a discrete-time Markov chain.
+    General discrete-time Markov chain over named states.
+
+    `next_state` takes one random step; `run` takes many, one per packet, and
+    `stationary_distribution` gives the long-run share of each state.
 
     Parameters
     ----------
-    transition : array_like of float, shape (n, n)
-        Transition matrix: ``transition[i, j]`` is the probability of moving
-        from state i to state j in one step [–]. Every row sums to 1.
-    steps : int
-        Number of states to return [–].
+    state_dict : dict
+        For every state, a pair ``(next_states, probabilities)``: the states
+        reachable in one step and the probability of moving to each [–]. The
+        two-row arrays
+        ``np.array([["1", "3"], [p11, p13]])``, are accepted as well.
+    state : hashable
+        Initial state. A state not in `state_dict` falls back to the first
+        one, with a warning.
     rng : numpy.random.Generator, optional
         Random number generator, by default a new unseeded one.
-    start : int, optional
-        State of the first step, by default 0.
-
-    Returns
-    -------
-    numpy.ndarray of int
-        The state at every step; the first one is `start`.
     """
-    transition = np.asarray(transition, dtype=float)
-    n = transition.shape[0]
-    if transition.shape != (n, n) or np.any(transition < 0):
-        raise ValueError("the transition matrix must be square and non-negative")
-    if not np.allclose(transition.sum(axis=1), 1):
-        raise ValueError("every row of the transition matrix must sum to 1")
-    rng = rng if rng is not None else np.random.default_rng()
 
-    # The next state is the first one whose cumulative probability exceeds a
-    # uniform random number: state j is chosen with probability transition[i, j].
-    cumulative = np.cumsum(transition, axis=1)
-    cumulative[:, -1] = 1.0  # guard against rounding just below 1
-    uniform = rng.random(steps)
-    states = np.empty(steps, dtype=int)
-    state = start
-    for i in range(steps):
-        states[i] = state
-        state = int(np.searchsorted(cumulative[state], uniform[i], side="right"))
-    return states
+    def __init__(self, state_dict: dict, state, rng=None):
+        self.state_dict = state_dict
+        self.rng = rng if rng is not None else np.random.default_rng()
+        # For each state, the next states and their cumulative probabilities:
+        # a uniform random number u then selects the first state whose
+        # cumulative probability exceeds u, i.e. state j with probability p_j.
+        self._next = {}
+        for name, (targets, probabilities) in state_dict.items():
+            probabilities = np.asarray(probabilities, dtype=float)
+            if np.any(probabilities < 0) or not np.isclose(probabilities.sum(), 1):
+                raise ValueError(
+                    f"probabilities out of state {name!r} must be non-negative "
+                    f"and sum to 1, not {probabilities.sum()}"
+                )
+            missing = set(targets) - set(state_dict)
+            if missing:
+                raise ValueError(f"state {name!r} leads to unknown {missing}")
+            cumulative = np.cumsum(probabilities)
+            cumulative[-1] = 1.0  # guard against rounding just below 1
+            # Plain Python values, also for the NumPy strings of a 2-row array
+            targets = [t.item() if isinstance(t, np.generic) else t for t in targets]
+            self._next[name] = (targets, cumulative)
+        if state not in state_dict:
+            print("Warning: the state is not in the state dictionary; using the first.")
+            state = next(iter(state_dict))
+        self.state = state
+
+    def check_state(self, display: bool = True):
+        """Return the current state, and print it unless `display` is False."""
+        if display:
+            print(f"Current state: {self.state}")
+        return self.state
+
+    def set_state(self, state) -> None:
+        """Move the chain to `state` without a random step."""
+        if state not in self.state_dict:
+            raise ValueError(f"unknown state {state!r}")
+        self.state = state
+
+    def next_state(self):
+        """Take one random step and return the new state."""
+        targets, cumulative = self._next[self.state]
+        u = self.rng.random()
+        self.state = targets[int(np.searchsorted(cumulative, u, side="right"))]
+        return self.state
+
+    def run(self, steps: int) -> np.ndarray:
+        """
+        Take `steps` steps and return the state after each of them.
+
+        Parameters
+        ----------
+        steps : int
+            Number of steps, e.g. one per packet [–].
+
+        Returns
+        -------
+        numpy.ndarray
+            The states entered, in order; the initial state is not included.
+        """
+        return np.array([self.next_state() for _ in range(steps)])
+
+    def transition_matrix(self) -> tuple[list, np.ndarray]:
+        """
+        The state dictionary as a transition matrix.
+
+        Returns
+        -------
+        tuple
+            ``(states, T)``: the states in the order of `state_dict`, and the
+            matrix whose element ``T[i, j]`` is the probability of moving from
+            ``states[i]`` to ``states[j]`` [–]. Every row sums to 1.
+        """
+        states = list(self.state_dict)
+        index = {s: i for i, s in enumerate(states)}
+        matrix = np.zeros((len(states), len(states)))
+        for name, (targets, probabilities) in self.state_dict.items():
+            for target, p in zip(targets, np.asarray(probabilities, dtype=float)):
+                matrix[index[name], index[target]] += p
+        return states, matrix
+
+    def stationary_distribution(self) -> dict:
+        """
+        Long-run share of steps the chain spends in each state.
+
+        The stationary distribution π solves π · T = π with the elements of π
+        summing to 1. It is computed over the states reachable from the current
+        one; the others, e.g. state 2 of the four-state model when p23 = p32 =
+        0, are never visited and get 0. It is unique when every reachable
+        state can also be reached from every other.
+
+        Returns
+        -------
+        dict
+            Probability of each state [–].
+
+        Raises
+        ------
+        ValueError
+            If the long-run behaviour depends on the random steps taken, i.e.
+            the chain can end up in more than one closed group of states.
+        """
+        states, matrix = self.transition_matrix()
+        # States reachable from the current one through non-zero transitions
+        keep = {states.index(self.state)}
+        frontier = list(keep)
+        while frontier:
+            for j in np.flatnonzero(matrix[frontier.pop()] > 0):
+                if j not in keep:
+                    keep.add(int(j))
+                    frontier.append(int(j))
+        keep = sorted(keep)
+        sub = matrix[np.ix_(keep, keep)]
+        n = len(keep)
+        # (T^T − I) · π = 0 has a one-dimensional solution space when π is
+        # unique; the extra row of ones fixes the scale (probabilities sum to 1).
+        a = np.vstack([sub.T - np.eye(n), np.ones(n)])
+        if np.linalg.matrix_rank(a[:-1]) < n - 1:
+            raise ValueError("the stationary distribution is not unique")
+        b = np.concatenate([np.zeros(n), [1.0]])
+        pi = np.zeros(len(states))
+        pi[keep] = np.linalg.lstsq(a, b, rcond=None)[0]
+        return {name: float(x) for name, x in zip(states, pi)}
 
 
-def stationary_distribution(transition) -> np.ndarray:
+def gilbert_elliott_dict(p: float, r: float) -> dict:
     """
-    Long-run share of steps the chain spends in each state.
-
-    The stationary distribution π solves π · T = π with the elements of π
-    summing to 1. For an irreducible chain, one in which every state can be
-    reached from every other, it is unique and does not depend on the start.
+    State dictionary of the two-state Gilbert–Elliott chain.
 
     Parameters
     ----------
-    transition : array_like of float, shape (n, n)
-        Transition matrix, as for :func:`markov_chain`.
+    p : float
+        Probability of moving from the good to the bad state after a packet [–].
+    r : float
+        Probability of moving from the bad to the good state after a packet [–].
 
     Returns
     -------
-    numpy.ndarray of float
-        Probability of each state [–].
+    dict
+        States ``"good"`` and ``"bad"``, for :class:`MarkovChain`.
     """
-    transition = np.asarray(transition, dtype=float)
-    n = transition.shape[0]
-    # (T^T − I) · π = 0 has a one-dimensional solution space; the extra row
-    # of ones fixes the scale by requiring the probabilities to sum to 1.
-    a = np.vstack([transition.T - np.eye(n), np.ones(n)])
-    b = np.concatenate([np.zeros(n), [1.0]])
-    return np.linalg.lstsq(a, b, rcond=None)[0]
+    return {
+        "good": (["good", "bad"], [1 - p, p]),
+        "bad": (["good", "bad"], [r, 1 - r]),
+    }
+
+
+def netem_state_dict(
+    p13: float, p31: float, p32: float = 0.0, p23: float = 0.0, p14: float = 0.0
+) -> dict:
+    """
+    State dictionary of netem's four-state loss model (`loss state`).
+
+    The states are numbered as in netem: 1 packet received in a gap
+    (a good period), 2 packet received within a burst, 3 packet lost within
+    a burst, and 4 isolated loss within a gap. A packet is lost when the
+    chain enters state 3 or 4. With only p13 and p31 non-zero, the model is
+    the Gilbert–Elliott chain with P = p13 and R = p31.
+
+    Parameters
+    ----------
+    p13 : float
+        Gap to burst: probability that a burst of losses starts [–].
+    p31 : float
+        Burst to gap: probability that a burst ends [–].
+    p32 : float, optional
+        Lost to received within a burst [–], by default 0.
+    p23 : float, optional
+        Received to lost within a burst [–], by default 0.
+    p14 : float, optional
+        Probability of an isolated loss in a gap [–], by default 0.
+
+    Returns
+    -------
+    dict
+        States ``"1"`` to ``"4"``, for :class:`MarkovChain`.
+    """
+    return {
+        "1": (["1", "3", "4"], [1 - p13 - p14, p13, p14]),
+        "2": (["2", "3"], [1 - p23, p23]),
+        "3": (["1", "2", "3"], [p31, p32, 1 - p31 - p32]),
+        "4": (["1"], [1.0]),
+    }
 
 
 def gilbert_elliott(
@@ -374,9 +510,9 @@ def gilbert_elliott(
     """
     Draw a packet loss pattern from the Gilbert–Elliott model.
 
-    The chain starts in the good state, as in netem; ``gilbert_elliott(n, P, R)``
-    with P and R as fractions loses the packets that
-    ``tc qdisc add dev DEVICE root netem loss gemodel P% R% 100% 0%`` would.
+    The chain starts in the good state, as in netem, and takes one step per
+    packet; ``gilbert_elliott(n, P, R)`` with P and R as fractions has the
+    statistics of ``tc qdisc add dev DEVICE root netem loss gemodel P% R% 100% 0%``.
     Independent loss with probability q is the special case p = q, r = 1 − q:
     then the next state no longer depends on the current one.
 
@@ -401,8 +537,38 @@ def gilbert_elliott(
         True for every lost packet.
     """
     rng = rng if rng is not None else np.random.default_rng()
-    states = markov_chain([[1 - p, p], [r, 1 - r]], count, rng)  # 0 good, 1 bad
-    return rng.random(count) < np.where(states == 1, loss_bad, loss_good)
+    states = MarkovChain(gilbert_elliott_dict(p, r), "good", rng).run(count)
+    return rng.random(count) < np.where(states == "bad", loss_bad, loss_good)
+
+
+def netem_state_loss(
+    count: int,
+    p13: float,
+    p31: float,
+    p32: float = 0.0,
+    p23: float = 0.0,
+    p14: float = 0.0,
+    rng=None,
+) -> np.ndarray:
+    """
+    Draw a packet loss pattern from netem's four-state model.
+
+    Parameters
+    ----------
+    count : int
+        Number of packets [–].
+    p13, p31, p32, p23, p14 : float
+        Transition probabilities, as for :func:`netem_state_dict` [–].
+    rng : numpy.random.Generator, optional
+        Random number generator, by default a new unseeded one.
+
+    Returns
+    -------
+    numpy.ndarray of bool
+        True for every lost packet, i.e. every step into state 3 or 4.
+    """
+    chain = MarkovChain(netem_state_dict(p13, p31, p32, p23, p14), "1", rng)
+    return np.isin(chain.run(count), ["3", "4"])
 
 
 def gilbert_elliott_params(loss: float, burst: float) -> tuple[float, float]:

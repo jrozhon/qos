@@ -27,13 +27,15 @@ from lib.capture import (  # noqa: E402
 )
 from lib.core import (  # noqa: E402
     G711,
+    MarkovChain,
     gilbert_elliott,
+    gilbert_elliott_dict,
     gilbert_elliott_params,
     loss_bursts,
-    markov_chain,
+    netem_state_dict,
+    netem_state_loss,
     rtp_header,
     rtp_packets,
-    stationary_distribution,
 )
 from lib.packetviz import finalize, find_silences, packet_fields  # noqa: E402
 
@@ -186,22 +188,52 @@ class SilenceTests(unittest.TestCase):
 
 
 class MarkovTests(unittest.TestCase):
-    def test_chain_follows_the_transition_matrix(self):
-        rng = np.random.default_rng(1)
-        transition = np.array([[0.5, 0.5, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
-        states = markov_chain(transition, 200, rng, start=2)
-        self.assertEqual(states[0], 2)
-        pairs = set(zip(states[:-1].tolist(), states[1:].tolist()))
-        self.assertTrue(all(transition[i, j] > 0 for i, j in pairs))
+    def test_chain_follows_the_state_dictionary(self):
+        chain = MarkovChain(
+            {"a": (["a", "b"], [0.5, 0.5]), "b": (["c"], [1.0]), "c": (["a"], [1.0])},
+            "c",
+            np.random.default_rng(1),
+        )
+        states = chain.run(200)
+        self.assertEqual(chain.check_state(display=False), states[-1])
+        allowed = {("a", "a"), ("a", "b"), ("b", "c"), ("c", "a")}
+        pairs = set(zip(["c", *states[:-1]], states))
+        self.assertTrue(pairs <= allowed)
 
-    def test_invalid_matrix_is_refused(self):
+    def test_lecture_notebook_format_is_accepted(self):
+        # Two-row arrays: NumPy turns the probabilities into strings
+        state_dict = {
+            "1": np.array([["1", "3", "4"], [0.98, 0.02, 0.0]]),
+            "2": np.array([["2", "3"], [1.0, 0.0]]),
+            "3": np.array([["1", "2", "3"], [0.3, 0.0, 0.7]]),
+            "4": np.array([["1"], [1.0]]),
+        }
+        chain = MarkovChain(state_dict, "1")
+        self.assertIn(chain.next_state(), {"1", "3"})
+        pi = chain.stationary_distribution()
+        self.assertAlmostEqual(pi["3"], 0.02 / 0.32)
+        self.assertEqual(pi["2"], 0.0)  # unreachable from state 1
+
+    def test_invalid_probabilities_are_refused(self):
         with self.assertRaises(ValueError):
-            markov_chain([[0.5, 0.4], [0.5, 0.5]], 10)
+            MarkovChain({"a": (["a", "b"], [0.5, 0.4]), "b": (["a"], [1.0])}, "a")
 
     def test_stationary_distribution_of_gilbert_elliott(self):
         p, r = 0.02, 0.3
-        pi = stationary_distribution([[1 - p, p], [r, 1 - r]])
-        np.testing.assert_allclose(pi, [r / (p + r), p / (p + r)])
+        pi = MarkovChain(gilbert_elliott_dict(p, r), "good").stationary_distribution()
+        self.assertAlmostEqual(pi["good"], r / (p + r))
+        self.assertAlmostEqual(pi["bad"], p / (p + r))
+
+    def test_four_state_model_reduces_to_gilbert_elliott(self):
+        p, r = gilbert_elliott_params(loss=0.05, burst=4)
+        lost = netem_state_loss(200_000, p, r, rng=np.random.default_rng(4))
+        self.assertAlmostEqual(lost.mean(), 0.05, delta=0.005)
+        self.assertAlmostEqual(loss_bursts(lost).mean(), 4, delta=0.2)
+        pi = MarkovChain(
+            netem_state_dict(0.01, 0.3, 0.2, 0.4, 0.01), "1"
+        ).stationary_distribution()
+        self.assertAlmostEqual(sum(pi.values()), 1)
+        self.assertTrue(all(v > 0 for v in pi.values()))
 
     def test_params_give_mean_loss_and_burst(self):
         p, r = gilbert_elliott_params(loss=0.03, burst=3)
