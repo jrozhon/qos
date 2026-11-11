@@ -107,7 +107,7 @@ A *queueing system* serves incoming *requests* (customers, calls, packets) using
 - $N$ – the population size, the number of sources that can generate requests; default infinite,
 - $D$ – the queueing discipline, such as FIFO or LIFO; default FIFO.
 
-The distribution codes for $A$ and $B$ are M (*Markovian*: a Poisson process for $A$, an exponential distribution for $B$), D (deterministic, constant times), E<sub>k</sub> (Erlang of order $k$, the sum of $k$ independent exponential stages with the same mean), and G (general, any distribution). Trailing fields that take their default value are omitted, so M/M/1 means M/M/1/∞/∞/FIFO. A field can only be omitted together with every field after it: a LIFO queue with two servers is M/M/2/∞/∞/LIFO, not M/M/2. Because $K$ includes the requests in service, M/D/1/20 holds one packet in transmission and at most 19 waiting, and M/M/$C$/$C$ has no waiting positions at all: a request that finds every channel busy is lost.
+The distribution codes for $A$ and $B$ are M (*Markovian*: a Poisson process for $A$, an exponential distribution for $B$), D (deterministic, constant times), E<sub>k</sub> (Erlang of order $k$, the sum of $k$ independent exponential stages with the same mean), and G (general, any distribution). Trailing fields that take their default value are omitted, so M/M/1 means M/M/1/∞/∞/FIFO. A field can only be omitted together with every field after it: a LIFO queue with two servers is M/M/2/∞/∞/LIFO, not M/M/2. Because $K$ includes the requests in service, M/D/1/20 holds one packet in transmission and at most 19 waiting, and $\mathrm{M}/\mathrm{M}/C/C$ has no waiting positions at all: a request that finds every channel busy is lost.
 
 ### The M/M/1 system
 
@@ -196,7 +196,7 @@ $$
 
 where $A$ is the offered traffic in the busy hour [erl], BHCA the number of call attempts in the busy hour [–], and AHT the average holding time [s]. Both factors must use the same time unit: with 120 calls per hour and AHT = 3 min, $A = 2/\mathrm{min} \cdot 3\ \mathrm{min} = 6$ erl.
 
-A group of $N$ lines without waiting positions, where a call that finds all lines busy is lost, is the M/M/$N$/$N$ system. Its blocking probability is given by the *Erlang B* formula
+A group of $N$ lines without waiting positions, where a call that finds all lines busy is lost, is the $\mathrm{M}/\mathrm{M}/N/N$ system. Its blocking probability is given by the *Erlang B* formula
 
 $$
 E_B(A, N) = \frac{\dfrac{A^N}{N!}}{\displaystyle\sum_{i=0}^{N} \dfrac{A^i}{i!}}
@@ -204,7 +204,7 @@ $$
 
 where $E_B$ is the probability that an arriving call is blocked [–], $A$ the offered traffic [erl], and $N$ the number of lines [–]. For example, $N = 3$ lines offered $A = 1.5$ erl give the terms $1,\ 1.5,\ 1.125,\ 0.5625$ for $i = 0 \dots 3$, so $E_B = 0.5625 / 4.1875 \approx 0.134$, or 13.4 %.
 
-If a call that finds all $N$ servers busy waits instead, with unlimited waiting room and nobody hanging up, the system is M/M/$N$ and stable only for $A < N$. The probability that a call has to wait is given by the *Erlang C* formula, and the mean wait follows from it:
+If a call that finds all $N$ servers busy waits instead, with unlimited waiting room and nobody hanging up, the system is $\mathrm{M}/\mathrm{M}/N$ and stable only for $A < N$. The probability that a call has to wait is given by the *Erlang C* formula, and the mean wait follows from it:
 
 $$
 E_C(A, N) = \frac{\dfrac{A^N}{N!} \cdot \dfrac{N}{N - A}}{\displaystyle\sum_{i=0}^{N-1} \dfrac{A^i}{i!} + \dfrac{A^N}{N!} \cdot \dfrac{N}{N - A}}, \qquad t_c = \frac{E_C \cdot \mathrm{AHT}}{N - A}
