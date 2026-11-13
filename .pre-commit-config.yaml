@@ -1,0 +1,30 @@
+# Authoring checks for lesson material. Enable once per clone with
+#   uvx pre-commit install
+# and run on everything with
+#   uvx pre-commit run --all-files
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+        # Keep cell ids so notebook diffs stay small.
+        args: [--keep-id]
+        files: ^qos-\d+/
+  - repo: local
+    hooks:
+      - id: check-readme-math
+        name: README inline math vs. emphasis
+        entry: python3 scripts/check_readme_math.py
+        language: system
+        files: ^qos-\d+/README\.md$
+      - id: check-shared-code
+        name: shared helpers identical across lessons
+        entry: python3 scripts/check_shared_code.py
+        language: system
+        files: ^qos-\d+/qos_\d+/lib/(params|plots|core)\.py$
+        pass_filenames: false
+      - id: check-notebook-outputs
+        name: notebooks without saved outputs
+        entry: python3 scripts/check_notebook_outputs.py
+        language: system
+        files: ^qos-\d+/qos_\d+/.*\.ipynb$

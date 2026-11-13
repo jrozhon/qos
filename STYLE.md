@@ -391,5 +391,6 @@ Cards use the neutral tints, not ad-hoc greys:
 3. README follows the §4.2 skeleton; H1 is `# Lab NN – Title`.
 4. Every equation has a "where" list with units; renders on GitHub; `python3 scripts/check_readme_math.py` reports no emphasis clashes (§4.3).
 5. Every figure has unit-bearing axis labels, a sentence-case title, the logo, and any legend placed with `add_legend(ax)` rather than inside the axes.
-6. `lib/params.py` still identical across lessons (`md5sum qos-0*/qos_0*/lib/params.py`).
+6. `lib/params.py`, `card_html` and the qos-03 copy of `lib/plots.py` still identical across lessons (`python3 scripts/check_shared_code.py`).
 7. No emoji, no shortcode icons, no exclamation marks in prose.
+8. Notebooks saved without outputs (`python3 scripts/check_notebook_outputs.py`).

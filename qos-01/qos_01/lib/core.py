@@ -98,12 +98,17 @@ def card_html(title: str, rows: list[tuple[str, str]], note: str = "") -> str:
     """
     Build the HTML of a result card in the course style (STYLE.md §5.3).
 
+    The same card is used in Labs 01-03: a heading, a two-column table of
+    labelled values, and an optional note saying what the numbers count and
+    where they were read from.
+
     Parameters
     ----------
     title : str
         Card heading.
     rows : list[tuple[str, str]]
-        ``(label, value)`` pairs rendered as a two-column table.
+        ``(label, value)`` pairs rendered as a two-column table. A label carries
+        its unit in square brackets; both may contain HTML markup.
     note : str, optional
         Small print rendered below the table, by default none.
 
@@ -119,7 +124,8 @@ def card_html(title: str, rows: list[tuple[str, str]], note: str = "") -> str:
         for label, value in rows
     )
     note_html = (
-        f"<p style='margin:8px 0 0;font-size:13px;color:{GREY}'>{note}</p>"
+        f"<p style='margin:8px 0 0;font-size:13px;line-height:1.4;color:{GREY}'>"
+        f"{note}</p>"
         if note
         else ""
     )

@@ -193,9 +193,9 @@ def card_html(title: str, rows: list[tuple[str, str]], note: str = "") -> str:
     """
     Build the HTML of a result card in the course style (STYLE.md §5.3).
 
-    Identical to the card of Lab 01: a heading, a two-column table of labelled
-    values, and an optional note saying what the numbers count and where they
-    were read from.
+    The same card is used in Labs 01-03: a heading, a two-column table of
+    labelled values, and an optional note saying what the numbers count and
+    where they were read from.
 
     Parameters
     ----------
