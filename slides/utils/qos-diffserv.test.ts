@@ -78,8 +78,7 @@ test("bleach puts voice into B's BE queue", () => {
   const bleach = make({ ...cfg, boundary: 'bleach' }, { voice: 5 }); run(bleach, 40)
   assert.equal(trust.stats.voice.dropped, 0)
   assert.ok(bleach.stats.voice.dropped > 0)
-  // propagation (8 hops x 0.2 s) dominates the trusted delay, so the ratio is far below 5x
-  assert.ok(bleach.meanDelayMs('voice') > trust.meanDelayMs('voice') + 100)
+  assert.ok(bleach.meanDelayMs('voice') > 5 * trust.meanDelayMs('voice'))
 })
 
 test('remark maps AF41 to AF31 in B', () => {

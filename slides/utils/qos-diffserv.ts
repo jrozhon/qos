@@ -8,9 +8,10 @@
 //    packets per simulated second, starting at a seeded random phase;
 //  - every fast link is only a delay (hopTime); the queue and the scheduler live
 //    at the output of C1 (link C1>C2) and C3 (link C3>E4), and the served packet
-//    then travels the link in hopTime; delay is measured from creation at S (or
-//    E3 for cross traffic) to arrival at R (or E4 for cross traffic), so it
-//    includes 8 hops of propagation;
+//    then travels the link in hopTime; hopTime is an animation device, so the
+//    reported delay is only the queuing delay at the bottleneck schedulers
+//    (waiting + serialization, summed over the bottlenecks passed), and the
+//    animation travel time counts zero;
 //  - the packet being served stays counted in its class queue until it leaves;
 //  - the trTCM (RFC 2698, colour-blind) and the EF policers are token buckets
 //    in Mbit refilled lazily when a packet arrives; each packet takes PKT_BITS;
@@ -134,6 +135,7 @@ export class DiffServSim {
   private nextPkt = 1
   private nextFlow = 1
   private recs = new Map<number, FlowRec>()
+  private wait = new Map<Pkt, { acc: number, enq: number }>()   // bottleneck queuing delay per packet
   private onLink = new Map<Pkt, number>()   // packet -> time it entered the link
   private serving = new Map<LinkId, { pkt: Pkt, cls: QueueClass }>()
   private credits = new Map<LinkId, Record<'AF4' | 'AF3' | 'BE', number>>()
@@ -150,7 +152,7 @@ export class DiffServSim {
 
   private init(): void {
     this.time = 0; this.heap = []; this.seq = 0; this.nextPkt = 1
-    this.flows = []; this.recs.clear(); this.inFlight = []; this.onLink.clear()
+    this.flows = []; this.recs.clear(); this.inFlight = []; this.onLink.clear(); this.wait.clear()
     this.serving.clear(); this.credits.clear(); this.drops = []
     this.queues = Object.fromEntries(LINKS.map(l => [l, emptyQueues()])) as Record<LinkId, Record<QueueClass, Pkt[]>>
     this.stats = { voice: newStats(), video: newStats(), data: newStats(), cross: newStats() }
@@ -202,6 +204,7 @@ export class DiffServSim {
     this.syncInFlight()
   }
 
+  /** Mean queuing delay at the bottlenecks (waiting + serialization) of delivered packets in ms; animation travel time excluded; NaN if none. */
   meanDelayMs(kind: FlowKind): number {
     const s = this.stats[kind]
     return s.delivered ? s.delaySum / s.delivered * 1000 : NaN
@@ -281,6 +284,7 @@ export class DiffServSim {
         const s = this.serving.get(ev.link)!
         this.serving.delete(ev.link)
         this.queues[ev.link][s.cls].shift()
+        const w = this.wait.get(s.pkt)!; w.acc += this.time - w.enq
         this.launch(s.pkt, ev.link)
         this.startService(ev.link)
       }
@@ -307,7 +311,7 @@ export class DiffServSim {
   }
 
   private drop(pkt: Pkt, node: NodeId, reason: DropReason): void {
-    pkt.at = node; pkt.link = null
+    pkt.at = node; pkt.link = null; this.wait.delete(pkt)
     if (pkt.kind !== 'cross') this.stats[pkt.kind].dropped++; else this.stats.cross.dropped++
     this.drops.push({ pkt, node, reason })
     if (this.drops.length > DROP_RING) this.drops.shift()
@@ -318,7 +322,7 @@ export class DiffServSim {
     pkt.at = node; pkt.link = null; pkt.t = 0
     if (node === 'R' || (node === 'E4' && pkt.kind === 'cross')) {
       const s = this.stats[pkt.kind]
-      s.delivered++; s.delaySum += this.time - pkt.born
+      s.delivered++; s.delaySum += this.wait.get(pkt)?.acc ?? 0; this.wait.delete(pkt)
       return
     }
     if (node === 'E1' && !this.classify(pkt)) return
@@ -373,6 +377,8 @@ export class DiffServSim {
     if (q.length >= limit) { this.drop(pkt, node, 'queue'); return }
     pkt.at = node; pkt.link = link; pkt.t = 0
     q.push(pkt)
+    const w = this.wait.get(pkt)
+    if (w) w.enq = this.time; else this.wait.set(pkt, { acc: 0, enq: this.time })
     if (!this.serving.has(link)) this.startService(link)
   }
 
