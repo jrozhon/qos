@@ -220,7 +220,7 @@ Subjective methods collect judgments from listeners. Objective models estimate l
 |---|---|---|
 | Absolute Category Rating (ACR) | Quality of a sample presented on its own | Mean opinion score (MOS) |
 | Degradation Category Rating (DCR) | Degradation of a sample relative to the clean reference played first | Degradation mean opinion score (DMOS) |
-| Perceptual Evaluation of Speech Quality (PESQ) | A model's comparison of reference and degraded speech | Raw prediction and, where provided, its mapped listening-quality estimate |
+| Perceptual Evaluation of Speech Quality (PESQ) | A model's comparison of reference and degraded speech | Raw prediction, mapped to MOS-LQO by ITU-T P.862.1 |
 | Virtual Speech Quality Objective Listener (ViSQOL) | A model's comparison of reference and degraded audio | Mean opinion score – listening quality objective (MOS-LQO) |
 
 Use these rating anchors, following [ITU-T P.800](https://www.itu.int/rec/T-REC-P.800-199608-I/en):
@@ -323,7 +323,7 @@ For the commands in Steps 4–6, work in `qos-03/qos_03/`. Create a `results/` d
 | Observation | Capture duration, sent and received packet counts, measured loss, and jitter |
 | Quality evaluation | Reference file, reconstruction method, listener count, and model version/settings |
 
-Step 1 uses the student's local Wireshark installation and telephone client. Packet generation, replay, reconstruction, and scoring run on the laboratory servers. Use the available PESQ and ViSQOL executables by setting their paths in the notebook. Source-build instructions are provided below as optional setup; a missing executable produces an unavailable score (`NaN`), not a zero quality rating.
+Step 1 uses the student's local Wireshark installation and telephone client. Packet generation, replay, reconstruction, and scoring run on the laboratory servers. Scoring uses the `pesq-py` and `visqol` commands, installed system-wide from Debian packages (see *Scoring tools* below); the notebook expects them in `/usr/bin`. A missing tool produces an unavailable score (`NaN`), not a zero quality rating.
 
 ### Step 1 – Make a call and capture it
 
@@ -409,31 +409,24 @@ Use `--codec mulaw` for PCMU. Name each output `output_<model>_<loss>.wav`, usin
 
 For listening tests, use consistent headphones, playback level, and a quiet setting. Assign anonymous sample labels and randomize the order of conditions. Collect ACR ratings separately from DCR ratings; for DCR, always play the reference before the degraded version. Retain individual ratings and report their mean, spread, and listener count. A small classroom group illustrates the method but does not establish a population-wide quality ranking.
 
-Set `PESQ_BIN` in the notebook and use its *Quality evaluation* section to score the files. Label the mapped PESQ score as MOS-LQO where available, and identify raw predictions separately. Tabulate configured and observed loss, jitter, ACR MOS, DCR DMOS, and objective estimates.
+Use the notebook's *Quality evaluation* section to score the files with `pesq-py` (`PESQ_BIN`). It reports the narrowband P.862 prediction mapped to MOS-LQO by P.862.1; run `pesq-py reference.wav output.wav` on a pair to see the raw score as well. Tabulate configured and observed loss, jitter, ACR MOS, DCR DMOS, and objective estimates.
 
 ### Step 6 – Score with ViSQOL
 
-Set `VISQOL_BIN` to the available executable and run the notebook's scoring cells. The helper resamples both files to 16 kHz and invokes speech mode. It uses `--use_unscaled_speech_mos_mapping`; record this option with the tool version because score mapping affects comparisons.
+Run the notebook's scoring cells with `visqol` (`VISQOL_BIN`). The helper resamples both files to 16 kHz and invokes speech mode with the packaged deep lattice model (`VISQOL_MODEL` in `lib/core.py`) and `--use_unscaled_speech_mos_mapping`; record the model and options with the tool version because score mapping affects comparisons.
 
-The notebook combines these estimates with hand-entered network statistics and listener ratings. Treat `NaN` as an unavailable result and check executable paths if a score is missing. Compare how the methods rank the conditions and where their trends disagree. Do not infer a universal ordering of PESQ and ViSQOL from one recording or a small listener group.
+The notebook combines these estimates with hand-entered network statistics and listener ratings. Treat `NaN` as an unavailable result and check that both packages are installed if a score is missing. Compare how the methods rank the conditions and where their trends disagree. Do not infer a universal ordering of PESQ and ViSQOL from one recording or a small listener group.
 
-### Optional setup – Build the scoring tools
+### Scoring tools
 
-If source builds are needed, prepare them separately from the measurements. For PESQ, use the reference C sources linked in References and run this command in their directory:
-
-```bash
-gcc -o PESQ *.c -lm -fcommon
-```
-
-For ViSQOL, follow the dependencies and version requirements in its [build documentation](https://github.com/google/visqol#build). From a chosen tools directory:
+Both tools are installed system-wide from Debian packages, once per laboratory server (or on your own Debian/Ubuntu machine):
 
 ```bash
-git clone https://github.com/google/visqol.git
-cd visqol
-bazel build :visqol -c opt
+sudo apt install ./support/visqol_0.0.0-1local1_amd64.deb   # from the repository root: ViSQOL v3 binary and models
+sudo apt install ./pesq-py_0.1.0-1_all.deb                  # from the teacher: PESQ, NumPy port of the P.862 reference
 ```
 
-Record the source revision and set the absolute executable paths in the notebook. Build steps do not need to be repeated for each measurement.
+The ViSQOL package is built for Ubuntu 24.04 on x86-64 from the [ViSQOL sources](https://github.com/google/visqol). The PESQ package is not part of this repository: the P.862 reference software may not be redistributed, so the package is handed out by the teacher for use in this course only. Do not copy it elsewhere. `pesq-py` runs on the system Python 3 with NumPy and SciPy, which the package pulls in.
 
 ### Results to retain
 
@@ -457,7 +450,7 @@ Save the completed notebook, clean and received captures, reconstructed WAV file
 3. ITU-T Recommendation G.711, *Pulse code modulation (PCM) of voice frequencies*, 1988.
 4. ITU-T Recommendation G.114, *One-way transmission time*, 2003.
 5. ITU-T Recommendation P.800, *Methods for subjective determination of transmission quality*, 1996.
-6. ITU-T Recommendation P.862, *Perceptual evaluation of speech quality (PESQ)*, 2001. Reference sources: https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing (requires GCC 9 or newer with `-fcommon`).
+6. ITU-T Recommendation P.862, *Perceptual evaluation of speech quality (PESQ)*, 2001. Reference sources: https://drive.google.com/file/d/15UCvcW7bdYVAVa3g9aXji06x0WfAOdYE/view?usp=sharing.
 7. M. Chinen, F. S. C. Lim, J. Skoglund, N. Gureev, F. O'Gorman, and A. Hines, "ViSQOL v3: An Open Source Production Ready Objective Speech and Audio Metric," in *Proc. 12th Int. Conf. on Quality of Multimedia Experience (QoMEX)*, 2020. Source: https://github.com/google/visqol.
 8. Scapy documentation, https://scapy.readthedocs.io/.
 9. `tc-netem(8)` manual page; tcpreplay documentation, https://tcpreplay.appneta.com/.

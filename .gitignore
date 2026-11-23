@@ -9,3 +9,6 @@ support/quiz/out/*
 uv.lock
 
 slides/node_modules/
+
+# PESQ package: private, distributed outside the repository (qos-03 README)
+support/pesq-py*.deb

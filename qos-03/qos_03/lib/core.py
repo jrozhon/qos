@@ -7,7 +7,8 @@ implementations of the RTP header and the packet stream are what the notebook
 asks students to write themselves first. The Markov chain functions simulate
 packet loss, independent or bursty as in netem's Gilbert–Elliott model and its
 simpler variants, the Gilbert and the simple Gilbert model.
-The scoring wrappers at the end call the external PESQ and ViSQOL executables.
+The scoring wrappers at the end call the external PESQ and ViSQOL command-line
+tools, installed system-wide from Debian packages (README, Preparation).
 """
 
 import re
@@ -648,13 +649,19 @@ def loss_bursts(lost) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Objective speech quality: wrappers around the PESQ and ViSQOL binaries
+# Objective speech quality: wrappers around the PESQ and ViSQOL tools
 # ---------------------------------------------------------------------------
 
-# Default locations of the two command-line tools. Override them in the
-# notebook or pass explicit paths to score_pair().
-PESQ_BIN = Path.home() / "PESQ" / "PESQ"
-VISQOL_BIN = Path.home() / "visqol" / "bazel-bin" / "visqol"
+# Default locations of the two command-line tools, as installed by the
+# pesq-py and visqol Debian packages. Override them in the notebook or pass
+# explicit paths to score_pair().
+PESQ_BIN = Path("/usr/bin/pesq-py")
+VISQOL_BIN = Path("/usr/bin/visqol")
+# Deep lattice network that maps ViSQOL's speech similarity to MOS-LQO.
+VISQOL_MODEL = Path(
+    "/usr/share/visqol/model/"
+    "lattice_tcditugenmeetpackhref_ls2_nl60_lr12_bs2048_learn.005_ep2400_train1_7_raw.tflite"
+)
 
 VISQOL_RATE = 16000  # sample rate expected by the ViSQOL speech model [Hz]
 
@@ -690,7 +697,10 @@ def resample_wav(src: Path, dst: Path, rate: int) -> Path:
 
 def run_pesq(reference: Path, degraded: Path, pesq_bin: Path = PESQ_BIN) -> float:
     """
-    Score a degraded file against its reference with the ITU-T P.862 binary.
+    Score a degraded file against its reference with ITU-T P.862 PESQ.
+
+    Calls ``pesq-py``, a NumPy port of the P.862 reference implementation,
+    in narrowband mode with the P.862.1 mapping to MOS-LQO.
 
     Parameters
     ----------
@@ -699,30 +709,33 @@ def run_pesq(reference: Path, degraded: Path, pesq_bin: Path = PESQ_BIN) -> floa
     degraded : Path
         Degraded WAV with the same format.
     pesq_bin : Path, optional
-        Path to the compiled PESQ executable.
+        Path to the ``pesq-py`` command.
 
     Returns
     -------
     float
-        MOS-LQO [-], or NaN if the binary is missing or produced no score.
+        MOS-LQO [-], or NaN if the tool is missing or produced no score.
     """
     if not Path(pesq_bin).is_file():
         return float("nan")
-    fs, _ = wavfile.read(reference)
     out = subprocess.run(
-        [str(pesq_bin), f"+{fs}", str(reference), str(degraded)],
+        [str(pesq_bin), str(reference), str(degraded)],
         capture_output=True,
         text=True,
-        cwd=tempfile.gettempdir(),  # PESQ writes _pesq_results.txt into cwd
     )
-    # e.g. "P.862 Prediction (Raw MOS, MOS-LQO):  = 3.868   3.976"
+    # e.g. "P.862 Prediction (Raw MOS, MOS-LQO):  = 3.868	3.976"
     m = re.search(r"Prediction[^=]*=\s*([\d.]+)(?:\s+([\d.]+))?", out.stdout)
     if not m:
         return float("nan")
     return float(m.group(2) or m.group(1))
 
 
-def run_visqol(reference: Path, degraded: Path, visqol_bin: Path = VISQOL_BIN) -> float:
+def run_visqol(
+    reference: Path,
+    degraded: Path,
+    visqol_bin: Path = VISQOL_BIN,
+    model: Path = VISQOL_MODEL,
+) -> float:
     """
     Score a degraded file against its reference with ViSQOL in speech mode.
 
@@ -735,12 +748,15 @@ def run_visqol(reference: Path, degraded: Path, visqol_bin: Path = VISQOL_BIN) -
     degraded : Path
         Degraded WAV with the same format.
     visqol_bin : Path, optional
-        Path to the ViSQOL executable built with Bazel.
+        Path to the ViSQOL executable.
+    model : Path, optional
+        Similarity-to-quality model; the packaged wrapper requires one in
+        speech mode.
 
     Returns
     -------
     float
-        MOS-LQO [-], or NaN if the binary is missing or produced no score.
+        MOS-LQO [-], or NaN if the tool is missing or produced no score.
     """
     if not Path(visqol_bin).is_file():
         return float("nan")
@@ -756,12 +772,11 @@ def run_visqol(reference: Path, degraded: Path, visqol_bin: Path = VISQOL_BIN) -
                 str(deg16),
                 "--use_speech_mode",
                 "--use_unscaled_speech_mos_mapping",
+                "--similarity_to_quality_model",
+                str(model),
             ],
             capture_output=True,
             text=True,
-            cwd=Path(visqol_bin).parents[
-                1
-            ],  # model files are resolved relative to the repo
         )
     m = re.search(r"MOS-LQO:\s*([\d.]+)", out.stdout)
     return float(m.group(1)) if m else float("nan")
@@ -783,7 +798,7 @@ def score_pair(
     degraded : Path
         Degraded WAV with the same format.
     pesq_bin, visqol_bin : Path, optional
-        Locations of the PESQ and ViSQOL executables.
+        Locations of the ``pesq-py`` and ``visqol`` commands.
 
     Returns
     -------
