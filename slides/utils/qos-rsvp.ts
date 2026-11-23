@@ -12,12 +12,16 @@
 //    are reset when RESV reaches S;
 //  - one fixed path, no merging, no teardown messages (removeFlow clears
 //    the state at once, as a PathTear would);
+//  - a refused flow keeps its PATH state until it times out (nobody refreshes it);
+//  - RESV does not need PATH state to install: after failRouter mid-signalling the
+//    reservation completes and the next PATH refresh restores the router's path state;
+//  - with refresh off, failRouter leaves a reserved flow with a hole until it expires;
 //  - only the bottleneck links ever run out of capacity (see qos-topology.ts).
 // All randomness (flow kinds) comes from a seeded PRNG, so a run replays exactly.
 
 import {
   type Capacities, type FlowKind, type LinkId, type NodeId,
-  FLOW_RATE, ROUTERS, drawKind, linkCapacity, mulberry32, next, prev,
+  FLOW_RATE, PATH, ROUTERS, drawKind, linkCapacity, mulberry32, next, prev,
 } from './qos-topology.ts'
 import type { Rand } from './qos-topology.ts'
 
@@ -46,7 +50,7 @@ const REAL_REFRESH_PERIOD = 30
 /** Tolerance for floating-point time comparisons. */
 const EPS = 1e-9
 
-const ALL_NODES: NodeId[] = ['S', 'E1', 'C1', 'C2', 'E2', 'E3', 'C3', 'E4', 'R']
+const ALL_NODES = PATH
 
 function emptyTables<T>(): Record<NodeId, Map<number, T>> {
   return Object.fromEntries(ALL_NODES.map(n => [n, new Map<number, T>()])) as Record<NodeId, Map<number, T>>
@@ -269,7 +273,9 @@ export class RsvpSim {
       flow.status = 'refused'
       flow.refusedAt = at
       flow.reason = reason
-      for (const n of ROUTERS) this.resv[n].delete(flow.id) // upstream leftovers of a refused refresh
+      // Downstream entries are removed hop by hop by the ResvErr; upstream ones
+      // (only present after a refused refresh) are out of its reach, so drop them now.
+      for (const n of ROUTERS) if (PATH.indexOf(n) <= PATH.indexOf(at)) this.resv[n].delete(flow.id)
       this.send('ResvErr', flow.id, at, next(at)!, false)
       return false
     }

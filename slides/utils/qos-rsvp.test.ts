@@ -96,8 +96,12 @@ test('reset is deterministic', () => {
   const sim = new RsvpSim({ seed: 7 })
   const snap = () => {
     for (let i = 0; i < 10; i++) sim.addFlow()
-    run(sim, 10)
-    return sim.flows.map(f => [f.kind, f.status])
+    const early: unknown[] = []
+    for (let i = 0; i < 10; i++) {
+      run(sim, 1)
+      early.push(sim.msgs.map(m => [m.type, m.flow, m.from, m.to, Math.round(m.t * 1000)]))
+    }
+    return { early, flows: sim.flows.map(f => [f.id, f.kind, f.status, f.refusedAt]) }
   }
   const a = snap(); sim.reset(); assert.equal(sim.time, 0); assert.equal(sim.flows.length, 0)
   const b = snap()
@@ -140,4 +144,74 @@ test('many flows refresh without animated messages', () => {
   for (let i = 0; i < 4000; i++) { sim.tick(0.01); refreshMsgs += sim.msgs.filter(m => m.refresh).length }
   assert.equal(refreshMsgs, 0)
   assert.ok(sim.flows.every(f => f.status === 'reserved'))
+})
+
+test('ResvErr removes downstream entries hop by hop', () => {
+  const sim = new RsvpSim({ seed: 1, cap: { A: 2, B: 100 } })
+  const first = sim.addFlow('video'); run(sim, 5)
+  const f = sim.addFlow('video')
+  // added at t=5: PATH done at 7, RESV reaches C1 (refusal) 6 hops later, at 8.5
+  runUntil(sim, 8.5 + 0.05)
+  assert.equal(f.status, 'refused'); assert.equal(f.refusedAt, 'C1')
+  for (const r of ['C2', 'E2', 'E3', 'C3', 'E4']) assert.equal(sim.resv[r].has(f.id), true, r)
+  runUntil(sim, 8.5 + 0.25 + 0.05) // ResvErr has passed C2
+  assert.equal(sim.resv.C2.has(f.id), false); assert.equal(sim.resv.E2.has(f.id), true)
+  runUntil(sim, 8.5 + 5 * 0.25 + 0.05) // and E4
+  noResv(sim, f.id, ROUTERS)
+  assert.equal(first.status, 'reserved')
+})
+
+test('removeFlow with messages in flight leaves no stray state', () => {
+  const sim = new RsvpSim({ seed: 1 }); const f = sim.addFlow('voice')
+  sim.tick(1) // PATH in flight
+  sim.removeFlow(f.id)
+  run(sim, 15)
+  assert.equal(sim.msgs.length, 0)
+  for (const r of ROUTERS) assert.equal(sim.stateCount(r), 0)
+  const g = sim.addFlow('voice'); sim.tick(2.6) // RESV in flight
+  sim.removeFlow(g.id); run(sim, 15)
+  assert.equal(sim.msgs.length, 0)
+  for (const r of ROUTERS) assert.equal(sim.stateCount(r), 0)
+})
+
+test('failRouter mid-signalling: RESV still installs, refresh restores PATH state', () => {
+  const sim = new RsvpSim({ seed: 1 }); const f = sim.addFlow('voice')
+  sim.tick(2.6) // PATH done, RESV on its way back
+  sim.failRouter('C1')
+  sim.tick(1.5) // RESV has passed C1
+  assert.equal(sim.resv.C1.has(f.id), true); assert.equal(sim.path.C1.has(f.id), false)
+  run(sim, 10)
+  assert.equal(f.status, 'reserved'); assert.equal(sim.path.C1.has(f.id), true)
+})
+
+test('failRouter recovery refused when capacity is gone', () => {
+  const sim = new RsvpSim({ seed: 1, cap: { A: 10, B: 100 } }); const f = sim.addFlow('video'); run(sim, 10)
+  sim.failRouter('C1'); sim.cfg.cap.A = 1
+  run(sim, 6)
+  assert.equal(f.status, 'refused'); assert.equal(f.refusedAt, 'C1'); assert.equal(f.reason, 'capacity')
+  noResv(sim, f.id, ROUTERS)
+  assert.equal(sim.reserved('C1>C2'), 0)
+})
+
+test('refresh switched off and on again', () => {
+  const sim = new RsvpSim({ seed: 1, refresh: false }); const f = sim.addFlow('voice'); run(sim, 8)
+  sim.cfg.refresh = true; run(sim, 30)
+  assert.equal(f.status, 'reserved')
+  sim.cfg.refresh = false; run(sim, 15)
+  assert.equal(f.status, 'expired')
+  sim.cfg.refresh = true; run(sim, 15) // an expired flow is not revived by refreshes
+  assert.equal(f.status, 'expired'); assert.equal(sim.reserved('C1>C2'), 0)
+})
+
+test('one large tick equals many small ticks with many flows', () => {
+  const make = () => {
+    const sim = new RsvpSim({ seed: 3, cap: { A: 10, B: 10 } })
+    for (let i = 0; i < 30; i++) sim.addFlow()
+    return sim
+  }
+  const a = make(), b = make()
+  run(a, 40); b.tick(40)
+  assert.deepEqual(b.flows.map(f => [f.status, f.refusedAt]), a.flows.map(f => [f.status, f.refusedAt]))
+  for (const r of ROUTERS) assert.equal(b.stateCount(r), a.stateCount(r), r)
+  assert.equal(b.reserved('C1>C2'), a.reserved('C1>C2'))
 })
