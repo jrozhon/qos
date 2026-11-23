@@ -22,7 +22,16 @@
 //  - origDscp is the DSCP E1 gave the packet by kind (EF / AF41 / CS0), before the
 //    meter re-marked it and before the E3 boundary changed it;
 //  - the model is event driven, so one tick(dt) equals many smaller ones.
-// All randomness (flow kinds, phases) comes from a seeded PRNG, so a run replays exactly.
+//  - cross traffic in B is a Poisson stream: exponential gaps with mean PKT_BITS / crossB,
+//    drawn from a second PRNG seeded from the same seed, so flow kinds do not depend on
+//    when cross traffic was switched on (constant gaps would arrive in lockstep with the
+//    bottleneck's departures and lock one source out of the tail of a full queue);
+//  - for the same reason the inter-domain link E2>E3 adds a seeded random delay of up to
+//    one packet's serialisation at B's bottleneck (PKT_BITS / cap.B): A's packets leave a
+//    saturated C1 exactly one serialisation apart, and with equal bottlenecks they would
+//    otherwise reach C3 in lockstep with its departures and always take the freed slot.
+//    Like hopTime, this is travel time and is not counted in the reported delay.
+// All randomness (flow kinds, phases, cross-traffic gaps) comes from seeded PRNGs, so a run replays exactly.
 
 import {
   type Capacities, type FlowKind, type LinkId, type NodeId, type Rand,
@@ -101,7 +110,7 @@ export interface DropRecord { pkt: Pkt, node: NodeId, reason: DropReason }
 
 const DEFAULTS: DsConfig = {
   cap: { A: 100, B: 100 }, boundary: 'trust', crossB: 0,
-  efPolice: { rate: 1, burst: 0.3 },
+  efPolice: { rate: 1, burst: 0.5 },
   videoMeter: { cir: 6, pir: 8, cbs: 0.3, pbs: 0.3 },
   efPoliceB: { rate: 0.5, burst: 0.3 },
   hopTime: 0.2, seed: 1,
@@ -130,6 +139,8 @@ export class DiffServSim {
   stats!: Record<FlowKind | 'cross', ClassStats>
 
   private rand: Rand
+  private crossRand!: Rand
+  private jitterRand!: Rand
   private heap: Ev[] = []
   private seq = 0
   private nextPkt = 1
@@ -152,6 +163,8 @@ export class DiffServSim {
 
   private init(): void {
     this.time = 0; this.heap = []; this.seq = 0; this.nextPkt = 1
+    this.crossRand = mulberry32((this.cfg.seed ^ 0x5bd1e995) >>> 0)
+    this.jitterRand = mulberry32((this.cfg.seed ^ 0x27d4eb2f) >>> 0)
     this.flows = []; this.recs.clear(); this.inFlight = []; this.onLink.clear(); this.wait.clear(); this.inFlightSet.clear()
     this.serving.clear(); this.credits.clear(); this.drops = []
     this.queues = Object.fromEntries(LINKS.map(l => [l, emptyQueues()])) as Record<LinkId, Record<QueueClass, Pkt[]>>
@@ -270,7 +283,8 @@ export class DiffServSim {
           this.stats.cross.sent++
           this.forward(this.newPkt(-1, 'cross', 'E3'), 'E3')
         }
-        this.schedule({ t: ev.t + (rate > 0 ? PKT_BITS / rate : 0.1), type: 'cross' })
+        const gap = rate > 0 ? -Math.log(1 - this.crossRand()) * PKT_BITS / rate : 0.1
+        this.schedule({ t: ev.t + gap, type: 'cross' })
         return
       }
       case 'arrive': {
@@ -306,7 +320,8 @@ export class DiffServSim {
     const to = link.split('>')[1] as NodeId
     pkt.at = link.split('>')[0] as NodeId; pkt.link = link; pkt.t = 0
     this.onLink.set(pkt, this.time); this.inFlightSet.add(pkt)
-    this.schedule({ t: this.time + this.cfg.hopTime, type: 'arrive', pkt, node: to })
+    const jitter = link === 'E2>E3' ? this.jitterRand() * PKT_BITS / this.cfg.cap.B : 0
+    this.schedule({ t: this.time + this.cfg.hopTime + jitter, type: 'arrive', pkt, node: to })
   }
 
   private drop(pkt: Pkt, node: NodeId, reason: DropReason): void {

@@ -157,3 +157,23 @@ test('reset restarts the PRNG from the seed', () => {
   const fresh = new DiffServSim({ seed: 13 }); fresh.setFlowCount(3)
   assert.deepEqual(sim.flows.map(f => f.kind), fresh.flows.map(f => f.kind))
 })
+
+test('a saturated domain A and cross traffic in B share B fairly, no phase lock', () => {
+  // A leaves C1 one serialisation apart and B is as fast as A: with constant gaps and no jitter, the
+  // first mix locked A out of C3's full BE queue (8 of ~1580 delivered) and the second locked out the cross traffic
+  for (const flows of [{ data: 6, video: 3 }, { data: 4, video: 4, voice: 4 }]) {
+    const sim = make({ seed: 14, cap: { A: 10, B: 10 }, crossB: 12, boundary: 'bleach' }, flows); run(sim, 30)
+    const a = sim.stats.voice.delivered + sim.stats.video.delivered + sim.stats.data.delivered
+    const share = a / (a + sim.stats.cross.delivered)
+    assert.ok(share > 0.3 && share < 0.7, `${JSON.stringify(flows)}: A's share ${share.toFixed(2)}`)
+  }
+})
+
+test('cross-traffic gaps are random but do not change the flow kinds', () => {
+  const sim = new DiffServSim({ seed: 15, crossB: 5 }); run(sim, 5)
+  const sent = sim.stats.cross.sent
+  assert.ok(sent > 150 && sent < 350 && sent !== 250, String(sent))   // Poisson around 50 pkt/s
+  sim.setFlowCount(10)
+  const quiet = new DiffServSim({ seed: 15 }); run(quiet, 5); quiet.setFlowCount(10)
+  assert.deepEqual(sim.flows.map(f => f.kind), quiet.flows.map(f => f.kind))
+})

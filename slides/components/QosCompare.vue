@@ -3,7 +3,8 @@
   compact QosPathSim instances driven by one flows slider (0…max). Both bottlenecks get 1000 Mbit/s so
   that nothing is refused and the comparison is about state alone. Each instance draws at its native
   880 px viewBox, scaled down to its column (~430 px) by the SVG itself. The EF policer at DiffServ's
-  E1 (the SLA) is raised to the same 1000 Mbit/s, else 100 voice flows would be policed there. Under
+  E1 (the SLA) and the CIR of its video meter are raised to the same 1000 Mbit/s, else 100 voice flows
+  would be policed there and most video would leave E1 re-marked AF43. Under
   each instance two lines at
   slide size:
     state in the core   entries summed over C1, C2, C3: RSVP 3 × (path + resv) per signalled
@@ -77,7 +78,7 @@ const columns = computed(() => [
         <p class="title">{{ columns[1].title }}</p>
         <QosPathSim
           ref="ds" mode="diffserv" compact :controls="false"
-          :flows="flows" :capacity-a="CAP" :capacity-b="CAP" :ef-police="CAP"
+          :flows="flows" :capacity-a="CAP" :capacity-b="CAP" :ef-police="CAP" :video-meter="CAP"
         />
         <p class="line">state in the core: <strong>{{ columns[1].core }}</strong> {{ columns[1].core === 1 ? 'entry' : 'entries' }}</p>
         <p class="line">refresh messages: <strong>{{ columns[1].refresh }}</strong></p>

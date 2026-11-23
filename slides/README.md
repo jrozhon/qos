@@ -111,7 +111,7 @@ references → `end`. Conventions that keep the decks consistent:
   `QosCompare` puts two compact instances side by side under one flows slider (`max`, default 200). Both stay
   in the export like `QualityExplorer`: in Slidev's print mode they draw a static frame instead of using
   `export-skip`. The engines are plain TypeScript in `utils/qos-*.ts` (topology, RSVP, DiffServ, DSCP colours);
-  their tests run with `node --test utils/*.test.ts` from `slides/` (Node 22 or later, type stripping).
+  their tests run with `node --test utils/*.test.ts` from `slides/` (Node ≥ 22.18 or 23.6+, where type stripping needs no flag).
 - **Units in prose** must be escaped, `\[Hz\]`, because MDC syntax treats `[...]` as a span. Inside `$…$` KaTeX
   they are fine as they are.
 - **Math** — KaTeX, `$…$` inline and `$$…$$` blocks. The closing `$` may not be preceded by a space.

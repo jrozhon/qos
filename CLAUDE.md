@@ -54,7 +54,7 @@ Lecture decks:
 cd slides && npm install                       # once
 npm run dev -- 01-information-theory.md        # live preview
 npm run export -- 01-information-theory.md     # PDF (needs: npx playwright install chromium)
-node --test utils/*.test.ts                    # unit tests of the deck 08 simulation engines (Node 22+)
+node --test utils/*.test.ts                    # unit tests of the deck 08 simulation engines (Node ≥ 22.18 or 23.6+)
 python3 scripts/generate-figures.py            # regenerate SVG figures (light + dark) after editing the script
 python3 scripts/generate-codec-samples.py      # deck 05 codec audio samples (ffmpeg + bcg729)
 python3 scripts/generate-video-samples.py      # deck 06 video clips, crops and measured data (ffmpeg + x264/x265/SVT-AV1/libvmaf), then regenerate figures

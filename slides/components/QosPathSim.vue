@@ -27,6 +27,9 @@
   efPolice    DiffServ: rate in Mbit/s of the EF policer at E1, i.e. the EF part of the SLA (default
               the engine's 1); the side-by-side wrapper raises it with the capacities so that nothing
               is dropped there either
+  videoMeter  DiffServ: CIR in Mbit/s of the trTCM that meters video at E1 (PIR = 4/3 × CIR, as the
+              engine's default 6 / 8; buckets unchanged); the side-by-side wrapper raises it with the
+              capacities so that no video is re-marked AF42 / AF43 there
   controls    show the control row (default true); the side-by-side wrapper hides it and drives the
               exposed play() / pause() / reset() from its own row
 
@@ -70,7 +73,8 @@ const props = withDefaults(defineProps<{
   initialFlows?: number
   controls?: boolean
   efPolice?: number
-}>(), { compact: false, flows: undefined, capacityA: 10, capacityB: 10, seed: 1, initialFlows: 0, controls: true, efPolice: undefined })
+  videoMeter?: number
+}>(), { compact: false, flows: undefined, capacityA: 10, capacityB: 10, seed: 1, initialFlows: 0, controls: true, efPolice: undefined, videoMeter: undefined })
 
 const { isPrintMode } = useNav()
 
@@ -120,6 +124,7 @@ const newSim = () => (props.mode === 'rsvp'
       cap: cap(),
       seed: props.seed,
       ...(props.efPolice === undefined ? {} : { efPolice: { rate: props.efPolice, burst: 0.3 } }),
+      ...(props.videoMeter === undefined ? {} : { videoMeter: { cir: props.videoMeter, pir: props.videoMeter * 4 / 3, cbs: 0.3, pbs: 0.3 } }),
     }))
 const sim = shallowRef<RsvpSim | DiffServSim>(newSim())
 const rsvpSim = () => sim.value as RsvpSim

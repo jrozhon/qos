@@ -598,11 +598,15 @@ Demo script (seed 1, after Reset):
    ResvErr travels downstream and releases B's share, so the bar drops back to 4.2. (Real RSVP leaves this to
    the receiver, whose refreshes keep the downstream state — RFC 2205's blockade state.)
 2. Switch refresh off: the age bars fade and the state expires after 3 missed refreshes ("simplified" on screen;
-   the RFC's lifetime is ≈ 157 s). The bandwidth bar empties.
-3. Refresh back on, tick "B refuses foreign reservations", add a flow: E3 refuses with "policy" — Domain B has no
-   contract with A's customer. This is why inter-domain IntServ never happened (Huston, RFC 2990). Untick it.
-4. With a few flows reserved and refresh on, press "fail C1": C1's table is empty, the flows cross it as best
-   effort, and the next refresh rebuilds it — the checkpoint answer, live.
+   the RFC's lifetime is ≈ 157 s). The bandwidth bar empties. Expired is final: the endpoints gave up, so these
+   flows do not re-signal when refresh comes back — nothing is reserved any more.
+3. Refresh back on, tick "B refuses foreign reservations", add a flow (after exactly seven clicks in step 1 it is a
+   video; if the new flow is data, add another): E3 refuses with "policy" — Domain B has no contract with A's
+   customer. This is why inter-domain IntServ never happened (Huston, RFC 2990). Untick it.
+4. Add a few flows first (with seed 1, the next five are voice, data, voice, voice, voice: four reservations,
+   0.4 Mbit/s on C1→C2), then press "fail C1": C1's table is empty. Until the next refresh C1 has no reservation
+   for them — a real router would forward them as best effort; the drawing keeps their colour. The next refresh
+   rebuilds it (2.5 s here) — the checkpoint answer, live.
 The PDF shows a fixed frame with its own scenario, not these props: A = 10, B = 20 Mbit/s, 2 voice + 5 video,
 the 5th video refused at C1.
 -->
@@ -1029,7 +1033,9 @@ Lecture 03's RED curve, three times, with different thresholds — one queue, so
 Serves outcome 4. The idea goes back to Clark & Fang's RIO ("RED with In and Out", IEEE/ACM ToN 1998): one queue,
 two RED curves, out-of-profile packets dropped earlier. WRED generalises it to three colours. The demo's fixed
 thresholds 10 / 20 / 30 are a simplification, stated on the figure. AF traffic is usually TCP-like video or data
-that backs off on loss, unlike EF voice.
+that backs off on loss, unlike EF voice. The figure's colours are the meter colours (green / yellow / red = AFx1 /
+AFx2 / AFx3), not the classes: the live demo colours packets by class (AF4 blue tints, AF3 dark green tints —
+orange in dark mode).
 -->
 
 ---
@@ -1110,24 +1116,29 @@ because those flows are not elastic and should not be dropped by precedence.
 <!--
 Serves outcomes 4 and 5. Both bottlenecks (C1→C2 in A, C3→E4 in B) are 10 Mbit/s; E1 marks voice EF, video AF41,
 data BE, meters video with a trTCM (CIR 6, PIR 8 Mbit/s) and polices EF at 1 Mbit/s. One drawn packet is
-0.1 Mbit, so even a voice packet takes 10 ms to serialise at each bottleneck: the footer's ≈ 24 ms for voice is two
-serialisations plus waiting behind the packet in service — the floor, not congestion. Seed 30 is chosen so that
-the first ten flows contain enough data to congest A. Reset keeps the flows in this mode; reload the page for a
-clean start.
-Demo script:
-1. Press Play, then "+10 flows": 5 data, 3 video, 2 voice — 13.2 Mbit/s into A's 10 Mbit/s. Within seconds C1's
+0.1 Mbit, so even a voice packet takes 10 ms to serialise at each bottleneck: the footer's ≈ 30 ms for voice is two
+serialisations (20 ms) plus, at each bottleneck, waiting for the packet in service to finish (≈ 5 ms on average)
+— the floor, not congestion. Cross traffic in B is a random (Poisson) stream. Seed 30 is chosen so that the first
+ten flows contain enough data to congest A. Reset keeps the flows in this mode; reload the page for a clean start.
+Demo script (the numbers are the footer's 2 s window):
+1. Press Play, then "+10 flows": 5 data, 3 video, 2 voice — 11.2 Mbit/s into A's 10 Mbit/s. Within seconds C1's
    BE queue fills and drops (red); the footer shows data delay climbing to several hundred ms while voice stays
-   at ≈ 24 ms with 0 dropped and video (exactly 6 Mbit/s = CIR) stays AF41.
+   at ≈ 30 ms with 0 dropped and video (exactly 6 Mbit/s = CIR) stays AF41.
 2. "+10 flows" again: 7 data, 7 voice, 6 video. Video is now 12 Mbit/s, above PIR: packets leave E1 relabelled
    AF42 and AF43, and C1 drops AF43 first, a few AF42, no AF41. Voice still clean (0.7 Mbit/s, under the policer).
-3. Cross-traffic in B to 12 Mbit/s: B's BE queue at C3 overflows and A's data no longer gets through — but voice
-   keeps ≈ 24 ms, because B trusts the DSCP.
-4. Boundary → bleach: E3 sets every DSCP to 0, so voice and video join C3's BE queue behind the cross traffic.
-   Within seconds voice delivers almost nothing and its dropped count climbs: protected in A, lost in B.
-5. Optional, boundary → re-mark: B maps AF4x to AF3x and honours EF only up to 0.5 Mbit/s, so about two of the
-   seven voice flows becomes BE and is dropped at C3. Back to trust and voice recovers.
-The PDF shows a fixed frame: 4 voice, 4 video, 4 data, boundary bleach, 12 Mbit/s cross traffic, voice packets
-waiting in C3's BE queue.
+3. Cross-traffic in B to 12 Mbit/s: B's BE queue at C3 overflows and A's data barely gets through — but voice
+   keeps ≈ 30 ms, because B trusts the DSCP.
+4. Boundary → bleach: E3 sets every DSCP to 0, so voice and video join C3's full BE queue behind the cross
+   traffic. Within two seconds voice's queuing delay jumps from ≈ 30 ms to ≈ 310 ms — twice the 150 ms one-way
+   budget on its own — and its dropped count climbs by about 3 a second: some 4 in 10 voice packets are lost
+   at C3 (35–50 % depending on when you clicked). Protected in A, lost in B.
+5. Optional, boundary → re-mark: B maps AF4x to AF3x and honours EF only up to 0.5 Mbit/s. That EF policer is one
+   token bucket for the aggregate, so about 2 in 7 voice packets — across all seven flows, not two whole flows —
+   are re-marked BE, and most of those are dropped in C3's full BE queue (voice loss ≈ 20–25 %). The footer's
+   voice mean mixes ≈ 30 ms EF with the few ≈ 300 ms BE survivors, so it wanders between ≈ 50 and ≈ 180 ms.
+   Back to trust and voice recovers to ≈ 30 ms.
+The PDF shows a fixed frame: 4 voice, 4 video, 4 data, boundary bleach, 12 Mbit/s cross traffic, voice waiting
+in C3's BE queue.
 -->
 
 ---
@@ -1146,9 +1157,10 @@ layout: section
 <!--
 Serves outcome 5 and the thesis. The same path twice: RSVP/IntServ on the left, DiffServ on the right, one flows
 slider for both. Both bottlenecks are 1000 Mbit/s so nothing is refused and the comparison is about state alone;
-for the same reason DiffServ's EF policer at E1 is sized for the traffic — an SLA sized for 200 flows — otherwise
-most voice would be policed there.
-Play, then drag the slider from 10 to 200. RSVP's core state is 3 core routers × 2 entries (path + resv) × the
+for the same reason DiffServ's EF policer and video meter at E1 are sized for the traffic — an SLA sized for 200
+flows — otherwise most voice would be policed there and most video would leave E1 re-marked AF43.
+Press Reset first, then Play, and drag the slider from 10 up to 200 in one go (the numbers below hold for that
+first upward drag; dragging back and forth draws other flows). RSVP's core state is 3 core routers × 2 entries (path + resv) × the
 flows that signal (voice and video; data does not): 972 entries at 200 flows with this seed (162 signalled
 flows, 324 entries in every router), and 11 refresh messages per second (2 × 162 / 30 s). DiffServ's core
 stays at 12 entries — 3 core routers × 4 class queues — and has nothing to refresh. Its per-flow state did not vanish: it moved to E1, the edge, which sees only its own customers. Scale
@@ -1315,7 +1327,7 @@ A DSCP asks for a treatment; only provisioning and edge policing turn it into a 
 
 **EF vs "unlimited priority"**
 
-EF is low delay for a policed rate. Over that rate it is dropped, not prioritised.
+EF is low delay for a policed rate. Over that rate it is dropped or re-marked, not prioritised.
 
 </div>
 <div class="border border-orange-400 p-3">
