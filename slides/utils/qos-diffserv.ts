@@ -258,7 +258,7 @@ export class DiffServSim {
         if (!ev.flow.alive) return
         const k = ev.flow.kind
         this.stats[k].sent++
-        this.arrive(this.newPkt(ev.flow.id, k, 'S'), 'E1')
+        this.launch(this.newPkt(ev.flow.id, k, 'S'), 'S>E1')
         this.schedule({ t: ev.t + PKT_BITS / FLOW_RATE[k], type: 'emit', flow: ev.flow })
         return
       }
