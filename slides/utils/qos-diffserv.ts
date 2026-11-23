@@ -152,7 +152,7 @@ export class DiffServSim {
 
   private init(): void {
     this.time = 0; this.heap = []; this.seq = 0; this.nextPkt = 1
-    this.flows = []; this.recs.clear(); this.inFlight = []; this.onLink.clear(); this.wait.clear()
+    this.flows = []; this.recs.clear(); this.inFlight = []; this.onLink.clear(); this.wait.clear(); this.inFlightSet.clear()
     this.serving.clear(); this.credits.clear(); this.drops = []
     this.queues = Object.fromEntries(LINKS.map(l => [l, emptyQueues()])) as Record<LinkId, Record<QueueClass, Pkt[]>>
     this.stats = { voice: newStats(), video: newStats(), data: newStats(), cross: newStats() }
@@ -182,13 +182,12 @@ export class DiffServSim {
     while (this.flows.length < n) this.addFlow()
   }
 
-  /** Back to t = 0 with the same flows (same ids, same phases) and an empty network. */
+  /** Back to t = 0 with the same flows (same ids, same phases), an empty network and the PRNG restarted from the seed. */
   reset(): void {
     const keep = [...this.recs.values()]
-    const nextFlow = this.nextFlow
+    this.rand = mulberry32(this.cfg.seed)
     this.init()
     for (const r of keep) this.insertFlow(r.id, r.kind, r.phase, 0)
-    this.nextFlow = nextFlow
   }
 
   tick(dt: number): void {

@@ -125,6 +125,10 @@ test('reset is deterministic', () => {
   sim.reset(); assert.equal(sim.time, 0); assert.equal(sim.flows.length, n); assert.equal(sim.inFlight.length, 0)
   run(sim, 10)
   assert.equal(JSON.stringify(sim.stats), first)
+  const again = new DiffServSim({ seed: 10 }); again.setFlowCount(12); again.tick(0.3); again.reset(); again.tick(0.001)
+  const clean = new DiffServSim({ seed: 10 }); clean.setFlowCount(12); clean.tick(0.001)
+  assert.ok(again.inFlight.every(p => Number.isFinite(p.t)))
+  assert.equal(again.inFlight.length, clean.inFlight.length)
   const other = new DiffServSim({ seed: 10, cap: { A: 5, B: 10 }, crossB: 5 }); other.setFlowCount(12); run(other, 10)
   assert.equal(JSON.stringify(other.stats), first)
 })
@@ -145,4 +149,11 @@ test('inFlight stays bounded', () => {
   for (let i = 0; i < 600; i++) { sim.tick(0.1); max = Math.max(max, allPkts(sim).length) }
   assert.ok(max < 2000, String(max))
   assert.ok(sim.drops.length <= 50)
+})
+
+test('reset restarts the PRNG from the seed', () => {
+  const sim = new DiffServSim({ seed: 13 }); sim.setFlowCount(6); sim.reset(); sim.setFlowCount(0)
+  sim.setFlowCount(3)
+  const fresh = new DiffServSim({ seed: 13 }); fresh.setFlowCount(3)
+  assert.deepEqual(sim.flows.map(f => f.kind), fresh.flows.map(f => f.kind))
 })
