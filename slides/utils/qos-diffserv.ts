@@ -72,6 +72,7 @@ export const AF_DROP_AT: Record<1 | 2 | 3, number> = { 3: 10, 2: 20, 1: 30 }
 /** Weights of the weighted round robin that runs after strict-priority EF. */
 export const WRR: Record<'AF4' | 'AF3' | 'BE', number> = { AF4: 3, AF3: 2, BE: 1 }
 const WRR_ORDER: readonly ('AF4' | 'AF3' | 'BE')[] = ['AF4', 'AF3', 'BE']
+/** Drops kept for drawing, per node and reason, so a busy queue cannot push an edge's policing drops out. */
 const DROP_RING = 50
 
 export type Boundary = 'trust' | 'remark' | 'bleach'
@@ -106,7 +107,7 @@ export interface DsConfig {
 }
 export interface ClassStats { sent: number, dropped: number, delivered: number, delaySum: number }
 export type DropReason = 'police' | 'queue'
-export interface DropRecord { pkt: Pkt, node: NodeId, reason: DropReason }
+export interface DropRecord { pkt: Pkt, node: NodeId, reason: DropReason, t: number /* sim time of the drop */ }
 
 const DEFAULTS: DsConfig = {
   cap: { A: 100, B: 100 }, boundary: 'trust', crossB: 0,
@@ -327,8 +328,10 @@ export class DiffServSim {
   private drop(pkt: Pkt, node: NodeId, reason: DropReason): void {
     pkt.at = node; pkt.link = null; this.wait.delete(pkt)
     if (pkt.kind !== 'cross') this.stats[pkt.kind].dropped++; else this.stats.cross.dropped++
-    this.drops.push({ pkt, node, reason })
-    if (this.drops.length > DROP_RING) this.drops.shift()
+    this.drops.push({ pkt, node, reason, t: this.time })
+    if (this.drops.filter(d => d.node === node && d.reason === reason).length > DROP_RING) {
+      this.drops.splice(this.drops.findIndex(d => d.node === node && d.reason === reason), 1)
+    }
   }
 
   /** The packet has reached `node`: apply the node's rules, then forward or deliver. */

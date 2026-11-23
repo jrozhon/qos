@@ -2354,41 +2354,44 @@ s.text(440, 428, 'Without refreshes the state expires on its own after L ≈ 157
 s.save()
 
 # --- Traffic conditioning block at the DiffServ edge ------------------------------------------
-s = SVG(DECK, 'tcb', 300, 'The DiffServ traffic conditioner at the network edge',
+s = SVG(DECK, 'tcb', 330, 'The DiffServ traffic conditioner at the network edge',
         'Packets enter a classifier, which selects them by addresses, ports or an existing DSCP. A meter, usually '
         'one or two token buckets, measures each traffic class against its profile and tells the marker and the '
         'shaper or dropper whether a packet is in or out of profile. The marker sets the DSCP, for example re-marking '
         'AF11 to AF12; the shaper delays and the dropper discards excess packets. This block runs only at the edge; '
         'core routers just read the DSCP and apply the per-hop behaviour.')
-s.rect(70, 38, 740, 180, PAPER, INK, 1.5)
+s.rect(70, 38, 740, 210, PAPER, INK, 1.5)
 s.text(75, 28, 'TRAFFIC CONDITIONER — EDGE ONLY (RFC 2475)', 'label')
-s.line(10, 150, 88, 150, INK, 2, arrow='ink')
-s.text(14, 140, 'packets', 'small')
-cell(90, 122, 140, 56, 'Classifier', fill=TINT)
+s.line(10, 180, 88, 180, INK, 2, arrow='ink')
+s.text(14, 170, 'packets', 'small')
+cell(90, 152, 140, 56, 'Classifier', fill=TINT)
 cell(300, 52, 150, 50, 'Meter', 'token bucket(s)', TINT3)
-cell(400, 122, 140, 56, 'Marker', fill=TINT)
-cell(610, 122, 180, 56, 'Shaper / dropper', fill=TINT)
-s.line(230, 150, 398, 150, INK, 2, arrow='ink')
-s.line(540, 150, 608, 150, INK, 2, arrow='ink')
-s.line(790, 150, 868, 150, INK, 2, arrow='ink')
-s.text(866, 140, 'to core', 'small', 'end')
-s.path('M160,122 L160,77 L298,77', MUT, 1.5, arrow='muted')
-s.path('M425,102 L425,120', MUT, 1.5, dash=True, arrow='muted')
-s.path('M450,77 L700,77 L700,120', MUT, 1.5, dash=True, arrow='muted')
+cell(400, 152, 140, 56, 'Marker', fill=TINT)
+cell(610, 152, 180, 56, 'Shaper / dropper', fill=TINT)
+s.line(230, 180, 398, 180, INK, 2, arrow='ink')
+s.line(540, 180, 608, 180, INK, 2, arrow='ink')
+s.line(790, 180, 868, 180, INK, 2, arrow='ink')
+s.text(866, 170, 'to core', 'small', 'end')
+s.path('M160,152 L160,77 L298,77', MUT, 1.5, arrow='muted')
+s.path('M425,102 L425,150', MUT, 1.5, dash=True, arrow='muted')
+s.path('M450,77 L700,77 L700,150', MUT, 1.5, dash=True, arrow='muted')
 s.text(575, 70, 'in / out of profile', 'small', 'middle')
 for x, t in [(160, 'addresses, ports, DSCP'), (470, 'sets DSCP, e.g. AF11 → AF12'), (700, 'delays or discards excess')]:
-    s.text(x, 200, t, 'small', 'middle')
-cell(90, 236, 140, 40, 'Core router', fill=NEUTRAL)
-s.text(245, 262, 'reads the DSCP and applies its per-hop behaviour — no metering, no per-flow state', 'small')
+    s.text(x, 230, t, 'small', 'middle')
+cell(90, 266, 140, 40, 'Core router', fill=NEUTRAL)
+s.text(245, 292, 'reads the DSCP and applies its per-hop behaviour — no metering, no per-flow state', 'small')
 s.save()
 
 # --- Two-rate three-colour marker ---------------------------------------------------------------------
-s = SVG(DECK, 'trtcm', 355, 'Two-rate three-colour marker (RFC 2698) and the AF drop precedence it sets',
+s = SVG(DECK, 'trtcm', 385, 'Two-rate three-colour marker (RFC 2698) and the AF drop precedence it sets',
         'Two token buckets: bucket P fills at the peak information rate PIR up to the peak burst size PBS, bucket C '
         'fills at the committed information rate CIR up to the committed burst size CBS. For a packet of B bytes, '
         'in colour-blind mode: if bucket P holds fewer than B tokens the packet is red and is marked AFx3, high drop '
         'precedence. Otherwise, if bucket C holds fewer than B tokens it is yellow, marked AFx2, and B tokens are '
-        'taken from P. Otherwise it is green, marked AFx1, and B tokens are taken from both buckets.')
+        'taken from P. Otherwise it is green, marked AFx1, and B tokens are taken from both buckets. A legend explains '
+        'the abbreviations: CIR and PIR are the committed and peak information rates, CBS and PBS the committed and '
+        'peak burst sizes, Tc and Tp the tokens now in buckets C and P, B the packet size, and AFxy is AF class x '
+        'with drop precedence y.')
 
 
 def token_bucket(x, y, name, rate, depth, tokens):
@@ -2423,20 +2426,31 @@ s.line(570, 197, 638, 197, INK, 2, arrow='ink')
 s.text(604, 190, 'yes', 'small', 'middle')
 s.path('M485,222 L485,277 L638,277', INK, 2, arrow='ink')
 s.text(493, 256, 'no', 'small')
-s.text(440, 328, 'Colour-blind mode (RFC 2698): the peak bucket is checked first, so traffic above PIR is always red.',
+for k, (term, meaning) in enumerate([('CIR / PIR', 'committed / peak information rate'),
+                                       ('CBS / PBS', 'committed / peak burst size'),
+                                       ('Tc / Tp', 'tokens now in bucket C / P'),
+                                       ('B', 'size of the arriving packet'),
+                                       ('AFxy', 'AF class x, drop precedence y')]):
+    s.text(28, 252 + k * 19, term, 'small bold')
+    s.text(108, 252 + k * 19, meaning, 'small')
+s.text(440, 358, 'Colour-blind mode (RFC 2698): the peak bucket is checked first, so traffic above PIR is always red.',
        'small', 'middle')
-s.text(440, 346, 'The colours become AF drop precedences: within one AF class, red is dropped first and green last.',
+s.text(440, 376, 'The colours become AF drop precedences: within one AF class, red is the most likely to be dropped, '
+       'green the least.',
        'small', 'middle')
 s.save()
 
 # --- DSCP code points ---------------------------------------------------------------------------------
-s = SVG(DECK, 'dscp-table', 405, 'DiffServ code points: EF, the AF matrix, default, class selectors and LE',
+s = SVG(DECK, 'dscp-table', 445, 'DiffServ code points: EF, the AF matrix, default, class selectors and LE',
         'Main table: Expedited Forwarding EF is 46, binary 101110; VOICE-ADMIT is 44, 101100. Assured Forwarding '
         'has four classes with three drop precedences each: AF11 10 (001010), AF12 12 (001100), AF13 14 (001110); '
         'AF21 18 (010010), AF22 20 (010100), AF23 22 (010110); AF31 26 (011010), AF32 28 (011100), AF33 30 (011110); '
         'AF41 34 (100010), AF42 36 (100100), AF43 38 (100110). Default is 0, 000000. In the binary values the first '
         'three bits give the class and the next two the drop precedence; the last bit is 0. Side table: class '
-        'selectors CS7 to CS0 are 56, 48, 40, 32, 24, 16, 8 and 0, binary xxx000, and Lower Effort LE is 1, 000001.')
+        'selectors CS7 to CS0 are 56, 48, 40, 32, 24, 16, 8 and 0, binary xxx000, and Lower Effort LE is 1, 000001. '
+        'A legend names the behaviours: EF Expedited Forwarding (low delay and jitter), VOICE-ADMIT (EF for voice '
+        'admitted by call admission control), AFxy Assured Forwarding with class x and drop precedence y, CSn the class '
+        'selector 8n in IP Precedence order, LE Lower Effort below best effort, and Default best effort, the same as CS0.')
 
 
 def bits(x, y, groups, anchor='middle'):
@@ -2491,9 +2505,17 @@ for r, (name, value) in enumerate(side):
     b = format(value, '06b')
     bits(SX + 195, y + 20, [(b[:3], D, True), (b[3:], MUT, False)])
 s.line(SX, SY + 8 * SRH, SX + 240, SY + 8 * SRH, INK, 1.5)  # LE is not a class selector
-bits(440, 365, [('class bits', D, True), ('· drop-precedence bits', EKF, True), ('· last bit always 0', MUT, False)])
-s.text(440, 390, 'CSn = 8n keeps the IP Precedence order; CS0 is the default code point. LE (RFC 8622) is below best effort.',
-       'small', 'middle')
+bits(440, 365, [('class bits', D, True), ('· drop-precedence bits', EKF, True),
+                ('· last bit always 0 · AFxy = 8x + 2y', MUT, False)])
+for col, entries in [((20, 130), [('EF', 'Expedited Forwarding: low delay and jitter'),
+                                  ('VOICE-ADMIT', 'EF for voice admitted by CAC (RFC 5865)'),
+                                  ('AFxy', 'Assured Forwarding: class x, drop precedence y')]),
+                     ((500, 575), [('CSn', 'Class Selector = 8n, IP Precedence order'),
+                                   ('LE', 'Lower Effort: below best effort'),
+                                   ('Default', 'best effort, same as CS0')])]:
+    for k, (term, meaning) in enumerate(entries):
+        s.text(col[0], 396 + k * 19, term, 'small bold')
+        s.text(col[1], 396 + k * 19, meaning, 'small')
 s.save()
 
 # --- Low-latency queuing: strict-priority EF plus weighted classes -------------------------------------

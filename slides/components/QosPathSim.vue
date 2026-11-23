@@ -31,7 +31,9 @@
               engine's default 6 / 8; buckets unchanged); the side-by-side wrapper raises it with the
               capacities so that no video is re-marked AF42 / AF43 there
   controls    show the control row (default true); the side-by-side wrapper hides it and drives the
-              exposed play() / pause() / reset() from its own row
+              exposed play() / pause() / reset() from its own row. Under it, after a "+1 / +10 flows"
+              click, a note sums up that click: the kinds drawn and (RSVP) what became of them, e.g.
+              "+10: 5 voice, 4 video, 1 data → 2 reserved, 7 refused, 1 best effort", updated live
 
   Time: the animation runs in simulated seconds (RSVP refresh every 3 s stands for the real 30 s);
   the speed slider scales simulated seconds per real second (0.25×–4×). Step advances to the next
@@ -277,14 +279,41 @@ function reset(): void {
   flashes.value = []
   seenRefused = new Set()
   snaps = []
+  if (props.mode === 'rsvp') lastBatch.value = [] // its flows are gone
   if (props.mode === 'rsvp') startFlows() // RSVP reset drops the flows, DiffServ keeps them
   bump()
 }
 
+/** Ids of the flows the last "+1 / +10" click added; the note under the controls follows their fate. */
+const lastBatch = shallowRef<number[]>([])
+
 function addFlows(n: number): void {
+  const before = sim.value.flows.length
   for (let i = 0; i < n; i++) sim.value.addFlow()
+  lastBatch.value = sim.value.flows.slice(before).map(f => f.id)
   bump()
 }
+
+/** "+10: 5 voice, 4 video, 1 data → 2 reserved, 7 refused, 1 best effort" for the last click. */
+const batchNote = computed(() => {
+  void frame.value
+  const ids = new Set(lastBatch.value)
+  if (ids.size === 0) return ''
+  const flows = (sim.value.flows as { id: number, kind: FlowKind }[]).filter(f => ids.has(f.id))
+  if (flows.length === 0) return ''
+  const count = (keys: string[], of: (f: any) => string) => keys
+    .map(k => [flows.filter(f => of(f) === k).length, k] as const)
+    .filter(([c]) => c > 0)
+    .map(([c, k]) => `${c} ${k}`)
+    .join(', ')
+  const kinds = count(KINDS, f => f.kind)
+  if (props.mode !== 'rsvp') return `+${flows.length}: ${kinds}`
+  const STATUS: Record<string, string> = {
+    signalling: 'signalling…', reserved: 'reserved', refused: 'refused', besteffort: 'best effort', expired: 'expired',
+  }
+  const fates = count(Object.values(STATUS), f => STATUS[f.status])
+  return `+${flows.length}: ${kinds} → ${fates}`
+})
 
 function failC1(): void {
   const s = rsvpSim()
@@ -669,6 +698,7 @@ const dsSummary = computed(() => {
         <label>cross-traffic in B <input v-model.number="crossB" type="range" min="0" max="15" step="1"> {{ crossB }} Mbit/s</label>
       </template>
     </div>
+    <p v-if="!isPrintMode && controls && flows === undefined && batchNote" class="batch-note">last click {{ batchNote }}</p>
   </div>
 </template>
 
@@ -752,6 +782,7 @@ svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-tex
   background: var(--vsb-bg);
   border: 1px solid var(--vsb-muted);
   border-radius: 0; /* R24 */
+  padding: 0.05em 0.3em 0.05em 0.6em; /* text inset like the buttons' labels */
 }
 .controls button {
   padding: 0.05em 0.7em;
@@ -763,5 +794,6 @@ svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-tex
   cursor: pointer;
 }
 .controls button:hover { background: var(--vsb-green-dark); border-color: var(--vsb-green-dark); color: var(--vsb-bg); }
+.batch-note { margin: 0.25rem 0 0; font-size: 14px; color: var(--vsb-muted); }
 .print-caption { margin: 0.3rem 0 0; font-size: 16px; font-weight: 700; color: var(--vsb-ink); }
 </style>

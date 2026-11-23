@@ -797,11 +797,11 @@ MF = multi-field (RFC 2475 §2.3). All per-customer state lives here; the core r
 
 # Meters — two buckets instead of one
 
-<Figure src="/figures/08/trtcm.svg" alt="The two-rate three-colour marker. Bucket P fills at the peak rate PIR up to PBS, bucket C at the committed rate CIR up to CBS. For a packet of B bytes the marker first asks whether bucket P holds fewer than B tokens: if so the packet is red and becomes AFx3, high drop precedence. Otherwise it asks whether bucket C holds fewer than B tokens: if so the packet is yellow, becomes AFx2, and only bucket P is debited. Otherwise it is green, becomes AFx1, and both buckets are debited." />
+<Figure src="/figures/08/trtcm.svg" alt="The two-rate three-colour marker. Bucket P fills at the peak rate PIR up to PBS, bucket C at the committed rate CIR up to CBS. For a packet of B bytes the marker first asks whether bucket P holds fewer than B tokens: if so the packet is red and becomes AFx3, high drop precedence. Otherwise it asks whether bucket C holds fewer than B tokens: if so the packet is yellow, becomes AFx2, and only bucket P is debited. Otherwise it is green, becomes AFx1, and both buckets are debited. A legend explains CIR and PIR (committed and peak information rate), CBS and PBS (committed and peak burst size), Tc and Tp (tokens in buckets C and P), B (packet size) and AFxy (AF class x, drop precedence y)." />
 
 <div class="text-sm">
 
-**srTCM** (RFC 2697): one rate CIR, two bursts CBS and EBS — excess **burst** turns yellow. **trTCM** (RFC 2698): CIR/CBS and PIR/PBS — excess **rate** turns yellow, above PIR red.
+**srTCM** (RFC 2697): one rate CIR, two bursts CBS and EBS (excess burst size) — excess **burst** turns yellow. **trTCM** (RFC 2698): CIR/CBS and PIR/PBS — excess **rate** turns yellow, above PIR red.
 
 </div>
 
@@ -856,13 +856,7 @@ calculation without the buckets.
 
 # The DSCP codepoint space
 
-<Figure src="/figures/08/dscp-table.svg" alt="Table of DiffServ code points. EF is 46 and VOICE-ADMIT 44. The Assured Forwarding grid has four classes and three drop precedences: AF41, 42, 43 are 34, 36, 38; AF31 to AF33 are 26, 28, 30; AF21 to AF23 are 18, 20, 22; AF11 to AF13 are 10, 12, 14. Default best effort is 0. The class selectors CS7 to CS0 are 56, 48, 40, 32, 24, 16, 8 and 0, and LE is 1. CSn equals 8n and keeps the IP Precedence order; LE sits below best effort." />
-
-<div class="text-sm">
-
-$\mathrm{AF}xy = 8x + 2y$: three class bits, two drop-precedence bits, a trailing 0.
-
-</div>
+<Figure src="/figures/08/dscp-table.svg" alt="Table of DiffServ code points. EF is 46 and VOICE-ADMIT 44. The Assured Forwarding grid has four classes and three drop precedences: AF41, 42, 43 are 34, 36, 38; AF31 to AF33 are 26, 28, 30; AF21 to AF23 are 18, 20, 22; AF11 to AF13 are 10, 12, 14. Default best effort is 0. The class selectors CS7 to CS0 are 56, 48, 40, 32, 24, 16, 8 and 0, and LE is 1. CSn equals 8n and keeps the IP Precedence order; LE sits below best effort. A legend spells out EF (Expedited Forwarding, low delay and jitter), VOICE-ADMIT (EF for CAC-admitted voice), AFxy (Assured Forwarding, class x, drop precedence y, value 8x + 2y), CSn (Class Selector), LE (Lower Effort) and Default (best effort)." />
 
 <!--
 Serves outcome 4; replaces the old raster table of the original course slides. RFC 2474 split the 64 codepoints
@@ -1118,14 +1112,17 @@ Serves outcomes 4 and 5. Both bottlenecks (C1→C2 in A, C3→E4 in B) are 10 Mb
 data BE, meters video with a trTCM (CIR 6, PIR 8 Mbit/s) and polices EF at 1 Mbit/s. One drawn packet is
 0.1 Mbit, so even a voice packet takes 10 ms to serialise at each bottleneck: the footer's ≈ 30 ms for voice is two
 serialisations (20 ms) plus, at each bottleneck, waiting for the packet in service to finish (≈ 5 ms on average)
-— the floor, not congestion. Cross traffic in B is a random (Poisson) stream. Seed 30 is chosen so that the first
-ten flows contain enough data to congest A. Reset keeps the flows in this mode; reload the page for a clean start.
+— the floor, not congestion. Data flows send 0.5 Mbit/s each and never back off (UDP-like). Cross traffic in B is
+a random (Poisson) stream. With seed 30 the first ten flows fit into A and the second ten congest it. Reset keeps
+the flows in this mode; reload the page for a clean start.
 Demo script (the numbers are the footer's 2 s window):
-1. Press Play, then "+10 flows": 5 data, 3 video, 2 voice — 11.2 Mbit/s into A's 10 Mbit/s. Within seconds C1's
-   BE queue fills and drops (red); the footer shows data delay climbing to several hundred ms while voice stays
-   at ≈ 30 ms with 0 dropped and video (exactly 6 Mbit/s = CIR) stays AF41.
-2. "+10 flows" again: 7 data, 7 voice, 6 video. Video is now 12 Mbit/s, above PIR: packets leave E1 relabelled
-   AF42 and AF43, and C1 drops AF43 first, a few AF42, no AF41. Voice still clean (0.7 Mbit/s, under the policer).
+1. Press Play, then "+10 flows": 5 data, 3 video, 2 voice — 8.7 Mbit/s into A's 10 Mbit/s. Nothing queues for
+   long: every class sees ≈ 20–40 ms, nothing is dropped, and video (exactly 6 Mbit/s = CIR) stays AF41. Ask the
+   room what marking buys while the link is not congested (nothing visible).
+2. "+10 flows" again: 7 data, 7 voice, 6 video — 16.2 Mbit/s. Video is now 12 Mbit/s, above PIR: packets leave E1
+   relabelled AF42 and AF43, and C1 drops AF43 most, some AF42, no AF41 (in 20 s ≈ 780 AF43, 190 AF42, 0 AF41);
+   the BE queue fills too and data waits ≈ 1.3 s. Voice still ≈ 30 ms with 0 dropped (0.7 Mbit/s, under the
+   policer, strict priority).
 3. Cross-traffic in B to 12 Mbit/s: B's BE queue at C3 overflows and A's data barely gets through — but voice
    keeps ≈ 30 ms, because B trusts the DSCP.
 4. Boundary → bleach: E3 sets every DSCP to 0, so voice and video join C3's full BE queue behind the cross

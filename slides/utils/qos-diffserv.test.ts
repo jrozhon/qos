@@ -58,7 +58,7 @@ test('EF above the policer is dropped at E1', () => {
 })
 
 test('EF is protected under overload in A', () => {
-  const sim = make({ seed: 4, cap: { A: 5, B: 100 } }, { voice: 5, data: 8 }); run(sim, 30)
+  const sim = make({ seed: 4, cap: { A: 5, B: 100 } }, { voice: 5, data: 16 }); run(sim, 30)
   assert.equal(sim.stats.voice.dropped, 0)
   assert.ok(sim.stats.data.dropped > 0)
   assert.ok(sim.meanDelayMs('voice') < sim.meanDelayMs('data'))
@@ -148,7 +148,9 @@ test('inFlight stays bounded', () => {
   let max = 0
   for (let i = 0; i < 600; i++) { sim.tick(0.1); max = Math.max(max, allPkts(sim).length) }
   assert.ok(max < 2000, String(max))
-  assert.ok(sim.drops.length <= 50)
+  for (const key of new Set(sim.drops.map(d => `${d.node}/${d.reason}`))) {
+    assert.ok(sim.drops.filter(d => `${d.node}/${d.reason}` === key).length <= 50)
+  }
 })
 
 test('reset restarts the PRNG from the seed', () => {
@@ -176,4 +178,12 @@ test('cross-traffic gaps are random but do not change the flow kinds', () => {
   sim.setFlowCount(10)
   const quiet = new DiffServSim({ seed: 15 }); run(quiet, 5); quiet.setFlowCount(10)
   assert.deepEqual(sim.flows.map(f => f.kind), quiet.flows.map(f => f.kind))
+})
+
+test('policing drops at E1 stay in the drop record beside a busy queue', () => {
+  const sim = make({ seed: 30, cap: { A: 10, B: 10 } }, { voice: 16, video: 6, data: 7 }); run(sim, 6)
+  const police = sim.drops.filter(d => d.node === 'E1' && d.reason === 'police')
+  assert.ok(sim.drops.filter(d => d.reason === 'queue').length >= 50) // C1 is dropping hard
+  assert.ok(police.length > 0)
+  assert.ok(sim.time - Math.max(...police.map(d => d.t)) < 1) // a recent one, with its time
 })

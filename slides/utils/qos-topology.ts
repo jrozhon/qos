@@ -36,7 +36,7 @@ export const FAST_LINK = 100
 
 export type FlowKind = 'voice' | 'video' | 'data'
 /** Mbit/s per flow. */
-export const FLOW_RATE: Record<FlowKind, number> = { voice: 0.1, video: 2, data: 1 }
+export const FLOW_RATE: Record<FlowKind, number> = { voice: 0.1, video: 2, data: 0.5 }
 
 /** Mbit/s of the two bottleneck links. */
 export interface Capacities { A: number, B: number }

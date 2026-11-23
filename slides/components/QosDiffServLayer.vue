@@ -6,13 +6,13 @@
               on, data and cross traffic below the line), filled by its current DSCP; a voice
               packet that lost its EF mark keeps an EF-coloured ring around its square. Squares are binned by
               6 px per lane, so the number of drawn shapes is bounded however many flows run.
+              DSCP names ride on sampled packets (one voice and one video packet every LABEL_GAP
+              seconds), so the label visibly changes at E1 (marking, meter) and at E3 (SLA); unmarked
+              packets before E1 carry no label. They are drawn in this layer, under the nodes, so a
+              label slides behind a router ring instead of blinking off and on beside it.
     overlay   - at each bottleneck the four class queues (EF, AF4, AF3, BE) as two-row stacks of
                 packet squares, head on the right, with the queue length and link rate above and
                 "EF: strict priority" / "AF4 ×3 · AF3 ×2 · BE ×1" under the link (not compact);
-              - DSCP names on sampled packets (one voice and one video packet every LABEL_GAP
-                seconds), so the label visibly changes at E1 (marking, meter) and at E3 (SLA);
-                unmarked packets before E1 carry no label, nor does a packet whose label would
-                cover a node;
               - dropped packets fall out in FMT red (police drops from E1, queue drops from the
                 tail of their class queue);
               - the colour legend at legendY (not compact).
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { BOTTLENECK_A, BOTTLENECK_B, linkCapacity, type LinkId, type NodeId } from '../utils/qos-topology'
-import { QUEUE_LIMIT, WRR, DSCP, dscpName, queueOf, type DiffServSim, type DropRecord, type Pkt, type QueueClass } from '../utils/qos-diffserv'
+import { AF_DROP_AT, QUEUE_LIMIT, WRR, DSCP, dropPrecedence, dscpName, queueOf, type DiffServSim, type DropRecord, type Pkt, type QueueClass } from '../utils/qos-diffserv'
 import { CLASS_COLOUR, COLOUR_KEYS, colourKey, colourVar, textVar, type ColourKey } from '../utils/qos-dscp-colour'
 
 const props = defineProps<{
@@ -122,11 +122,22 @@ const queues = computed(() => {
       ...b,
       ...toPaths(s),
       x0: qx0(b.from),
+      ticks: afTicks(b.from),
       header: `queue ${n} pkt · ${linkCapacity(b.link, props.sim.cfg.cap)} Mbit/s`,
       mid: (props.x[b.from] + props.x[b.to]) / 2,
     }
   })
 })
+/**
+ * Drop-precedence thresholds of the AF queues (AF_DROP_AT): a tick across the AF4 and AF3 rows where the queue
+ * length reaches the point at which AFx3 (10) and AFx2 (20) arrivals are dropped; the head is on the right, so a
+ * tick sits between the slots of the 10th and 11th (20th and 21st) packet.
+ */
+const afTicks = (from: NodeId) => [AF_DROP_AT[3], AF_DROP_AT[2]].map(n => ({
+  x: qx0(from) + (COLS - n / 2) * PITCH - 1,
+  y1: ROW_TOP + ROWS.indexOf('AF4') * ROW_PITCH - 3,
+  y2: ROW_TOP + ROWS.indexOf('AF3') * ROW_PITCH + 2 * SQ + 4,
+}))
 const rowLabels = ROWS.map((cls, row) => ({ cls, y: ROW_TOP + row * ROW_PITCH + 10, colour: textVar(CLASS_COLOUR[cls]) }))
 const wrrCaption = `AF4 ×${WRR.AF4} · AF3 ×${WRR.AF3} · BE ×${WRR.BE}`
 
@@ -135,25 +146,13 @@ const wrrCaption = `AF4 ×${WRR.AF4} · AF3 ×${WRR.AF3} · BE ×${WRR.BE}`
 const LABEL_GAP = 0.5
 /** Labels of one lane closer than this are skipped. */
 const LABEL_MIN_DX = 38
-/** A label is skipped while its box comes closer than this to a node centre (ring 18 px + 3 px). */
-const NODE_CLEAR = 21
-const CAP_H = 10 // height of a 14 px bold capital, px
-const nodeXs = Object.values(props.x)
-/** Does a label (centred on x, baseline y, `chars` capitals) come within NODE_CLEAR of a node? */
-function coversNode(x: number, y: number, chars: number): boolean {
-  const hw = chars * 4.3 // half the width of a 14 px bold DSCP name
-  const top = y - CAP_H - props.nodeY
-  const bottom = y - props.nodeY
-  const dy = top > 0 ? top : bottom < 0 ? -bottom : 0
-  return nodeXs.some(nx => Math.hypot(Math.max(0, Math.abs(x - nx) - hw), dy) < NODE_CLEAR)
-}
 const labelled = new WeakMap<Pkt, boolean>()
 const lastLabel = { voice: -Infinity, video: -Infinity }
 let lastTime = 0
 
 const labels = computed(() => {
   void props.frame
-  if (props.layer !== 'overlay') return []
+  if (props.layer !== 'packets') return []
   const sim = props.sim
   if (sim.time < lastTime) { lastLabel.voice = -Infinity; lastLabel.video = -Infinity } // reset
   lastTime = sim.time
@@ -171,7 +170,6 @@ const labels = computed(() => {
     // video under the line, clear of the lower pipe edge (nodeY + 9)
     const y = p.kind === 'voice' ? props.nodeY - 12 : props.nodeY + 26
     const text = dscpName(p.dscp)
-    if (coversNode(x, y, text.length)) continue
     out.push({
       id: p.id,
       x,
@@ -207,25 +205,46 @@ const drops = computed(() => {
     if (age >= FALL_S) return
     let x = props.x[r.node] - SQ / 2
     let y = props.nodeY + 10
-    if (r.reason === 'queue') { // from the tail of its class queue
-      x = qx0(r.node) - 1
-      y = slotY(ROWS.indexOf(queueOf(r.pkt.dscp)), 0)
+    if (r.reason === 'queue') { // from where its class queue turned it away
+      const cls = queueOf(r.pkt.dscp)
+      const limit = cls === 'AF4' || cls === 'AF3' ? AF_DROP_AT[dropPrecedence(r.pkt.dscp)] : QUEUE_LIMIT
+      x = limit === QUEUE_LIMIT ? qx0(r.node) - 1 : qx0(r.node) + (COLS - limit / 2) * PITCH - SQ - 2
+      y = slotY(ROWS.indexOf(cls), 0)
     }
     out.push({ key: r.pkt.id, x, y: y + FALL_PX * age / FALL_S, opacity: 1 - 0.7 * age / FALL_S })
   })
   return out
 })
 
+/**
+ * "policed" beside an edge router while its policer is dropping (E1's EF policer; E3 under re-mark only
+ * re-marks), so a red packet falling there is not read as a full queue. Held POLICED_HOLD simulated
+ * seconds after the last such drop, so it does not blink between drops.
+ */
+const POLICED_HOLD = 1.5
+const policedAt = computed(() => {
+  void props.frame
+  if (props.layer !== 'overlay') return []
+  const sim = props.sim
+  const nodes = new Set<NodeId>()
+  for (const r of sim.drops) {
+    if (r.reason !== 'police') continue
+    if (props.still || (r.t <= sim.time && sim.time - r.t < POLICED_HOLD)) nodes.add(r.node)
+  }
+  return [...nodes].map(n => ({ node: n, x: props.x[n] + 8 }))
+})
+
 // --- legend --------------------------------------------------------------------------
-const LEGEND: { text: string, colour: string, outline?: boolean }[] = [
+const LEGEND: { text: string, colour: string, outline?: boolean, tick?: boolean }[] = [
   { text: 'EF', colour: colourVar('ef') },
   { text: 'AF41', colour: colourVar('af41') },
   { text: 'AF42', colour: colourVar('af42') },
   { text: 'AF43', colour: colourVar('af43') },
   { text: 'AF31–33', colour: colourVar('af31') },
-  { text: 'BE / unmarked', colour: colourVar('be') },
+  { text: 'BE', colour: colourVar('be') },
   { text: 'was EF', colour: colourVar('be'), outline: true },
   { text: 'dropped', colour: 'var(--qp-red)' },
+  { text: 'AFx3 dropped from 10, AFx2 from 20', colour: 'var(--vsb-ink)', tick: true },
 ]
 const legend = (() => {
   let x = 0
@@ -241,6 +260,11 @@ const legend = (() => {
   <g v-if="layer === 'packets' && flying">
     <path v-for="p in flying.fill" :key="p.key" :d="p.d" :style="{ fill: colourVar(p.key) }" />
     <path v-if="flying.wasEf" :d="flying.wasEf" class="was-ef" />
+    <!-- DSCP names on sampled packets, under the nodes -->
+    <text
+      v-for="l in labels" :key="l.id" :x="l.x.toFixed(1)" :y="l.y"
+      class="dscp halo" text-anchor="middle" :style="{ fill: l.colour }"
+    >{{ l.text }}</text>
   </g>
   <g v-else-if="layer === 'overlay'">
     <!-- class queues at the bottlenecks -->
@@ -251,6 +275,7 @@ const legend = (() => {
         <rect :x="q.x0 - 1.5" :y="r.y - 11.5" :width="COLS * PITCH + 1" :height="2 * SQ + 3" class="slot" />
       </g>
       <path v-for="p in q.fill" :key="p.key" :d="p.d" :style="{ fill: colourVar(p.key) }" />
+      <line v-for="t in q.ticks" :key="t.x" :x1="t.x" :x2="t.x" :y1="t.y1" :y2="t.y2" class="tick" />
       <path v-if="q.wasEf" :d="q.wasEf" class="was-ef" />
       <template v-if="!compact">
         <text :x="q.mid" :y="captionY" class="caption halo" text-anchor="middle">EF: strict priority</text>
@@ -258,22 +283,21 @@ const legend = (() => {
       </template>
     </g>
 
-    <!-- drops (under the labels) -->
+    <!-- drops -->
+    <text
+      v-for="p in policedAt" :key="`policed${p.node}`" :x="p.x" :y="nodeY + 42"
+      class="caption halo policed" text-anchor="start"
+    >policed</text>
     <rect
       v-for="d in drops" :key="`drop${d.key}`" :x="d.x" :y="d.y.toFixed(1)"
       :width="SQ" :height="SQ" class="drop" :opacity="d.opacity.toFixed(2)"
     />
 
-    <!-- DSCP names on sampled packets -->
-    <text
-      v-for="l in labels" :key="l.id" :x="l.x.toFixed(1)" :y="l.y"
-      class="dscp halo" text-anchor="middle" :style="{ fill: l.colour }"
-    >{{ l.text }}</text>
-
     <!-- legend -->
     <g v-if="!compact" :transform="`translate(0, ${legendY})`">
       <g v-for="l in legend" :key="l.text" :transform="`translate(${l.x}, 0)`">
-        <template v-if="l.outline">
+        <line v-if="l.tick" x1="4.5" x2="4.5" y1="-13" y2="2" class="tick" />
+        <template v-else-if="l.outline">
           <rect :x="2" :y="-8" :width="SQ" :height="SQ" :style="{ fill: l.colour }" />
           <rect :x="2 - RING" :y="-8 - RING" :width="SQ + 2 * RING" :height="SQ + 2 * RING" class="was-ef" />
         </template>
@@ -291,6 +315,8 @@ const legend = (() => {
 .row-label { font-size: 14px; font-weight: 700; }
 .dscp { font-size: 14px; font-weight: 700; }
 .halo { paint-order: stroke; stroke: var(--vsb-bg); stroke-width: 4px; stroke-linejoin: round; }
+.policed { fill: var(--qp-red); font-weight: 700; }
+.tick { stroke: var(--vsb-ink); stroke-width: 1.5; }
 .slot { fill: none; stroke: var(--vsb-muted); stroke-width: 0.8; stroke-opacity: 0.6; }
 .was-ef { stroke: var(--qp-ef); stroke-width: 1.6; }
 path.was-ef, rect.was-ef { fill: none; }
