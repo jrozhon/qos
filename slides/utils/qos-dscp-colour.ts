@@ -1,7 +1,9 @@
 // Colours of DSCP marks in the lecture 08 components (QosPathSim, QosDiffServLayer).
 // Each key names a CSS variable --qp-<key> defined in QosPathSim.vue for light and dark mode:
-// EF in the green family, AF4x in EKF blue and AF3x in dark green, three tints each by drop
-// precedence (lighter = dropped first), BE (DSCP 0, also unmarked) in the muted grey.
+// EF in the green family, AF4x in EKF blue and AF3x in dark green (FBI orange in dark mode, where
+// light green tints would look like EF), three tints each by drop precedence (lighter = dropped
+// first), BE (DSCP 0, also unmarked) in the muted grey. A fill colour that is too light for 14 px
+// text has a darker --qp-<key>-text; textVar() falls back to the fill when there is none.
 
 import { DSCP, type QueueClass } from './qos-diffserv.ts'
 
@@ -28,3 +30,6 @@ export function colourKeyOfName(name: string): ColourKey {
 export const CLASS_COLOUR: Record<QueueClass, ColourKey> = { EF: 'ef', AF4: 'af41', AF3: 'af31', BE: 'be' }
 
 export const colourVar = (k: ColourKey): string => `var(--qp-${k})`
+
+/** Colour for text in a DSCP's colour: --qp-<key>-text where the fill is too light for small text. */
+export const textVar = (k: ColourKey): string => `var(--qp-${k}-text, var(--qp-${k}))`

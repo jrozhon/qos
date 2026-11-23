@@ -41,10 +41,11 @@ export const FLOW_RATE: Record<FlowKind, number> = { voice: 0.1, video: 2, data:
 /** Mbit/s of the two bottleneck links. */
 export interface Capacities { A: number, B: number }
 
+/** Mbit/s of a link; a fast link is never slower than the bottlenecks (FAST_LINK, or the larger bottleneck when that is faster). */
 export function linkCapacity(link: LinkId, cap: Capacities): number {
   if (link === BOTTLENECK_A) return cap.A
   if (link === BOTTLENECK_B) return cap.B
-  return FAST_LINK
+  return Math.max(FAST_LINK, cap.A, cap.B)
 }
 
 export function next(node: NodeId): NodeId | null {

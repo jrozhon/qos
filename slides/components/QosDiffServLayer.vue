@@ -4,14 +4,15 @@
 
     packets   every packet on a link as a 5 px square in the lane of its kind (voice above, video
               on, data and cross traffic below the line), filled by its current DSCP; a voice
-              packet that lost its EF mark keeps an EF-coloured outline. Squares are binned by
+              packet that lost its EF mark keeps an EF-coloured ring around its square. Squares are binned by
               6 px per lane, so the number of drawn shapes is bounded however many flows run.
     overlay   - at each bottleneck the four class queues (EF, AF4, AF3, BE) as two-row stacks of
                 packet squares, head on the right, with the queue length and link rate above and
                 "EF: strict priority" / "AF4 ×3 · AF3 ×2 · BE ×1" under the link (not compact);
               - DSCP names on sampled packets (one voice and one video packet every LABEL_GAP
                 seconds), so the label visibly changes at E1 (marking, meter) and at E3 (SLA);
-                unmarked packets before E1 carry no label;
+                unmarked packets before E1 carry no label, nor does a packet whose label would
+                cover a node;
               - dropped packets fall out in FMT red (police drops from E1, queue drops from the
                 tail of their class queue);
               - the colour legend at legendY (not compact).
@@ -22,7 +23,7 @@
 import { computed } from 'vue'
 import { BOTTLENECK_A, BOTTLENECK_B, linkCapacity, type LinkId, type NodeId } from '../utils/qos-topology'
 import { QUEUE_LIMIT, WRR, DSCP, dscpName, queueOf, type DiffServSim, type DropRecord, type Pkt, type QueueClass } from '../utils/qos-diffserv'
-import { CLASS_COLOUR, COLOUR_KEYS, colourKey, colourVar, type ColourKey } from '../utils/qos-dscp-colour'
+import { CLASS_COLOUR, COLOUR_KEYS, colourKey, colourVar, textVar, type ColourKey } from '../utils/qos-dscp-colour'
 
 const props = defineProps<{
   layer: 'packets' | 'overlay'
@@ -59,6 +60,9 @@ const slotX = (from: NodeId, i: number) => qx0(from) + (COLS - 1 - Math.floor(i 
 const slotY = (row: number, i: number) => ROW_TOP + row * ROW_PITCH + (i % 2) * (SQ + 1)
 
 const square = (x: number, y: number) => `M${x.toFixed(1)} ${y}h${SQ}v${SQ}h-${SQ}z`
+/** The "was EF" ring: RING px outside the square, so the grey fill stays visible inside it. */
+const RING = 1.6
+const ring = (x: number, y: number) => `M${(x - RING).toFixed(1)} ${y - RING}h${SQ + 2 * RING}v${SQ + 2 * RING}h-${SQ + 2 * RING}z`
 const wasEf = (p: Pkt) => p.origDscp === DSCP.EF && p.dscp !== DSCP.EF
 
 interface Shapes { fill: Record<ColourKey, string[]>, wasEf: string[] }
@@ -89,9 +93,10 @@ const flying = computed(() => {
   for (let i = 0; i < bins.length; i++) {
     const p = bins[i]
     if (!p) continue
-    const d = square((i % perLane) * BIN - SQ / 2, props.nodeY + LANE[p.kind] - SQ / 2)
-    s.fill[colourKey(p.dscp)].push(d)
-    if (wasEf(p)) s.wasEf.push(d)
+    const x = (i % perLane) * BIN - SQ / 2
+    const y = props.nodeY + LANE[p.kind] - SQ / 2
+    s.fill[colourKey(p.dscp)].push(square(x, y))
+    if (wasEf(p)) s.wasEf.push(ring(x, y))
   }
   return toPaths(s)
 })
@@ -106,9 +111,10 @@ const queues = computed(() => {
     let n = 0
     ROWS.forEach((cls, row) => {
       q[cls].forEach((p, i) => {
-        const d = square(slotX(b.from, i), slotY(row, i))
-        s.fill[colourKey(p.dscp)].push(d)
-        if (wasEf(p)) s.wasEf.push(d)
+        const x = slotX(b.from, i)
+        const y = slotY(row, i)
+        s.fill[colourKey(p.dscp)].push(square(x, y))
+        if (wasEf(p)) s.wasEf.push(ring(x, y))
       })
       n += q[cls].length
     })
@@ -121,7 +127,7 @@ const queues = computed(() => {
     }
   })
 })
-const rowLabels = ROWS.map((cls, row) => ({ cls, y: ROW_TOP + row * ROW_PITCH + 10, colour: colourVar(CLASS_COLOUR[cls]) }))
+const rowLabels = ROWS.map((cls, row) => ({ cls, y: ROW_TOP + row * ROW_PITCH + 10, colour: textVar(CLASS_COLOUR[cls]) }))
 const wrrCaption = `AF4 ×${WRR.AF4} · AF3 ×${WRR.AF3} · BE ×${WRR.BE}`
 
 // --- DSCP labels on sampled packets ------------------------------------------------------
@@ -129,6 +135,18 @@ const wrrCaption = `AF4 ×${WRR.AF4} · AF3 ×${WRR.AF3} · BE ×${WRR.BE}`
 const LABEL_GAP = 0.5
 /** Labels of one lane closer than this are skipped. */
 const LABEL_MIN_DX = 38
+/** A label is skipped while its box comes closer than this to a node centre (ring 18 px + 3 px). */
+const NODE_CLEAR = 21
+const CAP_H = 10 // height of a 14 px bold capital, px
+const nodeXs = Object.values(props.x)
+/** Does a label (centred on x, baseline y, `chars` capitals) come within NODE_CLEAR of a node? */
+function coversNode(x: number, y: number, chars: number): boolean {
+  const hw = chars * 4.3 // half the width of a 14 px bold DSCP name
+  const top = y - CAP_H - props.nodeY
+  const bottom = y - props.nodeY
+  const dy = top > 0 ? top : bottom < 0 ? -bottom : 0
+  return nodeXs.some(nx => Math.hypot(Math.max(0, Math.abs(x - nx) - hw), dy) < NODE_CLEAR)
+}
 const labelled = new WeakMap<Pkt, boolean>()
 const lastLabel = { voice: -Infinity, video: -Infinity }
 let lastTime = 0
@@ -149,12 +167,17 @@ const labels = computed(() => {
       labelled.set(p, on)
     }
     if (!on || p.at === 'S') continue // not marked before E1
+    const x = xOf(p)
+    // video under the line, clear of the lower pipe edge (nodeY + 9)
+    const y = p.kind === 'voice' ? props.nodeY - 12 : props.nodeY + 26
+    const text = dscpName(p.dscp)
+    if (coversNode(x, y, text.length)) continue
     out.push({
       id: p.id,
-      x: xOf(p),
-      y: p.kind === 'voice' ? props.nodeY - 12 : props.nodeY + 24,
-      text: dscpName(p.dscp),
-      colour: colourVar(colourKey(p.dscp)),
+      x,
+      y,
+      text,
+      colour: textVar(colourKey(p.dscp)),
       lane: laneIdx(p.kind),
     })
   }
@@ -250,7 +273,11 @@ const legend = (() => {
     <!-- legend -->
     <g v-if="!compact" :transform="`translate(0, ${legendY})`">
       <g v-for="l in legend" :key="l.text" :transform="`translate(${l.x}, 0)`">
-        <rect x="0" y="-10" width="9" height="9" :style="{ fill: l.colour }" :class="{ 'was-ef': l.outline }" />
+        <template v-if="l.outline">
+          <rect :x="2" :y="-8" :width="SQ" :height="SQ" :style="{ fill: l.colour }" />
+          <rect :x="2 - RING" :y="-8 - RING" :width="SQ + 2 * RING" :height="SQ + 2 * RING" class="was-ef" />
+        </template>
+        <rect v-else x="0" y="-10" width="9" height="9" :style="{ fill: l.colour }" />
         <text x="14" y="0" class="caption">{{ l.text }}</text>
       </g>
       <text :x="width" y="0" class="caption" text-anchor="end">1 square = 0.1 Mbit</text>
@@ -265,7 +292,7 @@ const legend = (() => {
 .dscp { font-size: 14px; font-weight: 700; }
 .halo { paint-order: stroke; stroke: var(--vsb-bg); stroke-width: 4px; stroke-linejoin: round; }
 .slot { fill: none; stroke: var(--vsb-muted); stroke-width: 0.8; stroke-opacity: 0.6; }
-.was-ef { stroke: var(--qp-ef); stroke-width: 1.4; }
-path.was-ef { fill: none; }
+.was-ef { stroke: var(--qp-ef); stroke-width: 1.6; }
+path.was-ef, rect.was-ef { fill: none; }
 .drop { fill: var(--qp-red); }
 </style>

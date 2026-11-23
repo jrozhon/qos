@@ -215,3 +215,11 @@ test('one large tick equals many small ticks with many flows', () => {
   for (const r of ROUTERS) assert.equal(b.stateCount(r), a.stateCount(r), r)
   assert.equal(b.reserved('C1>C2'), a.reserved('C1>C2'))
 })
+
+test('with 1000 Mbit/s bottlenecks 200 flows are all admitted: the fast links never refuse', () => {
+  const sim = new RsvpSim({ cap: { A: 1000, B: 1000 }, seed: 1 }); sim.setFlowCount(200); run(sim, 6)
+  const signalled = sim.flows.filter(f => f.kind !== 'data')
+  assert.equal(signalled.every(f => f.status === 'reserved'), true)
+  // per-flow state in the core: path + resv per signalled flow at C1, C2 and C3
+  assert.equal(['C1', 'C2', 'C3'].reduce((a, n) => a + sim.stateCount(n as 'C1'), 0), 3 * 2 * signalled.length)
+})

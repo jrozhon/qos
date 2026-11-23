@@ -24,14 +24,23 @@
   capacityA   Mbit/s of C1→C2 (default 10); capacityB Mbit/s of C3→E4 (default 10)
   seed        PRNG seed of the engine (default 1): the same clicks replay the same run
   initialFlows flows present at start and after Reset (default 0)
+  efPolice    DiffServ: rate in Mbit/s of the EF policer at E1, i.e. the EF part of the SLA (default
+              the engine's 1); the side-by-side wrapper raises it with the capacities so that nothing
+              is dropped there either
+  controls    show the control row (default true); the side-by-side wrapper hides it and drives the
+              exposed play() / pause() / reset() from its own row
 
   Time: the animation runs in simulated seconds (RSVP refresh every 3 s stands for the real 30 s);
   the speed slider scales simulated seconds per real second (0.25×–4×). Step advances to the next
   message arrival or refresh (RSVP) or by 0.1 s (DiffServ).
-  Exposes stateTotal(): entries summed over the seven routers (used by the side-by-side wrapper).
+  Exposes, for the side-by-side wrapper (QosCompare.vue): stateTotal() (entries summed over the seven
+  routers), coreStateTotal() (over C1, C2, C3), refreshRate() (RSVP refresh messages per second in a
+  real network, 0 for DiffServ or with refresh off), running, play(), pause(), reset().
 
   Print mode (useNav().isPrintMode): no controls and no animation loop; the slide does not use
-  export-skip. A fixed scenario is advanced with tick() at setup and drawn once (props ignored):
+  export-skip. A fixed scenario is advanced with tick() at setup and drawn once. With `flows` set (the
+  side-by-side wrapper) it is that many flows on the props' capacities and seed after PRINT_FLOWS_T
+  simulated seconds; otherwise props are ignored and the scenario is:
     rsvp      2 voice + 5 video, A = 10, B = 20 [Mbit/s]: 0.2 + 4 × 2 = 8.2 reserved, the 5th video is
               refused at C1 and its ResvErr is on its way downstream (B = 20 so that the RESV, which
               reaches C3 first, is not refused there);
@@ -48,7 +57,7 @@ import {
 } from '../utils/qos-topology'
 import { RsvpSim, type RsvpFlow } from '../utils/qos-rsvp'
 import { DiffServSim, type Boundary } from '../utils/qos-diffserv'
-import { CLASS_COLOUR, colourKeyOfName, colourVar } from '../utils/qos-dscp-colour'
+import { CLASS_COLOUR, colourKeyOfName, textVar } from '../utils/qos-dscp-colour'
 import QosDiffServLayer from './QosDiffServLayer.vue'
 
 const props = withDefaults(defineProps<{
@@ -59,7 +68,9 @@ const props = withDefaults(defineProps<{
   capacityB?: number
   seed?: number
   initialFlows?: number
-}>(), { compact: false, flows: undefined, capacityA: 10, capacityB: 10, seed: 1, initialFlows: 0 })
+  controls?: boolean
+  efPolice?: number
+}>(), { compact: false, flows: undefined, capacityA: 10, capacityB: 10, seed: 1, initialFlows: 0, controls: true, efPolice: undefined })
 
 const { isPrintMode } = useNav()
 
@@ -103,11 +114,14 @@ const KIND_COLOUR: Record<FlowKind, string> = {
 
 // --- engine --------------------------------------------------------------------
 const cap = () => ({ A: props.capacityA, B: props.capacityB })
-const sim = shallowRef<RsvpSim | DiffServSim>(
-  props.mode === 'rsvp'
-    ? new RsvpSim({ cap: cap(), seed: props.seed })
-    : new DiffServSim({ cap: cap(), seed: props.seed }),
-)
+const newSim = () => (props.mode === 'rsvp'
+  ? new RsvpSim({ cap: cap(), seed: props.seed })
+  : new DiffServSim({
+      cap: cap(),
+      seed: props.seed,
+      ...(props.efPolice === undefined ? {} : { efPolice: { rate: props.efPolice, burst: 0.3 } }),
+    }))
+const sim = shallowRef<RsvpSim | DiffServSim>(newSim())
 const rsvpSim = () => sim.value as RsvpSim
 const dsSim = () => sim.value as DiffServSim
 
@@ -151,9 +165,16 @@ function sampleDelay(): void {
 const PRINT_DT = 0.05
 const PRINT_RSVP = { t: 4.1, kinds: ['voice', 'voice', 'video', 'video', 'video', 'video', 'video'] as FlowKind[] }
 const PRINT_DS = { t: 8, perKind: 4 }
+/** Print frame driven by the `flows` prop: long enough for every RESV to get back to S (16 hops × 0.25 s). */
+const PRINT_FLOWS_T = 5
 
 function buildPrintFrame(): void {
-  if (props.mode === 'rsvp') {
+  let t = props.mode === 'rsvp' ? PRINT_RSVP.t : PRINT_DS.t
+  if (props.flows !== undefined) {
+    sim.value = newSim()
+    sim.value.setFlowCount(props.flows)
+    t = PRINT_FLOWS_T
+  } else if (props.mode === 'rsvp') {
     const s = new RsvpSim({ cap: { A: 10, B: 20 }, seed: 1 })
     for (const k of PRINT_RSVP.kinds) s.addFlow(k)
     sim.value = s
@@ -162,7 +183,7 @@ function buildPrintFrame(): void {
     for (const k of ['voice', 'video', 'data'] as FlowKind[]) for (let i = 0; i < PRINT_DS.perKind; i++) s.addFlow(k)
     sim.value = s
   }
-  const steps = Math.round((props.mode === 'rsvp' ? PRINT_RSVP.t : PRINT_DS.t) / PRINT_DT)
+  const steps = Math.round(t / PRINT_DT)
   for (let i = 0; i < steps; i++) {
     sim.value.tick(PRINT_DT)
     if (props.mode === 'rsvp') noteRefusals()
@@ -271,12 +292,25 @@ onSlideLeave(pause)
 onBeforeUnmount(pause)
 onMounted(bump)
 
+/** Entries summed over some routers; reads `frame`, so a caller's computed follows the animation. */
+function stateSum(nodes: readonly NodeId[]): number {
+  void frame.value
+  if (props.mode === 'rsvp') return nodes.reduce((a, n) => a + rsvpSim().stateCount(n), 0)
+  return nodes.reduce((a, n) => { const r = dsSim().stateRows(n, 0); return a + r.rows.length + r.more }, 0)
+}
+const CORE = ROUTERS.filter(n => ROLE[n] === 'core')
+
 defineExpose({
-  stateTotal: (): number => {
+  stateTotal: (): number => stateSum(ROUTERS),
+  coreStateTotal: (): number => stateSum(CORE),
+  refreshRate: (): number => {
     void frame.value
-    if (props.mode === 'rsvp') return ROUTERS.reduce((a, n) => a + rsvpSim().stateCount(n), 0)
-    return ROUTERS.reduce((a, n) => { const r = dsSim().stateRows(n, 0); return a + r.rows.length + r.more }, 0)
+    return props.mode === 'rsvp' && refresh.value ? rsvpSim().refreshMsgPerSecond() : 0
   },
+  running,
+  play,
+  pause,
+  reset,
 })
 
 // --- views (all recomputed when `frame` changes) ----------------------------------
@@ -349,10 +383,10 @@ function dsPanel(node: NodeId): Panel {
   const detail = r.rows.map((x): Detail => {
     if (x.key.startsWith('flow ')) { // E1: flow id and the DSCP its kind gets
       const value = x.detail.split('→ ').pop() ?? x.detail
-      return { key: x.key.slice(5), value, keyColour: ink, valueColour: colourVar(colourKeyOfName(value)) }
+      return { key: x.key.slice(5), value, keyColour: ink, valueColour: textVar(colourKeyOfName(value)) }
     }
     if (node !== 'E3') { // per-class queue length
-      return { key: x.key, value: x.detail, keyColour: colourVar(CLASS_COLOUR[x.key as keyof typeof CLASS_COLOUR]), valueColour: muted }
+      return { key: x.key, value: x.detail, keyColour: textVar(CLASS_COLOUR[x.key as keyof typeof CLASS_COLOUR]), valueColour: muted }
     }
     // E3: SLA rule; rates without the unit, as in the RSVP rows, so "EF ≤ 0.5" fits the panel
     return { key: x.key, value: x.detail.replace(' Mbit/s', ''), keyColour: ink, valueColour: muted }
@@ -379,6 +413,8 @@ const bars = computed(() => {
 
 /** Messages closer than this on one lane and of one type are drawn as one label with a count. */
 const MSG_MERGE = 44
+/** Width of one character of a 14 px bold message label, generous. */
+const MSG_CHAR_W = 8
 
 const messages = computed(() => {
   void frame.value
@@ -391,14 +427,12 @@ const messages = computed(() => {
     if (!head) return
     const t = head.type as typeof all[number]['type']
     const n = head.n > 1 ? head.n : 0
-    out.push({
-      key: `${t}${out.length}`,
-      type: t,
-      x: head.x,
-      y: t === 'PATH' ? LANE_PATH : LANE_RESV,
-      // PATH and ResvErr end at the arrow on their right, RESV starts at the arrow on its left
-      label: t === 'RESV' ? `RESV${n ? ` ×${n}` : ''}` : `${n ? `${n}× ` : ''}${t}`,
-    })
+    // PATH and ResvErr end at the arrow on their right, RESV starts at the arrow on its left
+    const label = t === 'RESV' ? `RESV${n ? ` ×${n}` : ''}` : `${n ? `${n}× ` : ''}${t}`
+    // keep a long merged label ("162× PATH" at S) inside the drawing
+    const width = label.length * MSG_CHAR_W
+    const x = t === 'RESV' ? Math.min(head.x, W - width + 16) : Math.max(head.x, width - 16)
+    out.push({ key: `${t}${out.length}`, type: t, x, y: t === 'PATH' ? LANE_PATH : LANE_RESV, label })
   }
   for (const m of all) {
     if (head && head.type === m.type && m.x - head.x < MSG_MERGE) { head.n++; continue }
@@ -454,13 +488,16 @@ const dsSummary = computed(() => {
   if (props.mode !== 'diffserv') return null
   const s = dsSim()
   const first = snaps[0]
-  return KINDS.map((k, i) => {
+  const parts = KINDS.map((k, i) => {
     // mean over the window when there is one, else since the start (meanDelayMs)
     const n = first ? s.stats[k].delivered - first.n[i] : s.stats[k].delivered
     const sum = first ? s.stats[k].delaySum - first.sum[i] : s.stats[k].delaySum
     const delay = n > 0 ? `${(sum / n * 1000).toFixed(0)} ms` : '–'
-    return `${k} ${delay} (${s.stats[k].dropped} dropped)`
-  }).join(' · ')
+    return props.compact ? `${k} ${delay}` : `${k} ${delay} (${s.stats[k].dropped} dropped)`
+  })
+  // compact: one drop total instead of three, so four-digit numbers still fit the width
+  if (props.compact) parts.push(`dropped ${KINDS.reduce((a, k) => a + s.stats[k].dropped, 0)}`)
+  return parts.join(' · ')
 })
 </script>
 
@@ -593,15 +630,16 @@ const dsSummary = computed(() => {
         </text>
       </template>
       <text v-if="dsSummary" x="0" :y="H - 8" class="value">
-        queuing delay at the bottlenecks, last {{ DELAY_WINDOW }} s: {{ dsSummary }}
+        <template v-if="compact">delay, last {{ DELAY_WINDOW }} s: {{ dsSummary }}</template>
+        <template v-else>queuing delay at the bottlenecks, last {{ DELAY_WINDOW }} s: {{ dsSummary }}</template>
       </text>
     </svg>
 
-    <p v-if="isPrintMode && mode === 'diffserv'" class="print-caption">
+    <p v-if="isPrintMode && mode === 'diffserv' && flows === undefined" class="print-caption">
       Domain B bleached the marks: voice now waits with best effort
     </p>
 
-    <div v-if="!isPrintMode" class="controls">
+    <div v-if="!isPrintMode && controls" class="controls">
       <button type="button" @click="running ? pause() : play()">{{ running ? 'Pause' : 'Play' }}</button>
       <button type="button" @click="step">Step</button>
       <button type="button" @click="reset">Reset</button>
@@ -635,13 +673,16 @@ const dsSummary = computed(() => {
   --qp-red: #E4002B;  /* FMT red, reserved for refusals and drops (VSB-STYLE.md §9) */
   --qp-blue: #0047BB; /* EKF blue, second series colour (R26) */
   /* DSCP colours (utils/qos-dscp-colour.ts), each ≥ 3:1 on #FFFFFF and on #0E1A19; lighter = higher
-     drop precedence (dropped first) */
+     drop precedence (dropped first). --qp-<key> fills squares; --qp-<key>-text, where set, colours
+     14 px text (≥ 4.5:1), otherwise text uses the fill (textVar) */
   --qp-ef: var(--vsb-green);  /* #00A499 in both themes, 3.1:1 on white */
+  --qp-ef-text: var(--vsb-green-text); /* #00736B 5.7:1 on white; dark mode #4DD8CE */
   --qp-af41: var(--qp-blue);   /* EKF blue and two lighter tints */
-  --qp-af42: #3D6FD6;
+  --qp-af42: #3D6FD6; /* 4.7:1 */
   --qp-af43: #6A8FE0; /* 3.2:1 */
+  --qp-af43-text: #3D6FD6; /* as AF42: 4.7:1 */
   --qp-af31: #00403A; /* D (dark green) family */
-  --qp-af32: var(--vsb-green-dark); /* #005F58, dark mode #7FE3DA */
+  --qp-af32: var(--vsb-green-dark); /* #005F58 */
   --qp-af33: #2E7D76;
   --qp-be: var(--vsb-muted);
 }
@@ -651,8 +692,12 @@ const dsSummary = computed(() => {
   /* on the dark background the darkest tint is the lowest drop precedence, lighter still = dropped first */
   --qp-af42: #9DBBFF;
   --qp-af43: #C8D8FF;
-  --qp-af31: var(--vsb-green-light); /* #4DD8CE */
-  --qp-af33: #C4F2EE;
+  --qp-af43-text: #C8D8FF;
+  /* AF3 in FBI orange and two tints: the green tints of light mode would look like EF on the dark
+     background (7.2, 9.2, 11.9:1 on #0E1A19) */
+  --qp-af31: #FF8200;
+  --qp-af32: #FFA64D;
+  --qp-af33: #FFC999;
 }
 svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-text); }
 .label { font-size: 14px; fill: var(--vsb-muted); }
@@ -713,5 +758,5 @@ svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-tex
   cursor: pointer;
 }
 .controls button:hover { background: var(--vsb-green-dark); border-color: var(--vsb-green-dark); color: var(--vsb-bg); }
-.print-caption { margin: 0.3rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--vsb-ink); }
+.print-caption { margin: 0.3rem 0 0; font-size: 16px; font-weight: 700; color: var(--vsb-ink); }
 </style>

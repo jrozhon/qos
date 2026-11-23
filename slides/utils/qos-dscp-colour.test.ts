@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DSCP, dscpName, queueOf } from './qos-diffserv.ts'
-import { CLASS_COLOUR, colourKey, colourKeyOfName } from './qos-dscp-colour.ts'
+import { CLASS_COLOUR, colourKey, colourKeyOfName, colourVar, textVar } from './qos-dscp-colour.ts'
 
 test('every AF4x / AF3x drop precedence and EF have their own colour, the rest is best effort', () => {
   assert.equal(colourKey(DSCP.EF), 'ef')
@@ -16,4 +16,9 @@ test('names from dscpName map to the same colour as their DSCP', () => {
 
 test('a queue class is drawn in the colour of its lowest drop precedence', () => {
   for (const d of [DSCP.EF, DSCP.AF41, DSCP.AF31, DSCP.CS0]) assert.equal(CLASS_COLOUR[queueOf(d)], colourKey(d))
+})
+
+test('text colour uses the darker -text variable and falls back to the fill', () => {
+  assert.equal(colourVar('ef'), 'var(--qp-ef)')
+  assert.equal(textVar('ef'), 'var(--qp-ef-text, var(--qp-ef))')
 })

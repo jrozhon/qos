@@ -68,3 +68,13 @@ Test slide: refusal at C1 (temporary).
 <!--
 Test slide: compact DiffServ view (temporary).
 -->
+
+---
+
+# Scaling: state in the core
+
+<QosCompare />
+
+<!--
+Test slide: side-by-side scaling view (Task 5, temporary).
+-->
