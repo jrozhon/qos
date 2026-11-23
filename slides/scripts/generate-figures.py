@@ -2207,6 +2207,353 @@ s.text(440, 302, 'Number of stalls matters more than their length: a single 1 s 
 s.save()
 
 # =============================================================================
+# 08 — QoS architectures: Integrated Services with RSVP, and Differentiated Services
+# =============================================================================
+# Colours follow the live components of this deck: EF = G, AF4 = EKF, AF3 = FBI, best effort = MUT,
+# drops and refusals = FMT; PATH messages green, RESV messages blue. `cell` comes from the 07 section.
+DECK = '08'
+
+
+def check_mark(x, y, color=G):
+    """A drawn tick (Carlito has no ✓ glyph); (x, y) is the baseline-left corner, 12 px wide."""
+    s.path(f'M{x:.1f},{y - 6:.1f} L{x + 4:.1f},{y - 1:.1f} L{x + 12:.1f},{y - 12:.1f}', color, 2.5)
+
+
+# --- Timeline of the standards: IntServ above, DiffServ below ------------------------------
+s = SVG(DECK, 'timeline', 345, 'Timeline of the IntServ and DiffServ standards, 1994 to 2023',
+        'A horizontal timeline. Above it, the Integrated Services line: RFC 1633, the IntServ architecture, in 1994; '
+        'RFC 2205, RSVP, in 1997; RFC 2998, IntServ operation over DiffServ networks, in 2000; and RFC 3209, RSVP-TE '
+        'for MPLS, in 2001. Below it, the Differentiated Services line: RFC 2474 and 2475, the DS field and the '
+        'architecture, in 1998; RFC 2597, Assured Forwarding, in 1999; RFC 3246, Expedited Forwarding, in 2002; '
+        'RFC 4594, the service-class guidelines, in 2006; RFC 8622, the Lower-Effort PHB, in 2019; and RFC 9330 to '
+        '9332, the L4S architecture, in 2023. The axis is broken between 2006 and 2019.')
+AXIS_Y = 140
+# 1994–2006 to scale (40 px per year); after the break 2019 and 2023 sit on their own, compressed scale
+year_x = {1994: 60, 1997: 180, 1998: 220, 1999: 260, 2000: 300, 2001: 340, 2002: 380, 2006: 540, 2019: 630, 2023: 750}
+s.line(30, AXIS_Y, 567, AXIS_Y, INK, 1.5)
+s.line(593, AXIS_Y, 872, AXIS_Y, INK, 1.5, arrow='ink')
+for bx in (567, 583):  # axis break
+    s.line(bx - 4, AXIS_Y + 8, bx + 6, AXIS_Y - 8, INK, 1.5)
+# (year, RFC, what, colour, line-1 baseline, anchor): above the axis IntServ, below it DiffServ; the levels are
+# staggered so that no leader line crosses another event's label
+events = [(1994, 'RFC 1633', 'IntServ architecture', EKF, 30, 'start'),
+          (1997, 'RFC 2205', 'RSVP', EKF, 85, 'start'),
+          (2000, 'RFC 2998', 'IntServ over DiffServ', EKF, 30, 'start'),
+          (2001, 'RFC 3209', 'RSVP-TE for MPLS', EKF, 85, 'start'),
+          (1998, 'RFC 2474 / 2475', 'DS field, architecture', G, 280, 'start'),
+          (1999, 'RFC 2597', 'AF PHB', G, 230, 'start'),
+          (2002, 'RFC 3246', 'EF PHB', G, 180, 'start'),
+          (2006, 'RFC 4594', 'service classes', G, 280, 'start'),
+          (2019, 'RFC 8622', 'LE PHB', G, 180, 'start'),
+          (2023, 'RFC 9330–9332', 'L4S', G, 230, 'start')]
+for year, rfc, what, color, ly, anchor in events:
+    x = year_x[year]
+    s.line(x, AXIS_Y, x, ly - 14 if ly < AXIS_Y else ly + 24, MUT, 1.2)
+    s.dot(x, AXIS_Y, 5, color)
+    tx = x + 7 if anchor == 'start' else x - 7
+    s.text(tx, ly, rfc, 'bold', anchor)
+    s.text(tx, ly + 19, f'{year} · {what}', 'small', anchor)
+s.text(860, 30, 'INTSERV', 'label', 'end')
+s.text(860, 49, 'per-flow reservations', 'small', 'end')
+s.text(40, 185, 'DIFFSERV', 'label')
+s.text(40, 204, 'per-class marking', 'small')
+s.text(440, 333, 'IntServ came first; DiffServ is what operators deployed. RSVP lives on mainly as RSVP-TE in MPLS cores.',
+       'small', 'middle')
+s.save()
+
+# --- Inside an IntServ router -----------------------------------------------------------------
+s = SVG(DECK, 'intserv-router', 340, 'Functional blocks of an IntServ router',
+        'The router has a control plane and a data plane. In the control plane, the RSVP agent receives PATH '
+        'messages from upstream and RESV messages from downstream and forwards them on. For each RESV it asks '
+        'admission control whether enough capacity is left; an admitted reservation is written into the traffic '
+        'control database. In the data plane, arriving packets pass a classifier, which uses the filters from '
+        'that database to map each packet to its flow, and a packet scheduler with one queue per reserved flow '
+        'plus best effort, served at the reserved rates, before leaving on the output link.')
+s.rect(130, 10, 620, 290, PAPER, INK, 1.5)
+s.rect(145, 45, 590, 100, NEUTRAL, LINE)
+s.rect(145, 160, 590, 125, NEUTRAL, LINE)
+s.text(140, 33, 'INTSERV ROUTER', 'label')
+s.text(155, 63, 'control plane', 'small')
+s.text(155, 178, 'data plane', 'small')
+cell(160, 72, 180, 56, 'RSVP agent', 'reservation set-up', TINT3)
+cell(370, 72, 170, 56, 'Admission control', 'enough capacity?', TINT3)
+cell(570, 72, 150, 56, 'Traffic control', 'database', TINT3)
+s.line(340, 100, 368, 100, G, 2, arrow='green')
+s.line(540, 100, 568, 100, G, 2, arrow='green')
+# data plane: classifier → scheduler with per-flow queues → output link
+s.line(20, 230, 173, 230, INK, 2, arrow='ink')
+s.text(20, 222, 'packets in', 'small')
+cell(175, 202, 130, 56, 'Classifier', 'filter → flow', TINT)
+s.line(305, 230, 353, 230, INK, 2, arrow='ink')
+s.rect(355, 188, 260, 88, PAPER, INK, 1.5)
+s.text(365, 206, 'Packet scheduler', 'bold')
+for k, (name, fill, n) in enumerate([('flow 1', G, 3), ('flow 2', EKF, 2), ('best effort', MUT, 4)]):
+    qy = 214 + k * 20
+    s.rect(365, qy, 140, 16, PAPER, LINE, 1)
+    for j in range(n):
+        s.rect(503 - (j + 1) * 16, qy + 2, 14, 12, fill, 'none')
+    s.text(512, qy + 13, name, 'small')
+s.line(615, 230, 862, 230, INK, 2, arrow='ink')
+s.text(860, 222, 'output link', 'small', 'end')
+# the database configures the data plane
+s.line(600, 128, 245, 200, MUT, 1.5, dash=True, arrow='muted')
+s.line(660, 128, 590, 186, MUT, 1.5, dash=True, arrow='muted')
+s.text(322, 176, 'filters', 'small', 'end')
+s.text(640, 172, 'rates', 'small')
+# RSVP messages at the sides: PATH travels downstream (left → right), RESV upstream (right → left)
+for x1, x2, y, name, color, marker in [(20, 128, 88, 'PATH', G, 'green'), (128, 20, 118, 'RESV', EKF, 'blue'),
+                                       (752, 860, 88, 'PATH', G, 'green'), (860, 752, 118, 'RESV', EKF, 'blue')]:
+    s.line(x1, y, x2, y, color, 2, arrow=marker)
+    s.text((x1 + x2) / 2, y - 7, name, 'small bold', 'middle')
+s.text(74, 145, 'upstream', 'small', 'middle')
+s.text(806, 145, 'downstream', 'small', 'middle')
+s.text(440, 325, 'Only an admitted flow gets a classifier filter and its own queue with a reserved rate — state per flow, per router.',
+       'small', 'middle')
+s.save()
+
+# --- RSVP message sequence ------------------------------------------------------------------------
+s = SVG(DECK, 'rsvp-messages', 450, 'RSVP signalling: PATH downstream, RESV upstream, refresh and teardown',
+        'A sequence diagram with four participants: sender, router R1, router R2 and receiver. The PATH message '
+        'travels hop by hop from the sender to the receiver; R1 and R2 each store the previous hop. The receiver '
+        'answers with a RESV message carrying the flowspec, which travels back along the stored previous hops; '
+        'R2 and then R1 run admission control and reserve the resources. About 30 seconds later the sender '
+        'refreshes the PATH state and the receiver the RESV state. Finally a PathTear from the sender removes the '
+        'state along the path at once.')
+cols = {'snd': 90, 'r1': 310, 'r2': 530, 'rcv': 750}
+for key, name in [('snd', 'Sender'), ('r1', 'Router R1'), ('r2', 'Router R2'), ('rcv', 'Receiver')]:
+    cell(cols[key] - 70, 8, 140, 36, name, fill=TINT3 if key in ('r1', 'r2') else NEUTRAL)
+    s.line(cols[key], 44, cols[key], 400, LINE, 1.5, dash=True)
+
+
+def seq(a, b, y, label, color=G, marker='green', dash=False):
+    s.line(cols[a], y, cols[b] + (-2 if cols[b] > cols[a] else 2), y, color, 2, dash, marker)
+    s.text((cols[a] + cols[b]) / 2, y - 7, label, 'small', 'middle')
+
+
+seq('snd', 'r1', 72, 'PATH (sender Tspec)')
+s.text(cols['r1'] - 8, 93, 'stores previous hop', 'small', 'end')
+seq('r1', 'r2', 108, 'PATH')
+s.text(cols['r2'] - 8, 129, 'stores previous hop', 'small', 'end')
+seq('r2', 'rcv', 144, 'PATH')
+seq('rcv', 'r2', 184, 'RESV (flowspec)', EKF, 'blue')
+check_mark(cols['r2'] + 8, 206)
+s.text(cols['r2'] + 26, 206, 'admission, reserve', 'small')
+seq('r2', 'r1', 220, 'RESV', EKF, 'blue')
+check_mark(cols['r1'] + 8, 242)
+s.text(cols['r1'] + 26, 242, 'admission, reserve', 'small')
+seq('r1', 'snd', 256, 'RESV', EKF, 'blue')
+s.text(cols['snd'] + 8, 278, 'reservation in place', 'small')
+# refresh pair, drawn end to end (each router forwards it hop by hop)
+s.line(20, 296, 860, 296, GRID, 1.5)
+s.text(440, 291, 'R = 30 s later — soft state is refreshed', 'small bold', 'middle')
+seq('snd', 'rcv', 326, 'PATH refresh, hop by hop', G, 'green', dash=True)
+seq('rcv', 'snd', 358, 'RESV refresh, hop by hop', EKF, 'blue', dash=True)
+seq('snd', 'rcv', 390, 'PathTear — state removed along the path at once', INK, 'ink')
+s.text(440, 428, 'Without refreshes the state expires on its own after L ≈ 157 s (3 missed refreshes, K = 3).',
+       'small', 'middle')
+s.save()
+
+# --- Traffic conditioning block at the DiffServ edge ------------------------------------------
+s = SVG(DECK, 'tcb', 300, 'The DiffServ traffic conditioner at the network edge',
+        'Packets enter a classifier, which selects them by addresses, ports or an existing DSCP. A meter, usually '
+        'one or two token buckets, measures each traffic class against its profile and tells the marker and the '
+        'shaper or dropper whether a packet is in or out of profile. The marker sets the DSCP, for example re-marking '
+        'AF11 to AF12; the shaper delays and the dropper discards excess packets. This block runs only at the edge; '
+        'core routers just read the DSCP and apply the per-hop behaviour.')
+s.rect(70, 38, 740, 180, PAPER, INK, 1.5)
+s.text(75, 28, 'TRAFFIC CONDITIONER — EDGE ONLY (RFC 2475)', 'label')
+s.line(10, 150, 88, 150, INK, 2, arrow='ink')
+s.text(14, 140, 'packets', 'small')
+cell(90, 122, 140, 56, 'Classifier', fill=TINT)
+cell(300, 52, 150, 50, 'Meter', 'token bucket(s)', TINT3)
+cell(400, 122, 140, 56, 'Marker', fill=TINT)
+cell(610, 122, 180, 56, 'Shaper / dropper', fill=TINT)
+s.line(230, 150, 398, 150, INK, 2, arrow='ink')
+s.line(540, 150, 608, 150, INK, 2, arrow='ink')
+s.line(790, 150, 868, 150, INK, 2, arrow='ink')
+s.text(866, 140, 'to core', 'small', 'end')
+s.path('M160,122 L160,77 L298,77', MUT, 1.5, arrow='muted')
+s.path('M425,102 L425,120', MUT, 1.5, dash=True, arrow='muted')
+s.path('M450,77 L700,77 L700,120', MUT, 1.5, dash=True, arrow='muted')
+s.text(575, 70, 'in / out of profile', 'small', 'middle')
+for x, t in [(160, 'addresses, ports, DSCP'), (470, 'sets DSCP, e.g. AF11 → AF12'), (700, 'delays or discards excess')]:
+    s.text(x, 200, t, 'small', 'middle')
+cell(90, 236, 140, 40, 'Core router', fill=NEUTRAL)
+s.text(245, 262, 'reads the DSCP and applies its per-hop behaviour — no metering, no per-flow state', 'small')
+s.save()
+
+# --- Two-rate three-colour marker ---------------------------------------------------------------------
+s = SVG(DECK, 'trtcm', 355, 'Two-rate three-colour marker (RFC 2698) and the AF drop precedence it sets',
+        'Two token buckets: bucket P fills at the peak information rate PIR up to the peak burst size PBS, bucket C '
+        'fills at the committed information rate CIR up to the committed burst size CBS. For a packet of B bytes, '
+        'in colour-blind mode: if bucket P holds fewer than B tokens the packet is red and is marked AFx3, high drop '
+        'precedence. Otherwise, if bucket C holds fewer than B tokens it is yellow, marked AFx2, and B tokens are '
+        'taken from P. Otherwise it is green, marked AFx1, and B tokens are taken from both buckets.')
+
+
+def token_bucket(x, y, name, rate, depth, tokens):
+    """An open-top bucket 90 wide and 50 deep at (x, y), filled from above at `rate`."""
+    s.line(x + 45, y - 26, x + 45, y - 2, G, 2, arrow='green')
+    s.text(x + 55, y - 10, rate, 'small')
+    s.path(f'M{x},{y} L{x},{y + 50} L{x + 90},{y + 50} L{x + 90},{y}', INK, 1.5)
+    for j in range(tokens):
+        s.rect(x + 6 + (j % 4) * 20, y + 30 - (j // 4) * 20, 16, 16, TINT, G, 1.5)
+    s.text(x - 14, y + 22, name, 'bold', 'end')
+    s.text(x - 14, y + 42, f'holds ≤ {depth}', 'small', 'end')
+
+
+token_bucket(170, 62, 'Bucket P', 'PIR', 'PBS', 7)
+token_bucket(170, 172, 'Bucket C', 'CIR', 'CBS', 3)
+s.line(262, 87, 398, 87, MUT, 1.5, dash=True)
+s.text(330, 80, 'Tp tokens', 'small', 'middle')
+s.line(262, 197, 398, 197, MUT, 1.5, dash=True)
+s.text(330, 190, 'Tc tokens', 'small', 'middle')
+s.line(485, 22, 485, 58, INK, 2, arrow='ink')
+s.text(497, 36, 'packet of B bytes', 'small')
+cell(400, 62, 170, 50, 'Tp < B ?', fill=NEUTRAL)
+cell(400, 172, 170, 50, 'Tc < B ?', fill=NEUTRAL)
+cell(640, 62, 220, 50, 'red → AFx3', 'high drop precedence', RTINT, FMT, 2)
+cell(640, 172, 220, 50, 'yellow → AFx2', 'Tp −= B', YTINT, FBI, 2)
+cell(640, 252, 220, 50, 'green → AFx1', 'Tp −= B, Tc −= B', TINT, G, 2)
+s.line(570, 87, 638, 87, INK, 2, arrow='ink')
+s.text(604, 80, 'yes', 'small', 'middle')
+s.line(485, 112, 485, 170, INK, 2, arrow='ink')
+s.text(493, 146, 'no', 'small')
+s.line(570, 197, 638, 197, INK, 2, arrow='ink')
+s.text(604, 190, 'yes', 'small', 'middle')
+s.path('M485,222 L485,277 L638,277', INK, 2, arrow='ink')
+s.text(493, 256, 'no', 'small')
+s.text(440, 328, 'Colour-blind mode (RFC 2698): the peak bucket is checked first, so traffic above PIR is always red.',
+       'small', 'middle')
+s.text(440, 346, 'The colours become AF drop precedences: within one AF class, red is dropped first and green last.',
+       'small', 'middle')
+s.save()
+
+# --- DSCP code points ---------------------------------------------------------------------------------
+s = SVG(DECK, 'dscp-table', 405, 'DiffServ code points: EF, the AF matrix, default, class selectors and LE',
+        'Main table: Expedited Forwarding EF is 46, binary 101110; VOICE-ADMIT is 44, 101100. Assured Forwarding '
+        'has four classes with three drop precedences each: AF11 10 (001010), AF12 12 (001100), AF13 14 (001110); '
+        'AF21 18 (010010), AF22 20 (010100), AF23 22 (010110); AF31 26 (011010), AF32 28 (011100), AF33 30 (011110); '
+        'AF41 34 (100010), AF42 36 (100100), AF43 38 (100110). Default is 0, 000000. In the binary values the first '
+        'three bits give the class and the next two the drop precedence; the last bit is 0. Side table: class '
+        'selectors CS7 to CS0 are 56, 48, 40, 32, 24, 16, 8 and 0, binary xxx000, and Lower Effort LE is 1, 000001.')
+
+
+def bits(x, y, groups, anchor='middle'):
+    """Binary code point with each group of bits in its own colour: groups = [(digits, colour, bold), ...]."""
+    spans = ''.join(f'<tspan fill="{c}"' + (' font-weight="700"' if b else '') + (' dx="5"' if k else '')
+                    + f'>{escape(d)}</tspan>' for k, (d, c, b) in enumerate(groups))
+    s.parts.append(f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="{anchor}" style="letter-spacing:1px">{spans}</text>')
+
+
+def dscp_bits(x, y, value, anchor='middle'):
+    b = format(value, '06b')
+    bits(x, y, [(b[:3], D, True), (b[3:5], EKF, True), (b[5], MUT, False)], anchor)
+
+
+s.text(20, 28, 'PER-HOP BEHAVIOURS — EF (RFC 3246), AF (RFC 2597)', 'label')
+LX, LW, CW, RH, TOP = 20, 100, 150, 44, 70
+for k, head in enumerate(['low drop · x1', 'medium drop · x2', 'high drop · x3']):
+    s.rect(LX + LW + k * CW, 40, CW, 30, NEUTRAL, LINE)
+    s.text(LX + LW + k * CW + CW / 2, 61, head, 'small bold', 'middle')
+rows = [('EF', G), ('AF4', EKF), ('AF3', FBI), ('AF2', LINE), ('AF1', LINE), ('Default', MUT)]
+for r, (name, stripe) in enumerate(rows):
+    y = TOP + r * RH
+    s.rect(LX, y, LW, RH, NEUTRAL, LINE)
+    s.rect(LX, y, 6, RH, stripe, 'none')
+    s.text(LX + 16, y + 28, name, 'bold')
+    if name.startswith('AF'):
+        c = int(name[2])
+        for d in range(1, 4):
+            x = LX + LW + (d - 1) * CW
+            value = 8 * c + 2 * d
+            s.rect(x, y, CW, RH, PAPER, LINE)
+            s.text(x + CW / 2, y + 19, f'{name}{d} = {value}', 'bold', 'middle')
+            dscp_bits(x + CW / 2, y + 38, value)
+    else:
+        s.rect(LX + LW, y, 3 * CW, RH, PAPER, LINE)
+        for cx, label, value in ([(LX + LW + CW * 0.75, 'EF = 46', 46), (LX + LW + CW * 2.25, 'VOICE-ADMIT = 44', 44)]
+                                 if name == 'EF' else [(LX + LW + CW * 1.5, 'Default (best effort) = 0', 0)]):
+            s.text(cx, y + 19, label, 'bold', 'middle')
+            dscp_bits(cx, y + 38, value)
+# side table: class selectors (RFC 2474) and LE (RFC 8622)
+SX, SY, SRH = 620, 70, 29
+s.text(SX, 28, 'CLASS SELECTORS · LE', 'label')
+for x, w, head in [(SX, 90, 'name'), (SX + 90, 60, 'dec'), (SX + 150, 90, 'binary')]:
+    s.rect(x, 40, w, 30, NEUTRAL, LINE)
+    s.text(x + w / 2, 61, head, 'small bold', 'middle')
+side = [(f'CS{n}', 8 * n) for n in range(7, -1, -1)] + [('LE', 1)]
+for r, (name, value) in enumerate(side):
+    y = SY + r * SRH
+    s.rect(SX, y, 240, SRH, PAPER, LINE)
+    s.text(SX + 12, y + 20, name, 'bold')
+    s.text(SX + 135, y + 20, str(value), '', 'end')
+    b = format(value, '06b')
+    bits(SX + 195, y + 20, [(b[:3], D, True), (b[3:], MUT, False)])
+s.line(SX, SY + 8 * SRH, SX + 240, SY + 8 * SRH, INK, 1.5)  # LE is not a class selector
+bits(440, 365, [('class bits', D, True), ('· drop-precedence bits', EKF, True), ('· last bit always 0', MUT, False)])
+s.text(440, 390, 'CSn = 8n keeps the IP Precedence order; CS0 is the default code point. LE (RFC 8622) is below best effort.',
+       'small', 'middle')
+s.save()
+
+# --- Low-latency queuing: strict-priority EF plus weighted classes -------------------------------------
+s = SVG(DECK, 'llq', 340, 'Low-latency queuing: a strict-priority EF queue in front of weighted round robin',
+        'Arriving packets are classified by DSCP into four queues: EF, AF4, AF3 and best effort. The EF queue goes '
+        'straight to a strict-priority scheduler, which always serves it first. The AF4, AF3 and best-effort queues '
+        'share a weighted round robin with weights 3, 2 and 1, whose output is served only when the EF queue is '
+        'empty. Everything leaves on one output link.')
+s.line(20, 160, 98, 160, INK, 2, arrow='ink')
+s.text(20, 150, 'arrivals', 'small')
+cell(100, 120, 100, 80, 'Classify', 'by DSCP', TINT)
+queues = [('EF', G, 4, 45), ('AF4', EKF, 3, 120), ('AF3', FBI, 2, 175), ('BE', MUT, 3, 230)]
+for name, fill, n, qy in queues:
+    s.line(200, 160, 258, qy + 20, MUT, 1.5, arrow='muted')
+    s.rect(260, qy, 180, 40, PAPER, INK, 1.5)
+    s.text(270, qy + 26, name, 'bold')
+    for j in range(n):
+        s.rect(436 - (j + 1) * 26, qy + 6, 22, 28, fill, 'none')
+s.text(260, 35, 'EF: strict priority, policed at the edge', 'small')
+cell(510, 115, 110, 160, 'WRR', '3 : 2 : 1', TINT3)
+for (name, _, _, qy), w in zip(queues[1:], ('×3', '×2', '×1')):
+    s.line(440, qy + 20, 508, qy + 20, INK, 2, arrow='ink')
+    s.text(474, qy + 13, w, 'small bold', 'middle')
+cell(690, 45, 110, 230, 'Priority', 'EF first', TINT3)
+s.line(440, 65, 688, 65, G, 2.5, arrow='green')
+s.text(565, 58, '1st — always', 'small', 'middle')
+s.line(620, 195, 688, 195, INK, 2, arrow='ink')
+s.text(654, 188, '2nd', 'small', 'middle')
+s.line(800, 160, 868, 160, INK, 2, arrow='ink')
+s.text(834, 150, 'link', 'small', 'middle')
+s.text(260, 292, 'CBWFQ: AF4 · AF3 · BE share what EF leaves', 'small')
+s.text(440, 325, 'EF waits only behind other EF packets; policing keeps it from starving the weighted classes.',
+       'small', 'middle')
+s.save()
+
+# --- WRED: one RED profile per drop precedence -------------------------------------------------------
+s = SVG(DECK, 'wred-profiles', 325, 'Weighted RED: one drop profile per AF drop precedence',
+        'Drop probability against average queue depth for the three drop precedences of one AF class. AFx3 '
+        'starts dropping at 10 packets, AFx2 at 20 and AFx1 at 30; each rises linearly to a maximum probability '
+        'max_p of 0.1 over the next 10 packets and then drops every packet. The higher the drop precedence, the '
+        'earlier its packets are discarded, so in congestion red traffic is dropped before yellow and yellow '
+        'before green.')
+WRED_MAX_P = 0.1
+ax = Axes(s, 90, 30, 560, 190, (0, 60), (0, 1.05), xlabel='Average queue depth [packets]', ylabel='Drop probability',
+          xticks=[(10, '10'), (20, '20'), (30, '30'), (40, '40'), (50, '50')], yticks=[(WRED_MAX_P, 'max_p'), (1, '1.0')])
+profiles = [(10, FMT, 'AFx3', 'red'), (20, FBI, 'AFx2', 'yellow'), (30, G, 'AFx1', 'green')]
+for th, color, name, colour in profiles:  # AFx1 last, so each colour owns its own stretch of the tail-drop line
+    ax.curve(lambda x, th=th: 0.0 if x <= th else (WRED_MAX_P * (x - th) / 10 if x < th + 10 else 1.0),
+             color, 3, n=600, xr=(th, 60))
+    s.text(ax.px(th) + 8, ax.py(0.45), name, 'bold')
+    s.text(ax.px(th) + 8, ax.py(0.45) + 19, colour, 'small')
+s.text(670, 80, 'min_th: 10 / 20 / 30', 'small')
+s.text(670, 100, 'ramp to max_p = 0.1', 'small')
+s.text(670, 120, 'over 10 packets,', 'small')
+s.text(670, 140, 'then tail drop', 'small')
+s.text(440, 293, 'Simplified: real WRED ramps between min_th and max_th per profile; the live demo drops each', 'small', 'middle')
+s.text(440, 311, 'precedence outright at its threshold. Either way red goes first, then yellow, then green.', 'small', 'middle')
+s.save()
+
+# =============================================================================
 # 09 — Software-defined networking with OpenFlow, and VXLAN-EVPN for comparison
 # =============================================================================
 DECK = '09'
