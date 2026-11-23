@@ -403,11 +403,11 @@ budget allows it; it is not used in the example on the next slide.
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div class="text-sm">
 
-Fluid bound (RFC 2212 with $p \to \infty$), $C_i$ and $D_i$ the error terms of hop $i$:
+Fluid bound (RFC 2212 with $p \to \infty$); $C_i$, $D_i$ are the error terms of hop $i$, $C_{\mathrm{tot}} = \sum C_i$, $D_{\mathrm{tot}} = \sum D_i$:
 
 $$D \le \frac{b}{R} + \frac{C_{\mathrm{tot}}}{R} + D_{\mathrm{tot}}$$
 
-A voice aggregate: $b = 80$ kbit, $R = 2$ Mbit/s, 4 hops, each with $C_i = 12$ kbit (one 1500-byte packet) and $D_i = 0.12$ ms (1500 B at 100 Mbit/s).
+A voice trunk: $b = 80$ kbit, $R = 2$ Mbit/s, 4 hops, each with $C_i = 12\,\mathrm{kbit}$ (one 1500-byte packet) and $D_i = 0.12\,\mathrm{ms}$ (1500 B at 100 Mbit/s).
 
 </div>
 <div v-click>
@@ -434,7 +434,9 @@ b/R = 80 kbit / 2 Mbit/s = 40 ms; C_tot/R = 4 × 12 kbit / 2 Mbit/s = 24 ms; D_t
 C is the rate-dependent error (a hop may hold up to one packet before WFQ catches up, so it is divided by R),
 D the rate-independent one (here one packet's serialization at 100 Mbit/s). The bound is shown, not derived;
 Parekh & Gallager (IEEE/ACM ToN 1993) proved it for GPS/WFQ. The full RFC 2212 bound with the peak rate p is in
-Extras. Compare Lecture 03's VoIP budget of 57.5 ms: that was an estimate, this is a guarantee.
+Extras. This bounds queuing delay only: compare it with the queuing component of Lecture 03's VoIP budget
+(5 ms lightly loaded, 100 ms on a busy link) — that was an estimate, this is a guarantee. Codec,
+serialization and propagation delay still add on top, as in Lecture 03's 57.5 ms total.
 -->
 
 ---
@@ -498,7 +500,7 @@ is not torn down — its packets travel as best effort. The live demo shows both
 <div class="grid grid-cols-2 gap-8 pt-2">
 <div class="text-sm">
 
-Senders repeat PATH and receivers repeat RESV every refresh period $R = 30$ s (default, randomised). A router keeps state for
+PATH and RESV are refreshed hop by hop, each router on its own timer, every $R = 30$ s (default, randomised). A router keeps state for
 
 $$L \ge (K + 0.5) \cdot 1.5 \cdot R$$
 
@@ -591,16 +593,18 @@ Demo script (seed 1, after Reset):
    RESV up. Flows 1–3 and 6 (video, voice,
    video, voice) are reserved — 4.2 Mbit/s on C1→C2; flows 4–5 are data and signal nothing (best effort);
    flow 7 is a video that needs 2 Mbit/s more: C1 flashes "ResvErr: capacity", the ResvErr runs to R and the
-   flow becomes best effort (grey). Point at the state panels: all seven routers hold rows for every flow.
-   Domain B's bar shows 6.2: the RESV was admitted in B before C1 refused it, and that orphaned reservation
-   stays until it times out — ask the room why.
+   flow becomes best effort (grey). Point at the state panels: all seven routers hold rows for every flow
+   that signalled. Domain B's bar briefly shows 6.2: the RESV was admitted in B before C1 refused it; then the
+   ResvErr travels downstream and releases B's share, so the bar drops back to 4.2. (Real RSVP leaves this to
+   the receiver, whose refreshes keep the downstream state — RFC 2205's blockade state.)
 2. Switch refresh off: the age bars fade and the state expires after 3 missed refreshes ("simplified" on screen;
    the RFC's lifetime is ≈ 157 s). The bandwidth bar empties.
 3. Refresh back on, tick "B refuses foreign reservations", add a flow: E3 refuses with "policy" — Domain B has no
    contract with A's customer. This is why inter-domain IntServ never happened (Huston, RFC 2990). Untick it.
 4. With a few flows reserved and refresh on, press "fail C1": C1's table is empty, the flows cross it as best
    effort, and the next refresh rebuilds it — the checkpoint answer, live.
-The PDF shows a fixed frame: 2 voice + 5 video, the 5th video refused at C1.
+The PDF shows a fixed frame with its own scenario, not these props: A = 10, B = 20 Mbit/s, 2 voice + 5 video,
+the 5th video refused at C1.
 -->
 
 ---
@@ -668,7 +672,7 @@ just to keep standing still
 
 <div class="pt-4 text-sm vsb-muted">
 
-RFC 2961 (2000) cuts the messages — **bundles**, **message IDs** so unchanged state is not reprocessed, **summary refresh** — but not the per-flow state.
+RFC 2961 (2001) cuts the messages — **bundles**, **message IDs** so unchanged state is not reprocessed, **summary refresh** — but not the per-flow state.
 
 </div>
 
