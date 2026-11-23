@@ -58,3 +58,13 @@ Test slide: DiffServ view (Task 4).
 <!--
 Test slide: refusal at C1 (temporary).
 -->
+
+---
+
+# DiffServ, compact
+
+<QosPathSim mode="diffserv" compact :initial-flows="12" />
+
+<!--
+Test slide: compact DiffServ view (temporary).
+-->

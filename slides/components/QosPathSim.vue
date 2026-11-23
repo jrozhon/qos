@@ -15,8 +15,11 @@
                           flows send data as a dotted stream in their colour (voice green, video blue), best
                           effort, refused and expired flows in muted grey. With refresh off every state row
                           gets a fading age bar and expires after 3 missed refreshes (stated on screen).
-              'diffserv'  same topology, panels and footer; the per-class packet view is drawn by Task 4.
-  compact     state panels show only the count, no legend (side-by-side slide)
+              'diffserv'  packets coloured and labelled by DSCP, the class queues at both bottlenecks and
+                          drops are drawn by QosDiffServLayer.vue; panels show E1's per-flow rules, the
+                          per-class queue lengths elsewhere and E3's SLA rules; the footer shows the
+                          queuing delay at the bottlenecks over the last DELAY_WINDOW simulated seconds.
+  compact     state panels show only the count, no legend or captions (side-by-side slide)
   flows       if set, the component follows it via setFlowCount and hides its own flow buttons
   capacityA   Mbit/s of C1→C2 (default 10); capacityB Mbit/s of C3→E4 (default 10)
   seed        PRNG seed of the engine (default 1): the same clicks replay the same run
@@ -28,7 +31,13 @@
   Exposes stateTotal(): entries summed over the seven routers (used by the side-by-side wrapper).
 
   Print mode (useNav().isPrintMode): no controls and no animation loop; the slide does not use
-  export-skip.
+  export-skip. A fixed scenario is advanced with tick() at setup and drawn once (props ignored):
+    rsvp      2 voice + 5 video, A = 10, B = 20 [Mbit/s]: 0.2 + 4 × 2 = 8.2 reserved, the 5th video is
+              refused at C1 and its ResvErr is on its way downstream (B = 20 so that the RESV, which
+              reaches C3 first, is not refused there);
+    diffserv  4 voice, 4 video, 4 data, boundary bleach, 12 Mbit/s cross traffic in B, 8 s: voice
+              packets wait in C3's BE queue, with a caption saying so.
+  The loop skips the redraw while the network is empty (no flows, nothing in flight).
 -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
@@ -39,6 +48,8 @@ import {
 } from '../utils/qos-topology'
 import { RsvpSim, type RsvpFlow } from '../utils/qos-rsvp'
 import { DiffServSim, type Boundary } from '../utils/qos-diffserv'
+import { CLASS_COLOUR, colourKeyOfName, colourVar } from '../utils/qos-dscp-colour'
+import QosDiffServLayer from './QosDiffServLayer.vue'
 
 const props = withDefaults(defineProps<{
   mode: 'rsvp' | 'diffserv'
@@ -54,21 +65,26 @@ const { isPrintMode } = useNav()
 
 // --- geometry (SVG units = slide px) -----------------------------------------
 const W = 880
-const H = props.compact ? 220 : 356
+const DS = props.mode === 'diffserv'
+// DiffServ needs room for the class queues above the line and the scheduler captions under it
+const H = props.compact ? 220 : DS ? 360 : 356
 const NODE_Y = 102
-const X = Object.fromEntries(PATH.map((n, i) => [n, 60 + i * 95])) as Record<NodeId, number>
+const X = Object.fromEntries(PATH.map((n, i) => [n, 40 + i * 100])) as Record<NodeId, number>
 const R_NODE = 18
-const PANEL_W = 84
-const PANEL_Y = 170 // baseline of the count
+const PANEL_W = 84 // 100 px node spacing: 16 px between panels, ≥ 6 px from E2 / E3 to the domain edges
+const PANEL_Y = DS && !props.compact ? 184 : 170 // baseline of the count
 const ROW_H = 19
-const MAX_ROWS = 5
+const MAX_ROWS = DS ? 4 : 5 // DiffServ cores hold exactly four classes; E1 lists four flows + "n more"
 const LANE_PATH = 78 // baseline of PATH labels (downstream, above the line)
 const LANE_RESV = 140 // baseline of RESV / ResvErr labels (below the line)
+const CAPTION_Y = 144 // DiffServ: first scheduler caption under each bottleneck
+const ROLE_Y = PANEL_Y + 20 + MAX_ROWS * ROW_H + 18 // DiffServ: "edge: …" / "core: …" under the panels
 const BOUNDARY_X = (X.E2 + X.E3) / 2
-const DOMAIN_BOTTOM = props.compact ? 200 : 296
+const DOMAIN_BOTTOM = props.compact ? 200 : DS ? ROLE_Y + 8 : 296
 const DOMAINS = [
-  { name: 'Domain A', x: X.E1 - 46, w: X.E2 - X.E1 + 92 },
-  { name: 'Domain B', x: X.E3 - 46, w: X.E4 - X.E3 + 92 },
+  // the inner edges sit 1 px either side of the boundary line, so the three read as one rule
+  { name: 'Domain A', x: X.E1 - 47, w: BOUNDARY_X - 1 - (X.E1 - 47) },
+  { name: 'Domain B', x: BOUNDARY_X + 1, w: X.E4 + 47 - (BOUNDARY_X + 1) },
 ]
 const BOTTLENECKS: { link: LinkId, from: NodeId, to: NodeId }[] = [
   { link: BOTTLENECK_A, from: 'C1', to: 'C2' },
@@ -113,7 +129,49 @@ function startFlows(): void {
   const n = props.flows ?? props.initialFlows
   if (n > 0) sim.value.setFlowCount(n)
 }
-startFlows()
+
+// --- DiffServ queuing delay over a sliding window -------------------------------------------
+/** Simulated seconds the footer's queuing delay is averaged over, so a change shows within seconds. */
+const DELAY_WINDOW = 2
+const KINDS: FlowKind[] = ['voice', 'video', 'data']
+interface DelaySnap { t: number, sum: number[], n: number[] }
+let snaps: DelaySnap[] = []
+
+/** Remember the delay counters every 0.25 s, keeping just enough to cover DELAY_WINDOW. */
+function sampleDelay(): void {
+  const s = dsSim()
+  if (snaps.length && s.time < snaps[snaps.length - 1].t) snaps = [] // time went back: a reset
+  const lastSnap = snaps[snaps.length - 1]
+  if (lastSnap && s.time - lastSnap.t < 0.25) return
+  snaps.push({ t: s.time, sum: KINDS.map(k => s.stats[k].delaySum), n: KINDS.map(k => s.stats[k].delivered) })
+  while (snaps.length > 1 && snaps[1].t <= s.time - DELAY_WINDOW) snaps.shift()
+}
+
+// --- print frames: a fixed scenario advanced deterministically at setup -----------------
+const PRINT_DT = 0.05
+const PRINT_RSVP = { t: 4.1, kinds: ['voice', 'voice', 'video', 'video', 'video', 'video', 'video'] as FlowKind[] }
+const PRINT_DS = { t: 8, perKind: 4 }
+
+function buildPrintFrame(): void {
+  if (props.mode === 'rsvp') {
+    const s = new RsvpSim({ cap: { A: 10, B: 20 }, seed: 1 })
+    for (const k of PRINT_RSVP.kinds) s.addFlow(k)
+    sim.value = s
+  } else {
+    const s = new DiffServSim({ cap: { A: 10, B: 10 }, seed: 1, boundary: 'bleach', crossB: 12 })
+    for (const k of ['voice', 'video', 'data'] as FlowKind[]) for (let i = 0; i < PRINT_DS.perKind; i++) s.addFlow(k)
+    sim.value = s
+  }
+  const steps = Math.round((props.mode === 'rsvp' ? PRINT_RSVP.t : PRINT_DS.t) / PRINT_DT)
+  for (let i = 0; i < steps; i++) {
+    sim.value.tick(PRINT_DT)
+    if (props.mode === 'rsvp') noteRefusals()
+    else sampleDelay()
+  }
+}
+
+if (isPrintMode.value) buildPrintFrame()
+else startFlows()
 
 watch(refresh, v => { if (props.mode === 'rsvp') rsvpSim().cfg.refresh = v })
 watch(foreignPolicy, v => { if (props.mode === 'rsvp') rsvpSim().cfg.foreignPolicy = v })
@@ -124,7 +182,19 @@ watch(() => props.flows, n => { if (n !== undefined) { sim.value.setFlowCount(n)
 
 function bump(): void {
   if (props.mode === 'rsvp') noteRefusals()
+  else sampleDelay()
   frame.value++
+}
+
+/** Nothing to animate: no flows, nothing on the wire or in a queue, no flash pending. */
+function idle(): boolean {
+  if (props.mode === 'rsvp') {
+    const s = rsvpSim()
+    return s.flows.length === 0 && s.msgs.length === 0 && flashes.value.every(f => f.until <= s.time)
+  }
+  const s = dsSim()
+  if (s.flows.length || s.inFlight.length || s.cfg.crossB > 0) return false
+  return BOTTLENECKS.every(b => Object.values(s.queues[b.link]).every(q => q.length === 0))
 }
 
 /** Flash every router that refused a flow since the last frame. */
@@ -143,12 +213,15 @@ function noteRefusals(): void {
 // --- animation loop --------------------------------------------------------------
 let raf = 0
 let last = 0
+let wasIdle = false
 
 function loop(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
   sim.value.tick(dt * speed.value)
-  bump()
+  const still = idle()
+  if (!still || !wasIdle) bump() // one last redraw when the network empties, then none
+  wasIdle = still
   if (running.value) raf = requestAnimationFrame(loop)
 }
 
@@ -177,6 +250,7 @@ function reset(): void {
   sim.value.reset() // same seed: the same clicks replay the same run
   flashes.value = []
   seenRefused = new Set()
+  snaps = []
   if (props.mode === 'rsvp') startFlows() // RSVP reset drops the flows, DiffServ keeps them
   bump()
 }
@@ -212,13 +286,21 @@ const fmtRate = (r: number) => {
 }
 
 interface Row { kind: 'P' | 'R', flow: number, colour: string, hop: string, rate: string, life: number | null }
-interface Panel { node: NodeId, x: number, count: number, rows: Row[], more: number, detail: { key: string, value: string }[] }
+interface Detail { key: string, value: string, keyColour: string, valueColour: string }
+/** x0 / w: left edge and width of the panel's rows. */
+interface Panel { node: NodeId, x: number, x0: number, w: number, count: number, rows: Row[], more: number, detail: Detail[] }
 
-const flowMap = computed(() => {
-  void frame.value
-  if (props.mode !== 'rsvp') return new Map<number, RsvpFlow>()
-  return new Map(rsvpSim().flows.map(f => [f.id, f]))
-})
+/** Flows by id, rebuilt only when the engine's flow list changes (add: same array, longer; remove / reset: new array). */
+const flowCache = { list: null as RsvpFlow[] | null, n: -1, map: new Map<number, RsvpFlow>() }
+function flowById(id: number): RsvpFlow | undefined {
+  const list = rsvpSim().flows
+  if (list !== flowCache.list || list.length !== flowCache.n) {
+    flowCache.list = list
+    flowCache.n = list.length
+    flowCache.map = new Map(list.map(f => [f.id, f]))
+  }
+  return flowCache.map.get(id)
+}
 
 function flowColour(f: RsvpFlow | undefined): string {
   if (!f || f.status === 'besteffort' || f.status === 'refused' || f.status === 'expired') return 'var(--vsb-muted)'
@@ -229,32 +311,53 @@ function flowColour(f: RsvpFlow | undefined): string {
 function rsvpPanel(node: NodeId): Panel {
   const s = rsvpSim()
   const count = s.stateCount(node)
-  const base = { node, x: X[node], count, detail: [] as { key: string, value: string }[] }
+  const base = { node, x: X[node], x0: X[node] - PANEL_W / 2, w: PANEL_W, count, detail: [] }
   if (props.compact) return { ...base, rows: [], more: 0 }
   const limit = 3 * s.cfg.refreshPeriod
   const life = (age: number) => (refresh.value ? null : Math.max(0, 1 - age / limit))
+  // `top` is ordered newest flow first, P before R for one flow, at most MAX_ROWS long; the sort key
+  // is checked first, so a Row is built only for an entry that makes it into the top rows
   const top: Row[] = []
-  const consider = (r: Row) => {
-    // keep `top` ordered newest flow first, P before R for one flow, at most MAX_ROWS long
-    const key = (x: Row) => x.flow * 2 + (x.kind === 'P' ? 1 : 0)
-    let i = top.length
-    while (i > 0 && key(top[i - 1]) < key(r)) i--
-    if (i < MAX_ROWS) { top.splice(i, 0, r); if (top.length > MAX_ROWS) top.pop() }
+  const keys: number[] = []
+  const slot = (key: number) => {
+    let i = keys.length
+    while (i > 0 && keys[i - 1] < key) i--
+    return i
+  }
+  const insert = (i: number, key: number, r: Row) => {
+    top.splice(i, 0, r)
+    keys.splice(i, 0, key)
+    if (top.length > MAX_ROWS) { top.pop(); keys.pop() }
   }
   for (const e of s.path[node].values()) {
-    consider({ kind: 'P', flow: e.flow, colour: flowColour(flowMap.value.get(e.flow)), hop: `←${e.phop}`, rate: fmtRate(e.rate), life: life(e.age) })
+    const key = e.flow * 2 + 1
+    const i = slot(key)
+    if (i < MAX_ROWS) insert(i, key, { kind: 'P', flow: e.flow, colour: flowColour(flowById(e.flow)), hop: `←${e.phop}`, rate: fmtRate(e.rate), life: life(e.age) })
   }
   for (const e of s.resv[node].values()) {
-    consider({ kind: 'R', flow: e.flow, colour: flowColour(flowMap.value.get(e.flow)), hop: `→${e.link.split('>')[1]}`, rate: fmtRate(e.rate), life: life(e.age) })
+    const key = e.flow * 2
+    const i = slot(key)
+    if (i < MAX_ROWS) insert(i, key, { kind: 'R', flow: e.flow, colour: flowColour(flowById(e.flow)), hop: `→${e.link.split('>')[1]}`, rate: fmtRate(e.rate), life: life(e.age) })
   }
   return { ...base, rows: top, more: count - top.length }
 }
 
 function dsPanel(node: NodeId): Panel {
   const r = dsSim().stateRows(node, props.compact ? 0 : MAX_ROWS)
-  return { node, x: X[node], count: r.rows.length + r.more, rows: [], more: r.more, detail: r.rows.map(x => (x.key.startsWith('flow ')
-    ? { key: x.key.slice(5), value: x.detail.split('→ ').pop() ?? x.detail } // E1: flow id and its DSCP
-    : { key: x.key, value: x.detail })) }
+  const ink = 'var(--vsb-ink)'
+  const muted = 'var(--vsb-muted)'
+  const detail = r.rows.map((x): Detail => {
+    if (x.key.startsWith('flow ')) { // E1: flow id and the DSCP its kind gets
+      const value = x.detail.split('→ ').pop() ?? x.detail
+      return { key: x.key.slice(5), value, keyColour: ink, valueColour: colourVar(colourKeyOfName(value)) }
+    }
+    if (node !== 'E3') { // per-class queue length
+      return { key: x.key, value: x.detail, keyColour: colourVar(CLASS_COLOUR[x.key as keyof typeof CLASS_COLOUR]), valueColour: muted }
+    }
+    // E3: SLA rule; rates without the unit, as in the RSVP rows, so "EF ≤ 0.5" fits the panel
+    return { key: x.key, value: x.detail.replace(' Mbit/s', ''), keyColour: ink, valueColour: muted }
+  })
+  return { node, x: X[node], x0: X[node] - PANEL_W / 2, w: PANEL_W, count: r.rows.length + r.more, rows: [], more: r.more, detail }
 }
 
 const panels = computed<Panel[]>(() => {
@@ -262,13 +365,15 @@ const panels = computed<Panel[]>(() => {
   return ROUTERS.map(n => (props.mode === 'rsvp' ? rsvpPanel(n) : dsPanel(n)))
 })
 
+/** RSVP: reserved share of each bottleneck. DiffServ draws its queues instead (QosDiffServLayer). */
 const bars = computed(() => {
   void frame.value
+  if (props.mode !== 'rsvp') return []
   return BOTTLENECKS.map(b => {
     const capacity = linkCapacity(b.link, sim.value.cfg.cap)
-    const used = props.mode === 'rsvp' ? rsvpSim().reserved(b.link) : 0 // DiffServ: queue occupancy (Task 4)
+    const used = rsvpSim().reserved(b.link)
     const x0 = (X[b.from] + X[b.to]) / 2 - BAR_W / 2
-    return { ...b, x0, fill: BAR_W * Math.min(1, capacity > 0 ? used / capacity : 0), label: `${props.mode === 'rsvp' ? 'reserved ' : ''}${fmtRate(used)} / ${fmtRate(capacity)} Mbit/s` }
+    return { ...b, x0, fill: BAR_W * Math.min(1, capacity > 0 ? used / capacity : 0), label: `reserved ${fmtRate(used)} / ${fmtRate(capacity)} Mbit/s` }
   })
 })
 
@@ -348,11 +453,15 @@ const dsSummary = computed(() => {
   void frame.value
   if (props.mode !== 'diffserv') return null
   const s = dsSim()
-  const kinds: FlowKind[] = ['voice', 'video', 'data']
-  return kinds.map(k => ({ kind: k, delay: s.meanDelayMs(k), drops: s.stats[k].dropped }))
+  const first = snaps[0]
+  return KINDS.map((k, i) => {
+    // mean over the window when there is one, else since the start (meanDelayMs)
+    const n = first ? s.stats[k].delivered - first.n[i] : s.stats[k].delivered
+    const sum = first ? s.stats[k].delaySum - first.sum[i] : s.stats[k].delaySum
+    const delay = n > 0 ? `${(sum / n * 1000).toFixed(0)} ms` : '–'
+    return `${k} ${delay} (${s.stats[k].dropped} dropped)`
+  }).join(' · ')
 })
-
-const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? 'var(--qp-red)' : 'var(--vsb-ink)')
 </script>
 
 <template>
@@ -385,6 +494,12 @@ const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? '
         <rect :x="b.x0" y="46" :width="b.fill" height="8" class="bar-fill" />
       </g>
 
+      <!-- DiffServ packets on the links (under the nodes) -->
+      <QosDiffServLayer
+        v-if="mode === 'diffserv'" layer="packets" :sim="dsSim()" :frame="frame" :x="X" :node-y="NODE_Y"
+        :compact="compact" :still="isPrintMode" :caption-y="CAPTION_Y" :legend-y="H - 30" :width="W"
+      />
+
       <!-- data streams (under the nodes) -->
       <line
         v-for="s in streams" :key="s.key"
@@ -399,8 +514,8 @@ const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? '
           <text :x="X[n]" :y="NODE_Y + 52" class="label" text-anchor="middle">{{ n === 'S' ? 'sender' : 'receiver' }}</text>
         </template>
         <template v-else>
-          <circle :cx="X[n]" :cy="NODE_Y" :r="R_NODE" class="node" :stroke="nodeRing(n)" />
-          <circle v-if="ROLE[n] === 'edge'" :cx="X[n]" :cy="NODE_Y" :r="R_NODE - 4" class="node inner" :stroke="nodeRing(n)" />
+          <circle :cx="X[n]" :cy="NODE_Y" :r="R_NODE" class="node" />
+          <circle v-if="ROLE[n] === 'edge'" :cx="X[n]" :cy="NODE_Y" :r="R_NODE - 4" class="node inner" />
         </template>
         <text :x="X[n]" :y="NODE_Y + 5" class="node-label" text-anchor="middle">{{ n }}</text>
       </g>
@@ -423,24 +538,37 @@ const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? '
         </template>
       </g>
 
+      <!-- DiffServ class queues, DSCP labels, drops and legend -->
+      <QosDiffServLayer
+        v-if="mode === 'diffserv'" layer="overlay" :sim="dsSim()" :frame="frame" :x="X" :node-y="NODE_Y"
+        :compact="compact" :still="isPrintMode" :caption-y="CAPTION_Y" :legend-y="H - 30" :width="W"
+      />
+
       <!-- state panels -->
       <g v-for="p in panels" :key="`panel-${p.node}`">
         <text :x="p.x" :y="PANEL_Y" class="count" text-anchor="middle">
           <tspan class="count-n">{{ p.count }}</tspan><tspan dx="4">{{ p.count === 1 ? 'entry' : 'entries' }}</tspan>
         </text>
-        <g v-for="(r, i) in p.rows" :key="`${r.kind}${r.flow}`" :transform="`translate(${p.x - PANEL_W / 2}, ${PANEL_Y + 20 + i * ROW_H})`">
+        <g v-for="(r, i) in p.rows" :key="`${r.kind}${r.flow}`" :transform="`translate(${p.x0}, ${PANEL_Y + 20 + i * ROW_H})`">
           <text x="0" y="0" :class="['row-kind', r.kind]">{{ r.kind }}</text>
-          <text x="11" y="0" class="row" :style="{ fill: r.colour }">{{ r.flow }}</text>
-          <text x="35" y="0" class="row muted">{{ r.hop }}</text>
+          <text x="10" y="0" class="row" :style="{ fill: r.colour }">{{ r.flow }}</text>
+          <text x="34" y="0" class="row muted">{{ r.hop }}</text>
           <text :x="PANEL_W" y="0" class="row" text-anchor="end">{{ r.rate }}</text>
           <rect v-if="r.life !== null" x="0" y="4" :width="PANEL_W * r.life" height="2.5" class="age" :opacity="0.25 + 0.75 * r.life" />
         </g>
-        <g v-for="(d, i) in p.detail" :key="`d${i}`" :transform="`translate(${p.x - PANEL_W / 2}, ${PANEL_Y + 20 + i * ROW_H})`">
-          <text x="0" y="0" class="row">{{ d.key }}</text>
-          <text :x="PANEL_W" y="0" class="row muted" text-anchor="end">{{ d.value }}</text>
+        <g v-for="(d, i) in p.detail" :key="`d${i}`" :transform="`translate(${p.x0}, ${PANEL_Y + 20 + i * ROW_H})`">
+          <text x="0" y="0" class="row" :style="{ fill: d.keyColour }">{{ d.key }}</text>
+          <text :x="p.w" y="0" class="row" text-anchor="end" :style="{ fill: d.valueColour }">{{ d.value }}</text>
         </g>
         <text v-if="!compact && p.more > 0" :x="p.x" :y="PANEL_Y + 20 + MAX_ROWS * ROW_H" class="row muted" text-anchor="middle">+ {{ p.more }} more</text>
       </g>
+
+      <!-- DiffServ: where the state lives -->
+      <template v-if="mode === 'diffserv' && !compact">
+        <text :x="X.E1 - PANEL_W / 2" :y="ROLE_Y" class="label">edge: per-flow rules</text>
+        <text :x="X.C2" :y="ROLE_Y" class="label" text-anchor="middle">core: per-class queues</text>
+        <text :x="X.C3" :y="ROLE_Y" class="label" text-anchor="middle">core: per-class queues</text>
+      </template>
 
       <!-- footer -->
       <template v-if="rsvpSummary">
@@ -465,9 +593,13 @@ const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? '
         </text>
       </template>
       <text v-if="dsSummary" x="0" :y="H - 8" class="value">
-        mean delay at R: {{ dsSummary.map(d => `${d.kind} ${Number.isNaN(d.delay) ? '–' : d.delay.toFixed(0)} ms (${d.drops} dropped)`).join(' · ') }}
+        queuing delay at the bottlenecks, last {{ DELAY_WINDOW }} s: {{ dsSummary }}
       </text>
     </svg>
+
+    <p v-if="isPrintMode && mode === 'diffserv'" class="print-caption">
+      Domain B bleached the marks: voice now waits with best effort
+    </p>
 
     <div v-if="!isPrintMode" class="controls">
       <button type="button" @click="running ? pause() : play()">{{ running ? 'Pause' : 'Play' }}</button>
@@ -502,10 +634,25 @@ const nodeRing = (n: NodeId) => (activeFlashes.value.some(f => f.node === n) ? '
   width: 100%;
   --qp-red: #E4002B;  /* FMT red, reserved for refusals and drops (VSB-STYLE.md §9) */
   --qp-blue: #0047BB; /* EKF blue, second series colour (R26) */
+  /* DSCP colours (utils/qos-dscp-colour.ts), each ≥ 3:1 on #FFFFFF and on #0E1A19; lighter = higher
+     drop precedence (dropped first) */
+  --qp-ef: var(--vsb-green);  /* #00A499 in both themes, 3.1:1 on white */
+  --qp-af41: var(--qp-blue);   /* EKF blue and two lighter tints */
+  --qp-af42: #3D6FD6;
+  --qp-af43: #6A8FE0; /* 3.2:1 */
+  --qp-af31: #00403A; /* D (dark green) family */
+  --qp-af32: var(--vsb-green-dark); /* #005F58, dark mode #7FE3DA */
+  --qp-af33: #2E7D76;
+  --qp-be: var(--vsb-muted);
 }
 :global(html.dark .qos-path-sim) {
   --qp-red: #FF4D6D;  /* dark-mode FMT, as PALETTES in generate-figures.py (R7a) */
   --qp-blue: #6E9BFF; /* dark-mode EKF */
+  /* on the dark background the darkest tint is the lowest drop precedence, lighter still = dropped first */
+  --qp-af42: #9DBBFF;
+  --qp-af43: #C8D8FF;
+  --qp-af31: var(--vsb-green-light); /* #4DD8CE */
+  --qp-af33: #C4F2EE;
 }
 svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-text); }
 .label { font-size: 14px; fill: var(--vsb-muted); }
@@ -565,5 +712,6 @@ svg { display: block; width: 100%; height: auto; font-family: var(--vsb-font-tex
   font: inherit;
   cursor: pointer;
 }
-.controls button:hover { background: #005F58; border-color: #005F58; color: #FFFFFF; }
+.controls button:hover { background: var(--vsb-green-dark); border-color: var(--vsb-green-dark); color: var(--vsb-bg); }
+.print-caption { margin: 0.3rem 0 0; font-size: 0.8rem; font-weight: 700; color: var(--vsb-ink); }
 </style>
