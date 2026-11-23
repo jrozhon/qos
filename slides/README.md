@@ -13,6 +13,7 @@ Markdown file at the project root.
 | `05-speech-quality.md` | Subjective listening tests and MOS (P.800), intrusive and non-intrusive objective models (PESQ, POLQA, ViSQOL, P.563), and the E-model (G.107) | `qos-03` |
 | `06-video-quality.md` | Digital video basics (pixels, resolutions, RGB vs Y′CbCr, chroma subsampling, raw vs compressed size, codec vs container), where video quality is lost (hybrid coding, GOPs, codec generations, artefacts), subjective video tests (P.910, BT.500: SI/TI, ACR/ACR-HR/DCR/PC/DSCQS, scales), and objective metrics (PSNR, SSIM, VMAF, no-reference and P.1203 parametric models) | `qos-04` |
 | `07-streaming-qoe.md` | HTTP adaptive streaming (DASH, HLS, CMAF), the playout buffer and stalling, ABR algorithms (throughput-based, buffer-based/BBA, MPC, learned) compared on a simulated trace, streaming QoE factors and models, the QoS → QoE mapping over TCP, and network assistance (CMCD, SAND, SDN) | none yet — uses tools of `qos-02`–`qos-05` |
+| `08-qos-architectures.md` | QoS architectures in IP networks. IntServ and RSVP (model, service classes, TSpec/RSpec, delay bound, PATH/RESV, soft state, why it did not scale); DiffServ (architecture, traffic conditioning, srTCM/trTCM, DSCP codepoints, PHBs, schedulers and WRED, RFC 4594 service classes); IntServ against DiffServ, DSCP across domains, and an outlook | `qos-03`, `qos-05` |
 | `09-sdn-openflow.md` | The three planes and the road to SDN, the SDN architecture and its interfaces, SDN vs NFV, the OpenFlow switch model (flow entries, pipeline, groups, meters, ports, channel, messages, reactive vs proactive set-up, QoS use), and a comparison of OpenFlow with VXLAN-EVPN | `qos-05` |
 
 Decks are numbered like the lectures; add `07-…md`, … alongside.
@@ -104,6 +105,13 @@ references → `end`. Conventions that keep the decks consistent:
   there (Slidev's `isPrintMode`). Live, it shows six distortions of one grayscale image scaled to the same
   MSE (so equal PSNR), with SSIM, the SSIM map, a ranking table and an explanation per distortion; in the
   PDF, all six side by side at MSE 200 with their maps and one line of explanation each.
+  Deck 08's `QosPathSim` (props `mode` `rsvp`|`diffserv`, `compact`, `flows`, `capacityA`, `capacityB`, `seed`,
+  `initialFlows`, `efPolice`) animates one path across two domains: RSVP PATH/RESV with admission control and
+  soft-state expiry, or DiffServ marking, class queues, and drops (drawn by its child `QosDiffServLayer`).
+  `QosCompare` puts two compact instances side by side under one flows slider (`max`, default 200). Both stay
+  in the export like `QualityExplorer`: in Slidev's print mode they draw a static frame instead of using
+  `export-skip`. The engines are plain TypeScript in `utils/qos-*.ts` (topology, RSVP, DiffServ, DSCP colours);
+  their tests run with `node --test utils/*.test.ts` from `slides/` (Node 22 or later, type stripping).
 - **Units in prose** must be escaped, `\[Hz\]`, because MDC syntax treats `[...]` as a span. Inside `$…$` KaTeX
   they are fine as they are.
 - **Math** — KaTeX, `$…$` inline and `$$…$$` blocks. The closing `$` may not be preceded by a space.

@@ -1053,5 +1053,5 @@ DiffServ won out over IntServ for wide deployment because it needs no per-flow s
 <!--
 Optional history. IntServ (RSVP-based, per-flow reservations) does not scale to backbone router flow counts;
 DiffServ's insight — push classification to the edge, keep the core stateless — is why DSCP marking (Part 4)
-is the mechanism still in use today.
+is the mechanism still in use today. Lecture 08 develops IntServ and DiffServ in full.
 -->

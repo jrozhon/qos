@@ -113,7 +113,7 @@ Keep asking: **which plane does this component belong to, and what happens to th
 
 <!--
 Five outcomes. Prerequisites: Ethernet switching and IP routing at the level of a bachelor networking course,
-DSCP and the token bucket from Lecture 03. No new mathematics beyond simple delay arithmetic.
+DSCP and the token bucket from Lecture 03, DiffServ from Lecture 08. No new mathematics beyond simple delay arithmetic.
 -->
 
 ---
@@ -999,7 +999,7 @@ SDN traffic engineering drove inter-data-centre WAN links close to 100 % utiliza
 <!--
 This slide ties the lecture back to the QoS mechanisms of Lecture 03: every one of them (classify, mark, police,
 queue, measure) has an OpenFlow counterpart, but now all switches are configured from one place with one view of the
-load. Jain et al., "B4: Experience with a Globally-Deployed Software Defined WAN", SIGCOMM 2013.
+load. Classify, meter, and mark form the classifier/meter/marker chain of Lecture 08's traffic conditioning block. Jain et al., "B4: Experience with a Globally-Deployed Software Defined WAN", SIGCOMM 2013.
 -->
 
 ---
@@ -1190,7 +1190,7 @@ remains the main implementation.
 
 **VXLAN-EVPN**
 
-- QoS is the DiffServ of Lecture 03: the VTEP copies the inner DSCP to the outer IP header so that the underlay can schedule it
+- QoS is the DiffServ of Lecture 08: the VTEP copies the inner DSCP to the outer IP header so that the underlay can schedule it
 - Load spreading by ECMP on the outer UDP source-port hash — statistical, not per-flow placement
 - No set-up delay: routes exist before the first packet
 
@@ -1206,7 +1206,7 @@ Fine-grained control against predictable, distributed behaviour — the same tra
 <!--
 DSCP copying at encapsulation follows the tunnel models of RFC 2983 (uniform/pipe). ECMP hashing can place two
 elephant flows on the same uplink — the classical argument for centralized traffic engineering (Hedera, NSDI 2010).
-The IntServ/DiffServ analogy recalls the Lecture 03 extras: per-flow state versus aggregate behaviour.
+The IntServ/DiffServ analogy recalls Lecture 08: per-flow state versus aggregate behaviour.
 -->
 
 ---
