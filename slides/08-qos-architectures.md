@@ -953,7 +953,7 @@ A priority queue can starve everything else, so the RFC requires a **rate limite
 
 **4 classes**, each with its own share of buffer and bandwidth, forwarded **independently** of each other.
 
-Inside a class, **3 drop precedences**: under congestion AFx3 is dropped before AFx2 before AFx1.
+Inside a class, **3 drop precedences**: under congestion AFx3 is more likely to be dropped than AFx2, AFx2 than AFx1.
 
 Packets of one flow are **never reordered** within a class — which is why the meter changes only the drop precedence, never the class.
 
@@ -984,7 +984,8 @@ keeps the order. Both points return as checkpoints.
 Serves outcome 4. This is the scheduler the live demo runs at C1 and C3 (EF strict priority, then WRR 3:2:1 for
 AF4, AF3, BE). In software the weights are often deficit round robin (Shreedhar & Varghese, SIGCOMM 1995), which
 handles variable packet sizes with O(1) work per packet. The figure's caption is the point for the next
-checkpoint: the priority queue is only safe because the edge polices EF.
+checkpoint: the priority queue is only safe because the edge polices EF. Extras has a table comparing FIFO, PQ,
+round robin, WFQ, CBWFQ and LLQ.
 -->
 
 ---
@@ -1011,29 +1012,6 @@ checkpoint said marking alone does nothing; this is the opposite trap — markin
 without a policer does too much. In the live demo the EF policer at E1 is 1 Mbit/s (ten voice flows).
 -->
 
----
-
-# Queue disciplines compared
-
-<div class="text-sm">
-
-| Discipline | Queues | Served | Protects | Risk |
-|---|---|---|---|---|
-| **FIFO** | one | in arrival order | nothing | one burst delays everybody |
-| **PQ** — priority | a few, ranked | highest non-empty first | the top queue's delay | lower queues starve |
-| **CQ / WRR** — round robin | per class | a quota of packets or bytes each | a share of the link | delay grows with the round |
-| **WFQ** | per flow | by virtual finish time | each flow's share | per-flow state |
-| **CBWFQ** | per class | WFQ over classes, configured weights | each class's share | no strict low delay |
-| **LLQ** | PQ + CBWFQ | priority first, then weights | delay of EF *and* shares of the rest | EF must be policed |
-
-</div>
-
-<!--
-Serves outcome 4; condenses the original course slides' list of queue types (FIFO, CQ, WFQ, CBWFQ, PQ, LLQ).
-WFQ is Lecture 03's per-flow scheduler — the IntServ choice; CBWFQ is the same algorithm over DiffServ classes.
-Parekh and Gallager's delay bound from Part 2 holds for WFQ; LLQ gives EF something close to it as long as EF is
-policed. Custom queuing (CQ) is Cisco's name for byte-quota round robin.
--->
 
 ---
 
@@ -1146,7 +1124,7 @@ Demo script:
    keeps ≈ 24 ms, because B trusts the DSCP.
 4. Boundary → bleach: E3 sets every DSCP to 0, so voice and video join C3's BE queue behind the cross traffic.
    Within seconds voice delivers almost nothing and its dropped count climbs: protected in A, lost in B.
-5. Optional, boundary → re-mark: B maps AF4x to AF3x and honours EF only up to 0.5 Mbit/s, so about a third of the
+5. Optional, boundary → re-mark: B maps AF4x to AF3x and honours EF only up to 0.5 Mbit/s, so about two of the
    seven voice flows becomes BE and is dropped at C3. Back to trust and voice recovers.
 The PDF shows a fixed frame: 4 voice, 4 video, 4 data, boundary bleach, 12 Mbit/s cross traffic, voice packets
 waiting in C3's BE queue.
@@ -1172,8 +1150,8 @@ for the same reason DiffServ's EF policer at E1 is sized for the traffic — an 
 most voice would be policed there.
 Play, then drag the slider from 10 to 200. RSVP's core state is 3 core routers × 2 entries (path + resv) × the
 flows that signal (voice and video; data does not): 972 entries at 200 flows with this seed (162 signalled
-flows, 324 entries in every router), and 11 refresh messages per second (2 × 162 / 30 s). DiffServ's core stays at 12 entries — 3 core routers × 4 class queues — and has nothing to
-refresh. Its per-flow state did not vanish: it moved to E1, the edge, which sees only its own customers. Scale
+flows, 324 entries in every router), and 11 refresh messages per second (2 × 162 / 30 s). DiffServ's core
+stays at 12 entries — 3 core routers × 4 class queues — and has nothing to refresh. Its per-flow state did not vanish: it moved to E1, the edge, which sees only its own customers. Scale
 the slider to a backbone's 100 000 flows in your head — Part 2's worked example.
 -->
 
@@ -1221,7 +1199,7 @@ At a peering point the receiving domain decides:
 - **re-mark** — map to its own classes, police EF to the agreed rate
 - **bleach** — set everything to 0
 
-Measurements find DSCPs re-marked or zeroed on many Internet paths; bleaching to 0 is most common near the edge, and old IP-Precedence routers zero the top three bits — AF41 (34) arrives as 2 (RFC 9435).
+Measurements find DSCPs re-marked or zeroed on many Internet paths; bleaching to 0 is most common near the edge, and routers still configured for ToS Precedence zero the top three bits — AF41 (34) arrives as 2 (RFC 9435).
 
 </div>
 <div>
@@ -1229,7 +1207,7 @@ Measurements find DSCPs re-marked or zeroed on many Internet paths; bleaching to
 Where marking does survive, it is **agreed**:
 
 - **RFC 8100** — four interconnection classes: telephony (EF, VOICE-ADMIT), bulk real-time (AF41), assured elastic (AF31, AF32), default (CS0)
-- **WebRTC** (RFC 8837) — browsers mark audio EF, interactive video AF41/AF42
+- **WebRTC** (RFC 8837) — EF for medium/high-priority audio, AF4x for interactive video; low priority stays DF
 - **Wi-Fi** (RFC 8325) — map EF to 802.11 user priority 6, the voice access category
 
 </div>
@@ -1532,7 +1510,7 @@ Editor's record (authors, title, year).
 - P. Jones et al., "Differentiated Services Code Point (DSCP) Packet Markings for WebRTC QoS," RFC 8837, 2021.
 - A. Custura, G. Fairhurst, R. Secchi, "Considerations for Assigning a New Recommended DSCP," RFC 9435, 2023.
 - B. Briscoe (ed.) et al., "Low Latency, Low Loss, and Scalable Throughput (L4S) Internet Service: Architecture," RFC 9330, 2023.
-- K. De Schepper, B. Briscoe (ed.), "The ECN Protocol for L4S," RFC 9331, and K. De Schepper et al., "Dual-Queue Coupled AQM for L4S," RFC 9332, 2023.
+- K. De Schepper, B. Briscoe (ed.), "The Explicit Congestion Notification (ECN) Protocol for … (L4S)," RFC 9331, and K. De Schepper et al., "Dual-Queue Coupled Active Queue Management (AQM) for … (L4S)," RFC 9332, 2023.
 - N. Finn, P. Thubert, B. Varga, J. Farkas, "Deterministic Networking Architecture," RFC 8655, 2019.
 - 3GPP TS 23.501, *System architecture for the 5G System (5GS)*, Table 5.7.4-1 (standardized 5QI values).
 
@@ -1540,8 +1518,8 @@ Editor's record (authors, title, year).
 
 <!--
 The DiffServ PHBs, meters and service classes of Part 3, and the interconnection, measurement and outlook
-documents of Part 4. RFC 9331 and 9332 titles are shortened on the slide; the full titles spell out "Low Latency,
-Low Loss, and Scalable Throughput (L4S)".
+documents of Part 4. In the RFC 9331 and 9332 titles the "…" stands for "Low Latency, Low Loss, and Scalable
+Throughput".
 -->
 
 ---
@@ -1550,7 +1528,7 @@ Low Loss, and Scalable Throughput (L4S)".
 
 <div class="text-xs">
 
-- D. D. Clark, S. Shenker, L. Zhang, "Supporting Real-Time Applications in an Integrated Services Packet Network," *ACM SIGCOMM*, 1992.
+- D. D. Clark, S. Shenker, L. Zhang, "Supporting Real-Time Applications in an Integrated Services Packet Network: Architecture and Mechanism," *ACM SIGCOMM*, 1992.
 - L. Zhang, S. Deering, D. Estrin, S. Shenker, D. Zappala, "RSVP: A New Resource ReSerVation Protocol," *IEEE Network*, 7(5), 8–18, 1993.
 - A. K. Parekh, R. G. Gallager, "A Generalized Processor Sharing Approach to Flow Control in Integrated Services Networks: The Single-Node Case," *IEEE/ACM Transactions on Networking*, 1(3), 344–357, 1993.
 - M. Shreedhar, G. Varghese, "Efficient Fair Queueing Using Deficit Round Robin," *ACM SIGCOMM*, 1995.
@@ -1595,7 +1573,7 @@ layout: section
 ---
 
 # Extras
-## The full delay bound, stateless cores and 5G QoS
+## The full delay bound, queue disciplines, stateless cores and 5G QoS
 
 <!--
 Not part of the timed 90-minute route. Use to answer questions or extend an advanced class.
@@ -1638,6 +1616,31 @@ RFC 2212's "Policing" and "Exported information" sections define the terms; the 
 end-to-end behaviour section. Units in the example: b − M = 80 − 12 = 68 kbit, R = 2 Mbit/s → 34 ms, times
 (p − R)/(p − r) = 8/9; M + C_tot = 12 + 48 kbit over 2 Mbit/s = 30 ms. If the receiver reserved R = 10 Mbit/s ≥ p,
 the bound would collapse to 60 kbit / 10 Mbit/s + 0.48 ms ≈ 6.5 ms: the burst never queues.
+-->
+
+---
+
+# Extras — queue disciplines compared
+
+<div class="text-sm">
+
+| Discipline | Queues | Served | Protects | Risk |
+|---|---|---|---|---|
+| **FIFO** | one | in arrival order | nothing | one burst delays everybody |
+| **PQ** — priority | a few, ranked | highest non-empty first | the top queue's delay | lower queues starve |
+| **CQ / WRR** — round robin | per class | a quota of packets or bytes each | a share of the link | delay grows with the round |
+| **WFQ** | per flow | by virtual finish time | each flow's share | per-flow state |
+| **CBWFQ** | per class | WFQ over classes, configured weights | each class's share | no strict low delay |
+| **LLQ** | PQ + CBWFQ | priority first, then weights | delay of EF *and* shares of the rest | EF must be policed |
+
+</div>
+
+<!--
+Extends Part 3's scheduler slide; condenses the original course slides' list of queue types (FIFO, CQ,
+WFQ, CBWFQ, PQ, LLQ).
+WFQ is Lecture 03's per-flow scheduler — the IntServ choice; CBWFQ is the same algorithm over DiffServ classes.
+Parekh and Gallager's delay bound from Part 2 holds for WFQ; LLQ gives EF something close to it as long as EF is
+policed. Custom queuing (CQ) is Cisco's name for byte-quota round robin.
 -->
 
 ---
@@ -1690,7 +1693,7 @@ in each packet instead of a class label. Stoica & Zhang's scheduler is Core-Jitt
 </div>
 <div>
 
-A VoLTE/VoNR call gets a **guaranteed-bit-rate QoS flow** with 5QI 1, set up per call — admission and per-flow state, as in IntServ, but inside one operator's radio and core network.
+A VoNR call (VoLTE: QCI 1 in 4G) gets a **guaranteed-bit-rate QoS flow** with 5QI 1, set up per call — admission and per-flow state, as in IntServ, but inside one operator's radio and core network.
 
 Between the base station and the core the packets travel in GTP-U tunnels whose outer IP header carries a **DSCP chosen per 5QI** — DiffServ again.
 
