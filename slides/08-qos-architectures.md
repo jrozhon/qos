@@ -407,7 +407,7 @@ Fluid bound (RFC 2212 with $p \to \infty$); $C_i$, $D_i$ are the error terms of 
 
 $$D \le \frac{b}{R} + \frac{C_{\mathrm{tot}}}{R} + D_{\mathrm{tot}}$$
 
-A voice trunk: $b = 80$ kbit, $R = 2$ Mbit/s, 4 hops, each with $C_i = 12\,\mathrm{kbit}$ (one 1500-byte packet) and $D_i = 0.12\,\mathrm{ms}$ (1500 B at 100 Mbit/s).
+A voice trunk: $b = 80$ kbit, $R = 2$ Mbit/s, 4 hops over 100 Mbit/s links, each with $C_i = 12\,\mathrm{kbit}$ (one 1500-byte packet, charged at $R$) and $D_i = 0.12\,\mathrm{ms}$ (that packet's serialization at the link rate).
 
 </div>
 <div v-click>
@@ -432,7 +432,8 @@ The burst term $b/R$ dominates: reserve more rate and the bound shrinks. This is
 <!--
 b/R = 80 kbit / 2 Mbit/s = 40 ms; C_tot/R = 4 × 12 kbit / 2 Mbit/s = 24 ms; D_tot = 4 × 0.12 ms = 0.48 ms.
 C is the rate-dependent error (a hop may hold up to one packet before WFQ catches up, so it is divided by R),
-D the rate-independent one (here one packet's serialization at 100 Mbit/s). The bound is shown, not derived;
+D the rate-independent one (here one packet's serialization at the 100 Mbit/s link rate, since a
+non-preemptive scheduler may have just started sending another flow's packet). The bound is shown, not derived;
 Parekh & Gallager (IEEE/ACM ToN 1993) proved it for GPS/WFQ. The full RFC 2212 bound with the peak rate p is in
 Extras. This bounds queuing delay only: compare it with the queuing component of Lecture 03's VoIP budget
 (5 ms lightly loaded, 100 ms on a busy link) — that was an estimate, this is a guarantee. Codec,
