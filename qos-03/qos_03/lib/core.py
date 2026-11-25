@@ -757,6 +757,14 @@ def run_visqol(
     -------
     float
         MOS-LQO [-], or NaN if the tool is missing or produced no score.
+
+    Notes
+    -----
+    The lattice model predicts listening-test MOS, so a degraded file
+    identical to its reference scores below 5 (about 4.1-4.7, depending on
+    the signal). ``--use_unscaled_speech_mos_mapping`` affects only the
+    exponential mapping used with ``--use_lattice_model=false``, so it is
+    not passed here.
     """
     if not Path(visqol_bin).is_file():
         return float("nan")
@@ -771,7 +779,6 @@ def run_visqol(
                 "--degraded_file",
                 str(deg16),
                 "--use_speech_mode",
-                "--use_unscaled_speech_mos_mapping",
                 "--similarity_to_quality_model",
                 str(model),
             ],

@@ -413,7 +413,7 @@ Use the notebook's *Quality evaluation* section to score the files with `pesq-py
 
 ### Step 6 – Score with ViSQOL
 
-Run the notebook's scoring cells with `visqol` (`VISQOL_BIN`). The helper resamples both files to 16 kHz and invokes speech mode with the packaged deep lattice model (`VISQOL_MODEL` in `lib/core.py`) and `--use_unscaled_speech_mos_mapping`; record the model and options with the tool version because score mapping affects comparisons.
+Run the notebook's scoring cells with `visqol` (`VISQOL_BIN`). The helper resamples both files to 16 kHz and invokes speech mode with the packaged deep lattice model (`VISQOL_MODEL` in `lib/core.py`). The lattice model predicts the MOS that listeners would give, so even a recording identical to its reference scores below 5, typically about 4.1–4.7 depending on the signal; score the reference against itself once and treat that value as the ceiling of your setup. Record the model and options with the tool version, because the similarity-to-MOS mapping changes the absolute scores.
 
 The notebook combines these estimates with hand-entered network statistics and listener ratings. Treat `NaN` as an unavailable result and check that both packages are installed if a score is missing. Compare how the methods rank the conditions and where their trends disagree. Do not infer a universal ordering of PESQ and ViSQOL from one recording or a small listener group.
 
